@@ -479,9 +479,7 @@ class DownloadNotificationService extends ChangeNotifier {
       return;
     }
 
-    final liveTask = task;
-    if (liveTask == null) return;
-    final content = downloadNotificationFor(liveTask, modelName: modelName);
+    final content = downloadNotificationFor(task, modelName: modelName);
     if (content == null || _foregroundNotificationId == content.id) return;
 
     try {
