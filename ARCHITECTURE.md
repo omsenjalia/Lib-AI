@@ -17,6 +17,7 @@ layer that knows the internet exists.
 | **flutter_markdown + flutter_highlight** | Markdown is a solved problem; the code-block case is not, which is why highlighting is a separate renderer fed by a block splitter (`lib/core/utils/markdown_blocks.dart`) rather than a markdown plugin. `flutter_markdown` was chosen because the brief specifies it; it has since been discontinued upstream in favour of `flutter_markdown_plus`, which is API-compatible — that swap is a one-line change if it ever becomes necessary. |
 | **flutter_math_fork + pdf** | TeX rendering that runs offline in pure Dart, and a PDF writer whose built-in fonts need no download. Chapter 5 explains the font constraint this creates. |
 | **flutter_local_notifications + a small Android foreground service** | A user-started multi-gigabyte transfer needs both an in-place notification and an OS-visible `dataSync` lifetime while the screen is off. The service does not own HTTP or create a second `DownloadManager`; Flutter continues to own the transfer, and the plugin updates the service notification by stable id. |
+| **saf (Android Storage Access Framework)** | Optional, user-selected model storage through `ACTION_OPEN_DOCUMENT_TREE` with a persisted read/write grant. It avoids broad storage permissions; app-private model storage remains the default and the fallback if access is revoked. |
 
 Deliberately **not** used: `go_router` (five screens, `Navigator` is enough),
 `flutter_dotenv` (no backend, no secrets), `share_plus` (the PDF export shares
@@ -31,7 +32,7 @@ lib/main.dart                 ProviderScope -> LibraryAiApp
 lib/app.dart                  theme, bootstrap (notifications, sweep, hydrate, scheduler)
 lib/features/<feature>/       screens and widgets; read services through providers
 lib/core/providers/           the graph: services, plus the app-wide ChatController
-lib/core/services/            inference, downloads, notifications, updates, export
+lib/core/services/            inference, downloads, SAF storage/adoption/migration, notifications, updates, export
 lib/core/data/                drift tables, AppDatabase, DAOs
 lib/core/models/              immutable value objects (catalogue, settings, transfer)
 lib/core/utils/               pure Dart: LaTeX, markdown blocks, PDF text, formatting
@@ -83,7 +84,8 @@ Two consequences the app does not hide:
 ChatController.send()
   ├─ resolve or create the conversation row (title from the first message)
   ├─ ensureModelLoaded()
-  │    ├─ installation record -> local paths                  (SQLite)
+  │    ├─ installation record -> app path or SAF content URI  (SQLite)
+  │    ├─ StoragePaths opens a SAF fd as /proc/self/fd/<n>     (if needed)
   │    ├─ catalogue entry -> QuantOption, context ceiling     (bundled asset)
   │    └─ InferenceEngine.load()
   │         ├─ verifying      file exists and is not truncated
@@ -126,13 +128,17 @@ would be a guess).
 | Setting | Status |
 |---|---|
 | `top_k` | Persisted and displayed, **not applied**. fllama's `OpenAiRequest` has no top-k field. The Settings screen says so in-line. |
-| `n_gpu_layers` | Passed through to llama.cpp; the bundled native build targets CPU inference, so it currently has no effect. Labelled as such under Advanced. |
+| `n_gpu_layers` | Requested layers are used only when `fllamaGpuMemoryInfoGetAll()` reports a real GPU backend. The pinned Android CMake build enables neither OpenCL nor Vulkan, so the Galaxy S25 currently runs CPU-only; the engine forces zero GPU layers and retries CPU if a GPU warm-up fails. |
 
-The Phase 2 upgrade path is `llama_cpp_dart`, which ships an arm64-v8a AAR with
-OpenCL and Hexagon NPU backends, `MultimodalParams(mmprojPath:)`, token streaming
-and session save/load. Swapping engines would both apply top-k and turn the GPU
-layer slider into a real control. It is not used in v1 because it is a much
-larger native dependency than the current one.
+The pinned `Telosnex/fllama` source enables Vulkan only on Windows and Metal on
+Apple platforms. Its Android CMake branch contains ARM CPU optimizations but
+does not enable an Android GPU backend. The Settings screen probes the native
+GPU enumerator and hides the layer slider when no device is reported. The S25's
+Adreno GPU therefore is **not accelerated by this build**; no performance claim
+is made. A future Android build must actually compile and package a supported
+backend (for example, Vulkan/OpenCL) before the control can appear. The separate
+`llama_cpp_dart` project ships OpenCL and Hexagon NPU artifacts, but switching
+engines is a native dependency decision and has not been done here.
 
 ### 3.4 Failure handling
 
@@ -157,18 +163,23 @@ explicit, so behaviour does not silently depend on that pragma.
 
 | Table | Purpose | Notes |
 |---|---|---|
-| `subject_tags` | Nine seeded subjects plus custom ones | `colorValue` is an ARGB int; `isBuiltIn` only prevents deletion |
+| `subject_tags` | Retired legacy table | Kept for Drift schema compatibility only; v2 clears its rows and the app no longer reads or writes tags |
 | `personas` | Six seeded study personas plus custom ones | `systemPrompt` is sent before every turn |
-| `conversations` | One chat thread | `subjectTagId` and `personaId` are nullable FKs; `modelId` is a catalogue string, **not** a row id, so a thread survives its model being deleted; `contextLengthOverride` allows per-thread context |
+| `conversations` | One chat thread | Legacy `subjectTagId` is cleared by v2 and no longer used; `personaId` is nullable; `modelId` is a catalogue string, **not** a row id, so a thread survives its model being deleted; `contextLengthOverride` allows per-thread context |
 | `messages` | One turn | `role` is text; `imagePath` points at an app-private attachment copy; `isError` distinguishes a stored failure from something the model said; `renderMath` is the per-message toggle; `tokenCount` + `isEstimatedTokens` keep the meter honest |
-| `model_installations` | Downloaded models, **keyed by `modelId`** | One active quantisation per model: switching quant means downloading again. Holds `localPath`, `mmprojPath`, the verified `sha256`, and the `repoSha` / `repoLastModified` baseline the update checker compares against |
+| `model_installations` | Downloaded or re-adopted models, **keyed by `modelId`** | One active quantisation per model: switching quant means downloading again. Holds `localPath` and `mmprojPath` as app paths or SAF content URIs, the verified `sha256`, and the `repoSha` / `repoLastModified` baseline the update checker compares against |
 | `model_update_checks` | Throttle and result of the last check | `lastCheckedAt` enforces once-per-24h; `updateAvailable` is display-only and never triggers a download |
 | `setting_entries` | Key/value preferences | `SettingKeys` constants; unparseable values fall back to defaults so a corrupt preference cannot stop startup |
 | `documents` | **Phase 2 placeholder** | `pageCount`, `chunkCount`, `embeddingModelId` |
 | `document_chunks` | **Phase 2 placeholder** | `chunkIndex`, `content`, `tokenCount`, `embedding` as a float32 blob |
 
-Schema version is 1. Generated drift code (`database.g.dart`) is not committed;
-CI runs `build_runner` before compiling.
+Schema version is 2. Version 2 clears legacy conversation tag assignments, the
+old tag rows, and the stored default-tag preference; it retains those old SQL
+columns/tables solely to keep the checked-in generated Drift schema compatible.
+The selected model-tree URI and display name are ordinary `setting_entries`
+keys, so SAF does not require another schema migration. Generated Drift code
+(`database.g.dart`) is not hand-edited; CI runs
+`build_runner` before compiling.
 
 ---
 
@@ -231,23 +242,48 @@ read on paper and in other people's viewers.
 ### 6.1 Storage layout
 
 ```
-<app support>/                    internal; never shown to the user
+<app support>/                    default and grant-revocation fallback
   models/<modelId>/<file>.gguf    the quantisation
   models/<modelId>/mmproj-*.gguf  the vision projector, when there is one
   attachments/<timestamp>.jpg     images attached to a turn
+
+<user-selected SAF tree>/         optional; persisted ACTION_OPEN_DOCUMENT_TREE grant
+  models/<modelId>/<file>.gguf    same managed layout, reached as content URIs
 
 <app external files>/LibraryAI/   Android/data/<package>/files/LibraryAI
   exports/*.pdf, *.zip            reachable from a file manager or over USB
 ```
 
-Models go in app-support storage: they are multi-gigabyte internal data that
-should not appear in a file picker. Attachments are **copied** out of the camera
-app's cache, which the system may clear at any time, into app storage, so a
-message is never left pointing at a file that no longer exists. Exports go to the
-external files directory so they can actually be opened, with a fallback to
-documents where that is unavailable.
+App-support is the default for multi-gigabyte model data. The user may opt into a
+folder through Android's Storage Access Framework; the app holds only a
+persisted read/write grant to that selected tree, and its own files are kept in a
+`models/` subdirectory. If the grant is missing or the document provider becomes
+unavailable, new operations safely fall back to app-private storage and the chat
+screen shows one dismissible in-app banner with the reason. Choosing the folder
+again re-establishes the grant and triggers a local scan for known model names;
+each candidate is streaming-hash-verified against the bundled catalogue before
+its installation row is adopted, so a reinstall can reuse files without
+re-downloading them. Files in the user-selected tree remain on-device after
+uninstall, but Android removes the app's permission and the user must select the
+folder again after reinstall. App-private model files do not survive uninstall;
+Settings reports remaining private model bytes through `hasFragileUserData` and
+warns that they must be moved before uninstall if they need to be kept.
 
-No storage permission is required anywhere: all of it is app-scoped.
+`ModelInstallation.localPath` remains a string for compatibility, but may be a
+normal app path or a SAF `content://` URI. `StoragePaths` opens SAF model files
+through a retained native descriptor and gives fllama its `/proc/self/fd/<n>`
+path for the duration of the loaded model. Moving models is a per-model,
+resumable operation: it streams to `.move.part`, verifies the destination,
+updates the installation row, and only then removes the old copy. Pending model
+ids are stored in `setting_entries`; an interrupted move can be resumed from
+Settings. Attachments are **copied** out of the camera app's cache, which the
+system may clear at any time, into app storage, so a message is never left
+pointing at a file that no longer exists. Exports go to the external files
+directory so they can actually be opened, with a fallback to documents where
+that is unavailable.
+
+No broad storage permission is declared. The system document picker grants
+access only to the folder the user selected; all other files remain app-scoped.
 
 ### 6.2 Downloads
 
@@ -267,7 +303,16 @@ No storage permission is required anywhere: all of it is app-scoped.
 
 Progress is reported per file, with file *n* of *m* when a projector is included,
 because a second transfer starting from zero otherwise looks like a restart.
-Interrupted `.part` files are swept on every launch.
+Network failures, a two-minute inactivity timeout, and the Pause action leave the
+flushed `.part` file in place. On the next explicit retry the manager sends
+`Range: bytes=N-`, requires a matching `206 Content-Range` and catalogue file
+length, hashes the saved prefix together with new bytes, and checks the complete
+catalogue SHA-256 before promotion. If the server ignores ranges, returns a
+stale range, or the resumed digest is wrong, the partial is discarded and one
+fresh full request is attempted. App launch never deletes download parts; the
+Settings cleanup action explicitly discards them. `.move.part` files remain
+preserved while their pending model id exists; pressing Resume re-streams and
+re-verifies a storage migration before switching its installation row.
 
 ### 6.3 The download notification
 
@@ -278,9 +323,9 @@ know from the Play Store:
 ```
 phase          what is shown                                  actions
 ─────────────  ─────────────────────────────────────────────  ─────────────
-downloading    "42% · 1.05 GB of 2.49 GB · 12.3 MB/s · 3m      Cancel
+downloading    "42% · 1.05 GB of 2.49 GB · 12.3 MB/s · 3m      Pause
                20s left", determinate bar, in place
-verifying      "Verifying <model>", indeterminate bar          Cancel
+verifying      "Verifying <model>", indeterminate bar          Pause
 complete       "<model> is ready · Tap to open the Model       tap → library
                Library", dismissible
 failed         "<model> could not be downloaded · <reason>"
@@ -299,10 +344,10 @@ service. It begins only when the first file is actively downloading or being
 verified, and stops when the active-task map becomes empty. The service takes a
 partial wake lock and Wi-Fi lock for that interval so Doze does not suspend a
 large transfer when the screen turns off. It does not own the Dio stream or
-resume work after the process dies; `.part` files are still swept at next launch.
+restart work after process death; partial bytes survive for the next user retry.
 The service's initial notification uses the same stable id and progress channel
 as the first active model, then `flutter_local_notifications` replaces it with
-the complete per-model text and Cancel action. The manifest declares the
+the complete per-model text and Pause action. The manifest declares the
 `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_DATA_SYNC` and lock permissions only
 for this user-initiated transfer path; no storage permission is added. This is
 the Play-policy user-initiated data-transfer case, not background polling.
@@ -406,13 +451,16 @@ What is still needed:
 
 Stated here rather than discovered by a user:
 
-1. **Top-k and GPU layers do not affect inference.** See 3.3.
+1. **Top-k is not applied.** The pinned Android build has no GPU backend, so
+   runtime capability detection keeps inference on CPU. If a future native build
+   ships a supported GPU backend but warm-up fails, the engine retries on CPU.
+   See 3.3.
 2. **`unload()` is not immediate**, because fllama has no unload call. The model
    switcher says so, and switching models briefly holds two contexts.
 3. **Free disk space is not pre-checked** before a download. Dart's `dart:io` has
    no `statvfs`, so the confirmation dialog reports the size and what models
-   already occupy instead of a free-space figure. Running out of space during a
-   transfer fails cleanly and the partial file is removed.
+   already occupy instead of a free-space figure. Running out of space fails
+   cleanly and leaves any flushed partial bytes for a validated retry.
 4. **The bulk export is a ZIP, and a ZIP cannot go through the system share
    sheet** from this app's printing integration. It is written to the exports
    directory (whose path is shown) and individual conversations can be shared as

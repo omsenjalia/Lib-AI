@@ -11,7 +11,6 @@ import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/meter_bar.dart';
-import '../../../core/widgets/tag_chip.dart';
 import '../../../core/widgets/update_banner.dart';
 import '../../conversations/widgets/conversation_sidebar.dart';
 import '../../model_library/screens/model_library_screen.dart';
@@ -21,7 +20,6 @@ import '../widgets/message_bubble.dart';
 import '../widgets/message_composer.dart';
 import '../widgets/model_switcher_sheet.dart';
 import '../widgets/persona_picker_sheet.dart';
-import '../widgets/tag_picker_sheet.dart';
 
 /// The main screen: conversation sidebar (drawer) plus chat panel.
 ///
@@ -60,9 +58,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final conversations = ref.watch(conversationsProvider).valueOrNull;
     final updates = ref.watch(updateStateProvider).valueOrNull;
     final bannerDismissed = ref.watch(updateBannerDismissedProvider);
+    final storageStatus = ref.watch(modelStorageStatusProvider).valueOrNull;
+    final storageWarningDismissed =
+        ref.watch(storageWarningDismissedProvider);
 
     final conversation = _conversationFor(conversations, chat.conversationId);
-    final tag = _tagFor(ref, conversation?.subjectTagId);
     final persona = _personaFor(ref, conversation?.personaId);
 
     // Auto-scroll only when the user is already near the bottom, so reading back
@@ -113,7 +113,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 : (share) => _export(
                       chat,
                       conversation,
-                      tag,
                       persona,
                       model,
                       share: share,
@@ -123,14 +122,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 : () => _deleteConversation(context, conversation),
           ),
         ],
-        bottom: conversation == null && tag == null && persona == null
+        bottom: conversation == null && persona == null
             ? null
             : PreferredSize(
                 preferredSize: const Size.fromHeight(34),
-                child: _ChipsRow(
-                  tag: tag,
+                child: _PersonaChipRow(
                   persona: persona,
-                  onTapTag: () => _pickTag(context, chat, conversation),
                   onTapPersona: () =>
                       _pickPersona(context, chat, conversation),
                 ),
@@ -138,6 +135,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          if (storageStatus?.warning != null && !storageWarningDismissed)
+            MaterialBanner(
+              content: Text(storageStatus!.warning!),
+              leading: const Icon(Icons.folder_off_outlined),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    ref.read(storageWarningDismissedProvider.notifier).state =
+                        true;
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Choose folder'),
+                ),
+                TextButton(
+                  onPressed: () => ref
+                      .read(storageWarningDismissedProvider.notifier)
+                      .state = true,
+                  child: const Text('Dismiss'),
+                ),
+              ],
+            ),
           if (pendingUpdates.isNotEmpty && !bannerDismissed)
             UpdateBanner(
               title: 'Model update available',
@@ -250,8 +272,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           icon: const Icon(Icons.library_books_rounded, size: 17),
           label: const Text('Open Model Library'),
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.accent,
-            foregroundColor: const Color(0xFF1A1A2E),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
           ),
         ),
       );
@@ -333,19 +355,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  Future<void> _pickTag(
-    BuildContext context,
-    ChatController chat,
-    Conversation? conversation,
-  ) async {
-    final chosen = await TagPickerSheet.show(
-      context,
-      selectedId: conversation?.subjectTagId,
-    );
-    if (chosen == null) return;
-    await chat.setSubjectTag(chosen == -1 ? null : chosen);
-  }
-
   Future<void> _pickPersona(
     BuildContext context,
     ChatController chat,
@@ -415,7 +424,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _export(
     ChatController chat,
     Conversation conversation,
-    SubjectTag? tag,
     Persona? persona,
     CatalogueModel? model, {
     required bool share,
@@ -432,7 +440,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final bundle = ConversationExport(
       conversation: conversation,
       messages: chat.messages,
-      tag: tag,
       personaName: persona?.name,
       modelName: model?.displayName,
     );
@@ -473,16 +480,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return null;
   }
 
-  static SubjectTag? _tagFor(WidgetRef ref, int? tagId) {
-    if (tagId == null) return null;
-    final tags = ref.watch(subjectTagsProvider).valueOrNull;
-    if (tags == null) return null;
-    for (final tag in tags) {
-      if (tag.id == tagId) return tag;
-    }
-    return null;
-  }
-
   static Persona? _personaFor(WidgetRef ref, int? personaId) {
     if (personaId == null) return null;
     final personas = ref.watch(personasProvider).valueOrNull;
@@ -510,18 +507,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
-/// The subject/persona chip row under the app bar.
-class _ChipsRow extends StatelessWidget {
-  const _ChipsRow({
-    required this.tag,
+/// Optional persona control under the app bar. Conversation subjects are not
+/// assigned or surfaced; personas remain an explicit, per-thread choice.
+class _PersonaChipRow extends StatelessWidget {
+  const _PersonaChipRow({
     required this.persona,
-    required this.onTapTag,
     required this.onTapPersona,
   });
 
-  final SubjectTag? tag;
   final Persona? persona;
-  final VoidCallback onTapTag;
   final VoidCallback onTapPersona;
 
   @override
@@ -536,42 +530,24 @@ class _ChipsRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         children: [
-          if (tag != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: TagChip(
-                name: tag!.name,
-                colorValue: tag!.colorValue,
-                onTap: onTapTag,
-              ),
-            )
-          else
-            _AddChip(label: 'Subject', onTap: onTapTag, color: secondary),
           if (persona != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: ActionChip(
-                avatar: Text(persona!.emoji,
-                    style: const TextStyle(fontSize: 12)),
-                label: Text(
-                  persona!.name,
-                  style: const TextStyle(fontSize: 11.5),
-                ),
-                onPressed: onTapPersona,
-                visualDensity: VisualDensity.compact,
-                side: BorderSide(
-                  color: AppColors.accent.withValues(alpha: 0.4),
-                ),
+            ActionChip(
+              avatar: Text(persona!.emoji, style: const TextStyle(fontSize: 12)),
+              label: Text(
+                persona!.name,
+                style: const TextStyle(fontSize: 11.5),
+              ),
+              onPressed: onTapPersona,
+              visualDensity: VisualDensity.compact,
+              side: BorderSide(
+                color: AppColors.accent.withValues(alpha: 0.4),
               ),
             )
           else
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: _AddChip(
-                label: 'Persona',
-                onTap: onTapPersona,
-                color: secondary,
-              ),
+            _AddChip(
+              label: 'Persona',
+              onTap: onTapPersona,
+              color: secondary,
             ),
         ],
       ),
@@ -780,8 +756,11 @@ class _WelcomePrompt extends StatelessWidget {
                   color: AppColors.accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_stories_rounded,
-                    size: 22, color: AppColors.accent),
+                child: Icon(
+                  Icons.auto_stories_rounded,
+                  size: 22,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -937,7 +916,7 @@ class _EngineErrorCard extends StatelessWidget {
                   icon: const Icon(Icons.library_books_rounded, size: 15),
                   label: const Text('Try a smaller quant'),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.accent,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 30),
                   ),
@@ -951,7 +930,7 @@ class _EngineErrorCard extends StatelessWidget {
                   icon: const Icon(Icons.tune_rounded, size: 15),
                   label: const Text('Lower context length'),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.accent,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 30),
                   ),

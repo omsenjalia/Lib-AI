@@ -6,7 +6,6 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/tag_chip.dart';
 import '../../chat/providers/chat_controller.dart';
 import '../../notes/screens/notes_screen.dart';
 import '../../personas/screens/personas_screen.dart';
@@ -15,7 +14,7 @@ import '../../model_library/screens/model_library_screen.dart';
 
 /// The conversation list, shown as the chat screen's drawer.
 ///
-/// Grouping and search are both local: the list is a stream from SQLite, and
+/// Ordering and search are both local: the list is a stream from SQLite, and
 /// what the user types filters that in-memory list. Nothing here touches the
 /// network, which is what lets the sidebar work in airplane mode like every
 /// other screen.
@@ -55,7 +54,6 @@ class ConversationSidebar extends ConsumerStatefulWidget {
           onPressed: () async {
             final newId = await database.createConversation(
               title: conversation.title,
-              subjectTagId: conversation.subjectTagId,
               modelId: conversation.modelId,
               personaId: conversation.personaId,
             );
@@ -84,9 +82,6 @@ class ConversationSidebar extends ConsumerStatefulWidget {
 class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
   final _searchController = TextEditingController();
 
-  /// null means "no tag filter"; the sidebar then shows every subject.
-  int? _tagFilter;
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -98,7 +93,6 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
     final scheme = Theme.of(context).colorScheme;
     final isLight = scheme.brightness == Brightness.light;
     final conversations = ref.watch(conversationsProvider);
-    final tags = ref.watch(subjectTagsProvider).valueOrNull ?? const [];
     final chat = ref.watch(chatControllerProvider);
 
     return SafeArea(
@@ -107,7 +101,6 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
         children: [
           _header(context),
           _searchField(context, isLight),
-          _tagFilterRow(tags),
           const Divider(height: 1),
           Expanded(
             child: conversations.when(
@@ -125,12 +118,11 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
                         ? 'No conversations yet'
                         : 'Nothing matches',
                     message: rows.isEmpty
-                        ? 'Ask a question and it will be saved here, grouped by '
-                            'subject.'
-                        : 'Try a different search, or clear the subject filter.',
+                        ? 'Ask a question and your conversations will appear here.'
+                        : 'Try a different search term.',
                   );
                 }
-                return _groupedList(filtered, tags, chat);
+                return _conversationList(filtered, chat);
               },
             ),
           ),
@@ -208,126 +200,24 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
     );
   }
 
-  Widget _tagFilterRow(List<SubjectTag> tags) {
-    if (tags.isEmpty) return const SizedBox.shrink();
-
-    return SizedBox(
-      height: 32,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: ChoiceChip(
-              label: const Text('All', style: TextStyle(fontSize: 11)),
-              selected: _tagFilter == null,
-              onSelected: (_) => setState(() => _tagFilter = null),
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
-          for (final tag in tags)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: TagChip(
-                name: tag.name,
-                colorValue: tag.colorValue,
-                selected: _tagFilter == tag.id,
-                compact: true,
-                onTap: () => setState(
-                  () => _tagFilter = _tagFilter == tag.id ? null : tag.id,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Applies the search box and the tag filter.
+  /// Applies the search box to the local conversation stream.
   List<Conversation> _filter(List<Conversation> rows) {
     final query = _searchController.text.trim().toLowerCase();
 
     return rows.where((conversation) {
-      if (_tagFilter != null && conversation.subjectTagId != _tagFilter) {
-        return false;
-      }
       if (query.isEmpty) return true;
       return conversation.title.toLowerCase().contains(query) ||
           (conversation.modelId?.toLowerCase().contains(query) ?? false);
     }).toList(growable: false);
   }
 
-  Widget _groupedList(
+  Widget _conversationList(
     List<Conversation> rows,
-    List<SubjectTag> tags,
     ChatController chat,
   ) {
-    // Group by subject. Untagged threads collect under a single heading at the
-    // end rather than being scattered, so the list still reads as a list.
-    final byTag = <int?, List<Conversation>>{};
-    for (final conversation in rows) {
-      byTag.putIfAbsent(conversation.subjectTagId, () => []).add(conversation);
-    }
-
-    final orderedKeys = byTag.keys.toList()
-      ..sort((a, b) {
-        if (a == null) return 1;
-        if (b == null) return -1;
-        return a.compareTo(b);
-      });
-
-    SubjectTag? tagById(int? id) {
-      if (id == null) return null;
-      for (final tag in tags) {
-        if (tag.id == id) return tag;
-      }
-      return null;
-    }
-
     return ListView(
       padding: const EdgeInsets.only(bottom: 12),
-      children: [
-        for (final key in orderedKeys) ...[
-          _groupHeader(tagById(key)),
-          for (final conversation in byTag[key]!)
-            _tile(conversation, chat),
-        ],
-      ],
-    );
-  }
-
-  Widget _groupHeader(SubjectTag? tag) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-      child: Row(
-        children: [
-          if (tag != null) ...[
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: Color(tag.colorValue),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            tag?.name ?? 'Unsorted',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-              color: secondary,
-            ),
-          ),
-        ],
-      ),
+      children: [for (final conversation in rows) _tile(conversation, chat)],
     );
   }
 

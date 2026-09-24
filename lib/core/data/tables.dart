@@ -11,7 +11,9 @@ import 'package:drift/drift.dart';
 /// fllama's `Message` type, which is why the inference layer imports fllama
 /// behind a prefix.
 
-/// Study subjects. Every conversation has exactly one.
+/// Retired subject-tag table kept only for Drift schema compatibility.
+///
+/// Schema v2 clears all rows and assignments; application code must not use it.
 class SubjectTags extends Table {
   IntColumn get id => integer().autoIncrement()();
 
@@ -20,7 +22,7 @@ class SubjectTags extends Table {
   /// ARGB colour, stored as an int so no type converter is needed.
   IntColumn get colorValue => integer()();
 
-  /// Seeded tags are marked so the UI can explain why they cannot be deleted.
+  /// Legacy flag retained with the retired table for schema compatibility.
   BoolColumn get isBuiltIn =>
       boolean().withDefault(const Constant(false))();
 
@@ -52,6 +54,7 @@ class Conversations extends Table {
   /// Auto-generated from the first user message; renameable afterwards.
   TextColumn get title => text().withLength(min: 1, max: 200)();
 
+  /// Retired legacy FK. Schema v2 clears it; conversations are never tagged.
   IntColumn get subjectTagId =>
       integer().nullable().references(SubjectTags, #id)();
 

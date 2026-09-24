@@ -22,6 +22,9 @@ dependencies:
   path_provider: ^2.1.4
   path: ^1.9.0
 
+  # SAF-backed model storage without broad storage permissions.
+  saf: ^2.1.2
+
   # Connectivity monitoring for the model auto-update system.
   connectivity_plus: ^6.0.5
 
@@ -84,3 +87,19 @@ flutter:
   uses-material-design: true
   assets:
     - assets/models_catalogue.json
+    - assets/fonts/OFL-Inter.txt
+    - assets/fonts/OFL-Newsreader.txt
+    - assets/fonts/OFL-SourceCodePro.txt
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 400
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader-Variable.ttf
+          weight: 400
+    - family: SourceCodePro
+      fonts:
+        - asset: assets/fonts/SourceCodePro-Variable.ttf
+          weight: 400

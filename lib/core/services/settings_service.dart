@@ -43,8 +43,11 @@ class SettingsService {
       if (settings.defaultModelId == null) {
         await _db.deleteSetting(SettingKeys.defaultModelId);
       }
-      if (settings.defaultSubjectTagId == null) {
-        await _db.deleteSetting(SettingKeys.defaultSubjectTagId);
+      if (settings.modelStorageTreeUri == null) {
+        await _db.deleteSetting(SettingKeys.modelStorageTreeUri);
+      }
+      if (settings.modelStorageFolderName == null) {
+        await _db.deleteSetting(SettingKeys.modelStorageFolderName);
       }
     });
   }
@@ -58,7 +61,6 @@ class SettingsService {
     double? temperature,
     double? topP,
     int? topK,
-    int? defaultSubjectTagId,
     int? gpuLayers,
     bool? autoUpdateCheckEnabled,
   }) async {
@@ -69,17 +71,9 @@ class SettingsService {
       temperature: temperature,
       topP: topP,
       topK: topK,
-      defaultSubjectTagId: defaultSubjectTagId,
       gpuLayers: gpuLayers,
       autoUpdateCheckEnabled: autoUpdateCheckEnabled,
     );
-    await save(next);
-    return next;
-  }
-
-  /// Clears the stored default subject tag.
-  Future<AppSettings> clearDefaultTag(AppSettings current) async {
-    final next = current.copyWith(clearDefaultSubjectTagId: true);
     await save(next);
     return next;
   }

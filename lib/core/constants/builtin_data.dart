@@ -1,31 +1,4 @@
-/// The subject tags and study personas Library AI ships with.
-///
-/// These are seeded into SQLite on first launch. Users can add their own; the
-/// built-ins are marked so the UI can explain why they cannot be deleted.
-library;
-
-/// A tag seeded on first run.
-class SeedTag {
-  const SeedTag(this.name, this.colorValue);
-
-  final String name;
-
-  /// ARGB value stored directly as an int so the data layer needs no converter.
-  final int colorValue;
-}
-
-/// The default subject tags, matching the brief.
-const List<SeedTag> defaultSubjectTags = [
-  SeedTag('Maths', 0xFF7FA6D9),
-  SeedTag('Physics', 0xFF9C8FD9),
-  SeedTag('CS Theory', 0xFF6FB3A8),
-  SeedTag('Programming', 0xFFE8A838),
-  SeedTag('Networks', 0xFFD98F7F),
-  SeedTag('OS', 0xFF8FB86F),
-  SeedTag('DBMS', 0xFFD9B87F),
-  SeedTag('Algorithms', 0xFFB88FD9),
-  SeedTag('General', 0xFF8A8A9A),
-];
+/// The study personas Library AI ships with.
 
 /// A persona seeded on first run.
 class SeedPersona {

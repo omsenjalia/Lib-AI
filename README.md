@@ -4,9 +4,9 @@
 
 An offline-first AI study assistant for Android. Runs open-weight language models
 entirely on the phone: chat, conversation history, markdown and LaTeX rendering,
-code highlighting, subject tagging, study personas and PDF export all work with
-the radio off. The only thing the network is used for is downloading a model in
-the first place, and checking whether one you already have has changed upstream.
+code highlighting, study personas and PDF export all work with the radio off.
+The only thing the network is used for is downloading a model and checking
+whether one you already have has changed upstream.
 
 Built for and tested against a Samsung Galaxy S25 (Android 15, Snapdragon 8
 Elite, 8 GB/12 GB RAM).
@@ -17,21 +17,24 @@ Elite, 8 GB/12 GB RAM).
 
 | Screen | What is there |
 |---|---|
-| **Chat** | Conversation sidebar (search, swipe-delete with undo, grouped by subject), Claude-style message layout, tappable model switcher, live context-window meter, subject and persona chips |
-| **Model Library** | Six catalogued models, quantisation dropdown with real sizes and checksums, download progress with speed and ETA, a Play-Store-style download notification with a cancel action, update badges, per-model storage |
+| **Chat** | Recent conversation list (search, swipe-delete with undo), a clean message layout, tappable model switcher, live context-window meter, optional persona picker |
+| **Model Library** | Six catalogued models, quantisation dropdown with real sizes and checksums, download progress with speed and ETA, a download notification with a pause action, resumable transfers, update badges, per-model storage |
 | **Study Personas** | Six built-in prompts (tutor, code reviewer, maths tutor, exam coach, paper explainer, essay editor) plus your own |
-| **Settings** | Theme, default model and subject, context-length slider, sampling parameters, per-model storage, ZIP export, update policy |
+| **Settings** | Theme, default model, context-length slider, sampling parameters, per-model storage, ZIP export, update policy |
 | **My Notes** | Placeholder. Import and retrieval are Phase 2; the schema is already in place. |
 
 Study features: markdown rendering, syntax-highlighted code blocks with a copy
 button, inline `$...$` and display `$$...$$` LaTeX, a per-message "Render math"
 toggle for models that emit bare LaTeX, OCR mode (camera → multimodal image
-input, refused for text-only models), PDF export, and nine subject tags.
+input, refused for text-only models), and PDF export.
 
 A download of the 5-7 GB models takes long enough that the app cannot be the only
 place progress exists, so a transfer also posts a notification: a determinate
-progress bar with speed and ETA, a **Cancel** action, then a "ready" notification
-that opens the Model Library. `POST_NOTIFICATIONS` is requested at the moment a
+progress bar with speed and ETA, a **Pause** action that keeps resumable bytes,
+then a "ready" notification that opens the Model Library. Network failures,
+timeouts, and app pauses also preserve partial data; retry validates the saved
+prefix and requests only the remaining byte range. `POST_NOTIFICATIONS` is
+requested at the moment a
 download starts — after the confirmation dialog — and declining it removes
 nothing but the notification.
 

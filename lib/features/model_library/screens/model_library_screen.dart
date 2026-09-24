@@ -34,11 +34,21 @@ class _NotificationPermissionHint extends StatelessWidget {
 /// This is the only screen in the app allowed to talk to the network, and every
 /// transfer on it starts from a tap. The catalogue itself is a bundled asset, so
 /// the screen renders identically offline.
-class ModelLibraryScreen extends ConsumerWidget {
-  const ModelLibraryScreen({super.key});
+class ModelLibraryScreen extends ConsumerStatefulWidget {
+  const ModelLibraryScreen({super.key, this.reDownloadModelId});
+
+  final String? reDownloadModelId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ModelLibraryScreen> createState() =>
+      _ModelLibraryScreenState();
+}
+
+class _ModelLibraryScreenState extends ConsumerState<ModelLibraryScreen> {
+  bool _reDownloadStarted = false;
+
+  @override
+  Widget build(BuildContext context) {
     final catalogue = ref.watch(catalogueProvider);
     final installs = ref.watch(installationsProvider).valueOrNull ?? const [];
     final tasks = ref.watch(downloadTasksProvider).valueOrNull ?? const {};
@@ -71,6 +81,13 @@ class ModelLibraryScreen extends ConsumerWidget {
           ),
         ),
         data: (data) {
+          final reDownloadModel = data.byId(widget.reDownloadModelId);
+          if (reDownloadModel != null && !_reDownloadStarted) {
+            _reDownloadStarted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _download(context, ref, reDownloadModel);
+            });
+          }
           return ListView(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
             children: [
@@ -263,11 +280,16 @@ class ModelLibraryScreen extends ConsumerWidget {
       includeMmproj: includeMmproj,
     );
     final usedBytes = await ref.read(databaseProvider).totalModelBytes();
+    final previousTask =
+        ref.read(downloadTasksProvider).valueOrNull?[model.id];
 
     if (!context.mounted) return;
     final details = <String>[
       'Download size: ${formatBytes(total)}'
-          '${includeMmproj ? ' (model plus vision projector)' : ''}',
+          '${includeMmproj ? ' (model plus vision projector)' : ''}'
+          '${previousTask != null && previousTask.receivedBytes > 0 ? ' · ${formatBytes(previousTask.receivedBytes)} already saved' : ''}',
+      if (previousTask != null && previousTask.receivedBytes > 0)
+        'The saved partial is checked and only the missing bytes are requested.',
       'Approximate RAM needed to run: ${model.ramRequirementGb.toStringAsFixed(1)} GB',
       if (usedBytes > 0)
         'Models already on this device: ${formatBytes(usedBytes)}',
@@ -280,9 +302,12 @@ class ModelLibraryScreen extends ConsumerWidget {
     final confirmed = await ConfirmDialog.show(
       context,
       title: 'Download ${model.displayName}?',
-      message: 'The file downloads once and is then available offline '
-          'permanently. It is verified with SHA-256 before use.',
-      confirmLabel: 'Download',
+      message: 'Model files are available offline after download. If a '
+          'transfer was interrupted, saved bytes are validated and resumed '
+          'automatically; the completed file is checked with SHA-256.',
+      confirmLabel: previousTask != null && previousTask.receivedBytes > 0
+          ? 'Resume'
+          : 'Download',
       icon: Icons.download_rounded,
       destructive: !model.fitsTargetDevice,
       details: details,

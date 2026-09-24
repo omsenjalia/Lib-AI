@@ -21,14 +21,12 @@ class ConversationExport {
   const ConversationExport({
     required this.conversation,
     required this.messages,
-    this.tag,
     this.personaName,
     this.modelName,
   });
 
   final Conversation conversation;
   final List<Message> messages;
-  final SubjectTag? tag;
   final String? personaName;
   final String? modelName;
 
@@ -222,7 +220,6 @@ class PdfExportService {
   ) {
     final conversation = bundle.conversation;
     final meta = <String>[
-      if (bundle.tag != null) bundle.tag!.name,
       if (bundle.modelName != null) bundle.modelName!,
       if (bundle.personaName != null) bundle.personaName!,
       formatAbsoluteTime(conversation.createdAt),

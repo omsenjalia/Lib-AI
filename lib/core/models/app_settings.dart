@@ -11,9 +11,10 @@ abstract final class SettingKeys {
   static const String temperature = 'temperature';
   static const String topP = 'top_p';
   static const String topK = 'top_k';
-  static const String defaultSubjectTagId = 'default_subject_tag_id';
   static const String gpuLayers = 'gpu_layers';
   static const String autoUpdateCheckEnabled = 'auto_update_check_enabled';
+  static const String modelStorageTreeUri = 'model_storage_tree_uri';
+  static const String modelStorageFolderName = 'model_storage_folder_name';
 }
 
 /// Every user-facing preference, with the brief's defaults.
@@ -29,9 +30,10 @@ class AppSettings {
     this.temperature = AppConstants.defaultTemperature,
     this.topP = AppConstants.defaultTopP,
     this.topK = AppConstants.defaultTopK,
-    this.defaultSubjectTagId,
     this.gpuLayers = AppConstants.defaultGpuLayers,
     this.autoUpdateCheckEnabled = true,
+    this.modelStorageTreeUri,
+    this.modelStorageFolderName,
   });
 
   /// Dark-mode-first, per the brief.
@@ -49,9 +51,13 @@ class AppSettings {
   /// than pretending the slider does something. See ARCHITECTURE.md.
   final int topK;
 
-  final int? defaultSubjectTagId;
   final int gpuLayers;
   final bool autoUpdateCheckEnabled;
+
+  /// SAF document-tree grant chosen by the user for GGUF files. A URI is only
+  /// used while Android still reports a persisted read/write grant for it.
+  final String? modelStorageTreeUri;
+  final String? modelStorageFolderName;
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -61,10 +67,11 @@ class AppSettings {
     double? temperature,
     double? topP,
     int? topK,
-    int? defaultSubjectTagId,
-    bool clearDefaultSubjectTagId = false,
     int? gpuLayers,
     bool? autoUpdateCheckEnabled,
+    String? modelStorageTreeUri,
+    String? modelStorageFolderName,
+    bool clearModelStorageLocation = false,
   }) =>
       AppSettings(
         themeMode: themeMode ?? this.themeMode,
@@ -75,12 +82,15 @@ class AppSettings {
         temperature: temperature ?? this.temperature,
         topP: topP ?? this.topP,
         topK: topK ?? this.topK,
-        defaultSubjectTagId: clearDefaultSubjectTagId
-            ? null
-            : (defaultSubjectTagId ?? this.defaultSubjectTagId),
         gpuLayers: gpuLayers ?? this.gpuLayers,
         autoUpdateCheckEnabled:
             autoUpdateCheckEnabled ?? this.autoUpdateCheckEnabled,
+        modelStorageTreeUri: clearModelStorageLocation
+            ? null
+            : (modelStorageTreeUri ?? this.modelStorageTreeUri),
+        modelStorageFolderName: clearModelStorageLocation
+            ? null
+            : (modelStorageFolderName ?? this.modelStorageFolderName),
       );
 
   /// Reads the persisted map, falling back to defaults for anything absent or
@@ -98,10 +108,11 @@ class AppSettings {
           asDouble(SettingKeys.temperature) ?? AppConstants.defaultTemperature,
       topP: asDouble(SettingKeys.topP) ?? AppConstants.defaultTopP,
       topK: asInt(SettingKeys.topK) ?? AppConstants.defaultTopK,
-      defaultSubjectTagId: asInt(SettingKeys.defaultSubjectTagId),
       gpuLayers: asInt(SettingKeys.gpuLayers) ?? AppConstants.defaultGpuLayers,
       autoUpdateCheckEnabled:
           map[SettingKeys.autoUpdateCheckEnabled] != 'false',
+      modelStorageTreeUri: map[SettingKeys.modelStorageTreeUri],
+      modelStorageFolderName: map[SettingKeys.modelStorageFolderName],
     );
   }
 
@@ -117,8 +128,10 @@ class AppSettings {
         SettingKeys.autoUpdateCheckEnabled: '$autoUpdateCheckEnabled',
         if (defaultModelId != null)
           SettingKeys.defaultModelId: defaultModelId!,
-        if (defaultSubjectTagId != null)
-          SettingKeys.defaultSubjectTagId: '$defaultSubjectTagId',
+        if (modelStorageTreeUri != null)
+          SettingKeys.modelStorageTreeUri: modelStorageTreeUri!,
+        if (modelStorageFolderName != null)
+          SettingKeys.modelStorageFolderName: modelStorageFolderName!,
       };
 
   static ThemeMode _themeModeFromName(String? name) {
@@ -142,9 +155,10 @@ class AppSettings {
       other.temperature == temperature &&
       other.topP == topP &&
       other.topK == topK &&
-      other.defaultSubjectTagId == defaultSubjectTagId &&
       other.gpuLayers == gpuLayers &&
-      other.autoUpdateCheckEnabled == autoUpdateCheckEnabled;
+      other.autoUpdateCheckEnabled == autoUpdateCheckEnabled &&
+      other.modelStorageTreeUri == modelStorageTreeUri &&
+      other.modelStorageFolderName == modelStorageFolderName;
 
   @override
   int get hashCode => Object.hash(
@@ -154,8 +168,9 @@ class AppSettings {
         temperature,
         topP,
         topK,
-        defaultSubjectTagId,
         gpuLayers,
         autoUpdateCheckEnabled,
+        modelStorageTreeUri,
+        modelStorageFolderName,
       );
 }

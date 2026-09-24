@@ -11,7 +11,10 @@ import '../services/download_manager.dart';
 import '../services/download_notification_service.dart';
 import '../services/huggingface_client.dart';
 import '../services/inference_engine.dart';
+import '../services/model_adoption_service.dart';
+import '../services/model_migration_service.dart';
 import '../services/settings_service.dart';
+import '../services/storage_paths.dart';
 import '../services/update_checker.dart';
 import '../services/update_scheduler.dart';
 
@@ -72,15 +75,6 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     );
   }
 
-  Future<void> setDefaultSubjectTag(int? tagId) async {
-    final current = state.valueOrNull ?? const AppSettings();
-    await save(
-      tagId == null
-          ? current.copyWith(clearDefaultSubjectTagId: true)
-          : current.copyWith(defaultSubjectTagId: tagId),
-    );
-  }
-
   Future<void> setContextLength(int length) async {
     final current = state.valueOrNull ?? const AppSettings();
     await save(current.copyWith(contextLength: length));
@@ -108,6 +102,24 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     await save(current.copyWith(autoUpdateCheckEnabled: enabled));
   }
 
+  Future<void> setModelStorageLocation({
+    required String treeUri,
+    required String folderName,
+  }) async {
+    final current = state.valueOrNull ?? const AppSettings();
+    await save(
+      current.copyWith(
+        modelStorageTreeUri: treeUri,
+        modelStorageFolderName: folderName,
+      ),
+    );
+  }
+
+  Future<void> clearModelStorageLocation() async {
+    final current = state.valueOrNull ?? const AppSettings();
+    await save(current.copyWith(clearModelStorageLocation: true));
+  }
+
   /// Called when the model named as the default is deleted from the device.
   Future<void> clearDefaultModelIf(String modelId) async {
     final current = state.valueOrNull;
@@ -127,6 +139,37 @@ final currentSettingsProvider = Provider<AppSettings>((ref) {
   return ref.watch(settingsControllerProvider).valueOrNull ??
       const AppSettings();
 });
+
+/// Injectable access to app-private and user-selected SAF model storage.
+final storagePathsProvider = Provider<StoragePaths>(
+  (ref) => StoragePaths(settings: ref.watch(settingsServiceProvider)),
+);
+
+/// Current model location, byte usage, and any revoked-grant fallback warning.
+final modelStorageStatusProvider = FutureProvider<ModelStorageStatus>(
+  (ref) => ref.watch(storagePathsProvider).modelStorageStatus(),
+);
+
+/// Session-level dismissal for a revoked model-folder grant warning.
+final storageWarningDismissedProvider = StateProvider<bool>((ref) => false);
+
+final modelAdoptionServiceProvider = Provider<ModelAdoptionService>(
+  (ref) => ModelAdoptionService(
+    database: ref.watch(databaseProvider),
+    storagePaths: ref.watch(storagePathsProvider),
+  ),
+);
+
+final modelMigrationServiceProvider = Provider<ModelMigrationService>(
+  (ref) => ModelMigrationService(
+    database: ref.watch(databaseProvider),
+    storagePaths: ref.watch(storagePathsProvider),
+  ),
+);
+
+final pendingModelMoveProvider = FutureProvider<bool>(
+  (ref) => ref.watch(modelMigrationServiceProvider).hasPendingMove,
+);
 
 // ----------------------------------------------------------------- catalogue
 
@@ -161,6 +204,7 @@ final downloadManagerProvider = Provider<DownloadManager>((ref) {
   final manager = DownloadManager(
     database: ref.watch(databaseProvider),
     connectivity: ref.watch(connectivityServiceProvider),
+    storagePaths: ref.watch(storagePathsProvider),
   );
   ref.onDispose(manager.dispose);
   return manager;
@@ -180,8 +224,8 @@ final downloadTasksProvider = StreamProvider<Map<String, DownloadTask>>(
 /// root - which is allowed to know about screens - does the pushing.
 final openModelLibraryRequestProvider = StateProvider<int>((ref) => 0);
 
-/// Posts the Play-Store-style progress notification for each download, and
-/// routes its Cancel action back to [DownloadManager].
+/// Posts the progress notification for each download, and routes its Pause
+/// action back to [DownloadManager].
 final downloadNotificationServiceProvider =
     ChangeNotifierProvider<DownloadNotificationService>((ref) {
   return DownloadNotificationService(
@@ -302,10 +346,16 @@ final totalModelBytesProvider = FutureProvider<int>(
 // ------------------------------------------------------------------ inference
 
 final inferenceEngineProvider = Provider<InferenceEngine>((ref) {
-  final engine = InferenceEngine();
+  final engine = InferenceEngine(storagePaths: ref.watch(storagePathsProvider));
   ref.onDispose(engine.dispose);
   return engine;
 });
+
+/// Native GPU capability as reported by the pinned inference backend. A false
+/// result is a CPU-only build/device and the engine will ignore GPU-layer asks.
+final gpuOffloadAvailabilityProvider = FutureProvider<bool>(
+  (ref) => ref.watch(inferenceEngineProvider).gpuOffloadAvailable,
+);
 
 /// Engine stage: unloaded, loading, ready, generating, failed.
 final engineStatusProvider = StreamProvider<EngineStatus>(
@@ -335,10 +385,6 @@ final activeModelIdProvider = Provider<String?>((ref) {
 });
 
 // --------------------------------------------------------------------- data
-
-final subjectTagsProvider = StreamProvider<List<SubjectTag>>(
-  (ref) => ref.watch(databaseProvider).watchSubjectTags(),
-);
 
 final personasProvider = StreamProvider<List<Persona>>(
   (ref) => ref.watch(databaseProvider).watchPersonas(),

@@ -67,7 +67,7 @@ class ConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final accent = destructive ? AppColors.error : AppColors.accent;
+    final accent = destructive ? scheme.error : scheme.primary;
     final secondary = scheme.brightness == Brightness.dark
         ? AppColors.textSecondary
         : AppColors.lightTextSecondary;
@@ -136,9 +136,9 @@ class ConfirmDialog extends StatelessWidget {
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: FilledButton.styleFrom(
-            backgroundColor: destructive ? AppColors.error : AppColors.accent,
+            backgroundColor: destructive ? scheme.error : scheme.primary,
             foregroundColor:
-                destructive ? Colors.white : const Color(0xFF1A1A2E),
+                destructive ? scheme.onError : scheme.onPrimary,
           ),
           child: Text(confirmLabel),
         ),

@@ -103,7 +103,7 @@ void main() {
       expect(content.isOngoing, isTrue);
       expect(content.isIndeterminate, isFalse);
       expect(content.hasProgressBar, isTrue);
-      expect(content.hasCancelAction, isTrue);
+      expect(content.hasPauseAction, isTrue);
       // Progress updates must not buzz on every few hundred kilobytes.
       expect(content.alertsOnce, isTrue);
     });
@@ -170,7 +170,7 @@ void main() {
       expect(content.body, contains('SHA-256'));
       expect(content.isOngoing, isTrue);
       expect(content.isIndeterminate, isTrue);
-      expect(content.hasCancelAction, isTrue);
+      expect(content.hasPauseAction, isTrue);
     });
   });
 
@@ -186,7 +186,7 @@ void main() {
       expect(content.body, contains('Model Library'));
       expect(content.percent, 100);
       expect(content.isOngoing, isFalse);
-      expect(content.hasCancelAction, isFalse);
+      expect(content.hasPauseAction, isFalse);
       // A completion is worth a fresh alert, unlike a progress update.
       expect(content.alertsOnce, isFalse);
     });
@@ -203,7 +203,7 @@ void main() {
       expect(content.kind, DownloadNotificationKind.failed);
       expect(content.title, 'Phi-4-mini-instruct could not be downloaded');
       expect(content.body, 'Downloaded file failed its integrity check.');
-      expect(content.hasCancelAction, isFalse);
+      expect(content.hasPauseAction, isFalse);
       expect(content.isOngoing, isFalse);
     });
 
@@ -217,7 +217,7 @@ void main() {
       expect(content.body, isNot(contains('null')));
     });
 
-    test('a cancellation dismisses the notification', () {
+    test('a paused transfer dismisses the notification', () {
       final content = downloadNotificationFor(
         task(phase: DownloadPhase.cancelled),
         modelName: 'Phi-4-mini-instruct',
@@ -274,7 +274,7 @@ void main() {
         modelName: 'Phi-4-mini-instruct',
       )!;
       expect(content.alertsOnce, isTrue);
-      expect(content.hasCancelAction, isTrue);
+      expect(content.hasPauseAction, isTrue);
     });
 
     test('complete and failed use their own alerting channel', () {

@@ -39,13 +39,28 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
           await _seedDefaults();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // Subject tags are retired. Keep the legacy columns/table in this
+            // schema version for safe upgrades, but clear every assignment and
+            // stored default so conversations are untagged after migration.
+            await customStatement(
+              'UPDATE conversations SET subject_tag_id = NULL',
+            );
+            await customStatement('DELETE FROM subject_tags');
+            await customStatement(
+              "DELETE FROM setting_entries "
+              "WHERE \"key\" = 'default_subject_tag_id'",
+            );
+          }
         },
         beforeOpen: (details) async {
           // Referential integrity is off by default in SQLite, and drift does
@@ -55,17 +70,9 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
-  /// Seeds the built-in tags and personas, once, on first creation.
+  /// Seeds the built-in personas, once, on first creation.
   Future<void> _seedDefaults() async {
     await batch((b) {
-      b.insertAll(subjectTags, [
-        for (final tag in defaultSubjectTags)
-          SubjectTagsCompanion.insert(
-            name: tag.name,
-            colorValue: tag.colorValue,
-            isBuiltIn: const Value(true),
-          ),
-      ]);
       b.insertAll(personas, [
         for (final persona in defaultPersonas)
           PersonasCompanion.insert(
@@ -77,29 +84,6 @@ class AppDatabase extends _$AppDatabase {
       ]);
     });
   }
-
-  // ------------------------------------------------------------- subject tags
-
-  Stream<List<SubjectTag>> watchSubjectTags() => (select(subjectTags)
-        ..orderBy([
-          (t) => OrderingTerm(expression: t.isBuiltIn, mode: OrderingMode.desc),
-          (t) => OrderingTerm(expression: t.name),
-        ]))
-      .watch();
-
-  Future<List<SubjectTag>> allSubjectTags() => select(subjectTags).get();
-
-  Future<int> insertSubjectTag(String name, int colorValue) =>
-      into(subjectTags).insert(
-        SubjectTagsCompanion.insert(name: name, colorValue: colorValue),
-      );
-
-  Future<SubjectTag?> tagById(int id) =>
-      (select(subjectTags)..where((t) => t.id.equals(id))).getSingleOrNull();
-
-  Future<void> deleteSubjectTag(int id) => (delete(subjectTags)
-        ..where((t) => t.id.equals(id)))
-      .go();
 
   // ---------------------------------------------------------------- personas
 
@@ -169,14 +153,12 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> createConversation({
     required String title,
-    int? subjectTagId,
     String? modelId,
     int? personaId,
   }) =>
       into(conversations).insert(
         ConversationsCompanion.insert(
           title: title,
-          subjectTagId: Value(subjectTagId),
           modelId: Value(modelId),
           personaId: Value(personaId),
         ),
@@ -185,8 +167,6 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateConversationMeta({
     required int id,
     String? title,
-    int? subjectTagId,
-    bool clearSubjectTag = false,
     String? modelId,
     int? personaId,
     bool clearPersona = false,
@@ -196,11 +176,6 @@ class AppDatabase extends _$AppDatabase {
       (update(conversations)..where((t) => t.id.equals(id))).write(
         ConversationsCompanion(
           title: title == null ? const Value.absent() : Value(title),
-          subjectTagId: clearSubjectTag
-              ? const Value(null)
-              : (subjectTagId == null
-                  ? const Value.absent()
-                  : Value(subjectTagId)),
           modelId:
               modelId == null ? const Value.absent() : Value(modelId),
           personaId: clearPersona
@@ -379,9 +354,9 @@ class AppDatabase extends _$AppDatabase {
 
   /// Removes a stored preference.
   ///
-  /// Needed because a cleared default model or tag has no "empty" representation
-  /// to write - `putSetting` could only store a string, which would then parse
-  /// back as a value rather than as absence.
+  /// Needed because an optional preference has no "empty" representation to
+  /// write - `putSetting` could only store a string, which would then parse back
+  /// as a value rather than as absence.
   Future<void> deleteSetting(String key) =>
       (delete(settingEntries)..where((t) => t.key.equals(key))).go();
 

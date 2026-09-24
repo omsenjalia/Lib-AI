@@ -46,13 +46,13 @@ const String kDownloadChannelDescription =
 /// a single colour, so a launcher icon here would render as a white blob.
 const String kDownloadIcon = 'ic_stat_download';
 
-/// Action id for the Cancel button. The app receives it back through
+/// Stable action id for the Pause button. The app receives it back through
 /// `onDidReceiveNotificationResponse`.
 const String kCancelDownloadAction = 'cancel_download';
 
 /// What a task should put on screen.
 enum DownloadNotificationKind {
-  /// A live transfer: determinate bar, cancel action.
+  /// A live transfer: determinate bar, pause action.
   progress,
 
   /// Bytes are down; the checksum is being computed. Indeterminate bar.
@@ -127,8 +127,8 @@ class DownloadNotificationContent {
   /// True when the bar is meaningful at all.
   bool get hasProgressBar => kind != DownloadNotificationKind.dismiss;
 
-  /// True when a Cancel button belongs on it.
-  bool get hasCancelAction => isOngoing;
+  /// True when a Pause button belongs on it.
+  bool get hasPauseAction => isOngoing;
 
   /// True when the notification should raise a fresh alert rather than being
   /// updated silently. Progress updates are silent; terminal states are not.
@@ -304,7 +304,7 @@ class DownloadNotificationDiagnostics {
 ///
 /// The service receives the same stable notification id as its first active
 /// model; [DownloadNotificationService.apply] then updates that notification
-/// with the full progress text and Cancel action.
+/// with the full progress text and Pause action.
 class ForegroundDownloadBridge {
   ForegroundDownloadBridge({MethodChannel? channel})
       : _channel = channel ?? const MethodChannel('library_ai/download_service');
@@ -367,7 +367,7 @@ class DownloadNotificationService extends ChangeNotifier {
     debugPrint('Library AI notification $source failed: $error');
   }
 
-  /// Called with a model id when the user taps **Cancel** on a notification.
+  /// Called with a model id when the user taps **Pause** on a notification.
   ///
   /// The action is declared with `showsUserInterface: true`, so Android brings
   /// the app forward and this runs on the main isolate with the download
@@ -596,11 +596,11 @@ class DownloadNotificationService extends ChangeNotifier {
       maxProgress: 100,
       progress: content.percent,
       indeterminate: content.isIndeterminate,
-      actions: content.hasCancelAction
+      actions: content.hasPauseAction
           ? <AndroidNotificationAction>[
               const AndroidNotificationAction(
                 kCancelDownloadAction,
-                'Cancel',
+                'Pause',
                 // Bring the app forward so the request is handled on the main
                 // isolate, where the download manager lives. The notification
                 // itself is left alone; the manager's own terminal state

@@ -13,8 +13,9 @@
       and declaring CAMERA without requesting it at runtime would break the
       capture intent instead of enabling it.
 
-      No storage permission is declared either: exports are written to app
-      storage and shared through the system share sheet.
+      No broad storage permission is declared. Optional model storage is
+      user-granted through ACTION_OPEN_DOCUMENT_TREE and a persisted SAF URI;
+      exports remain app-scoped and are shared through the system share sheet.
 
       POST_NOTIFICATIONS backs the download notification. Android 13+ requires
       it, it is requested only when the user starts a download, and a refusal

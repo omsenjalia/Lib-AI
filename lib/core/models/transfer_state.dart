@@ -91,7 +91,7 @@ class DownloadTask {
       case DownloadPhase.failed:
         return 'Download failed';
       case DownloadPhase.cancelled:
-        return 'Cancelled';
+        return 'Paused';
     }
   }
 
