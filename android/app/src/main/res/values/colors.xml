@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Library AI base surface: #1A1A2E. Kept in sync with AppColors.base in
+         lib/core/theme/app_colors.dart so the Android window behind the Flutter
+         surface matches the app's own background exactly. -->
+    <color name="library_launch_background">#FF1A1A2E</color>
+    <color name="library_accent">#FFE8A838</color>
+</resources>

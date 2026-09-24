@@ -1,0 +1,37 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets and signing - never commit these.
+.env
+*.keystore
+*.jks
+key.properties
+**/android/key.properties
+**/android/local.properties
+google-services.json
+
+# Android build output
+android/.gradle/
+android/app/.cxx/
+android/local.properties
+
+# CI analyzer artifacts (mirrors WeatherGPT)
+analyze.txt
+analyze-comment.md
+test-output.txt
+test-comment.md
+
+# Downloaded GGUF models must never enter git.
+*.gguf
+/models/

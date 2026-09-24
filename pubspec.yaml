@@ -1,0 +1,78 @@
+name: library_ai
+description: Library AI - offline-first AI study assistant for Android. Learn anywhere, no internet required.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+  flutter: '>=3.38.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management - same choice as WeatherGPT (flutter_riverpod).
+  flutter_riverpod: ^2.5.1
+
+  # Local data layer: SQLite via drift (type-safe ORM).
+  drift: ^2.20.1
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Connectivity monitoring for the model auto-update system.
+  connectivity_plus: ^6.0.5
+
+  # Networking - only ever used for model downloads and catalogue polling.
+  dio: ^5.7.0
+
+  # Model file integrity.
+  crypto: ^3.0.5
+
+  # Study features: markdown, syntax highlighting, LaTeX, PDF, ZIP.
+  flutter_markdown: ^0.7.7
+  markdown: ^7.2.2
+  flutter_highlight: ^0.7.0
+  flutter_math_fork: ^0.7.4
+  # Pinned to the pdf line that still allows archive 3.x, which is the API the
+  # ZIP export is written against. pdf 3.13 widens the range to archive 4.x.
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  archive: ^3.6.1
+
+  # OCR mode image capture. Uses the system camera intent, which is why the
+  # manifest declares no CAMERA permission.
+  image_picker: ^1.1.2
+
+  # Version string on the About card.
+  package_info_plus: ^8.1.0
+
+  # Animations are hand-rolled (one AnimationController in the loading
+  # indicator), so no animation package is depended on.
+
+  # Inference engine.
+  #
+  # PINNED TO A GIT REF ON PURPOSE. Do not replace this with `fllama: ^0.0.1`.
+  # The package published to pub.dev under the name `fllama` is an unrelated,
+  # unmaintained 2024 fork (repository: xuegao-tzx/fllama) whose API is
+  # `FllamaPlugin` with no mmproj support. The maintained binding with the
+  # OpenAiRequest/mmprojPath API that this app is written against lives at
+  # Telosnex/fllama and is not published to pub.dev. It also vendors llama.cpp
+  # in-tree (3,423 files under src/llama.cpp), so this dependency needs no
+  # submodule checkout or build-time network fetch.
+  fllama:
+    git:
+      url: https://github.com/Telosnex/fllama.git
+      ref: f624e4bfaf6c354d557ddc841ae4990760819c4a
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.13
+  drift_dev: ^2.20.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/models_catalogue.json

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solid charcoal launch screen. Deliberately plain: it exists only to avoid
+     a white flash during cold start, and it disappears within the first frame. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/library_launch_background" />
+</layer-list>
