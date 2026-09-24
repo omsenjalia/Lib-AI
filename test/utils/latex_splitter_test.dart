@@ -22,7 +22,7 @@ void main() {
     });
 
     test(r'\begin{align} ... \end{align} keeps its environment', () {
-      final source = 'See:\n'
+      const source = 'See:\n'
           r'\begin{align}a &= b \\ c &= d\end{align}'
           '\nDone.';
 
@@ -33,7 +33,7 @@ void main() {
       expect(math.text, contains(r'\end{align}'));
     });
 
-    test('an unterminated $$ falls through as prose', () {
+    test(r'an unterminated $$ falls through as prose', () {
       const source = r'Broken $$x = 1';
       final segments = splitLatex(source);
 

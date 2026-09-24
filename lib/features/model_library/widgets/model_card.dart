@@ -467,12 +467,12 @@ class _ModelCardState extends State<ModelCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.system_update_alt_rounded,
+              Icon(Icons.system_update_alt_rounded,
                   size: 14, color: AppColors.accent),
-              const SizedBox(width: 6),
-              const Text(
+              SizedBox(width: 6),
+              Text(
                 'Update available',
                 style: TextStyle(
                   fontSize: 11.5,

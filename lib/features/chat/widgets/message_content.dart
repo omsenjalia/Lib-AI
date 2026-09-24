@@ -172,13 +172,15 @@ class _LatexInlineSyntax extends md.InlineSyntax {
   @override
   bool onMatch(md.InlineParser parser, Match match) {
     if (match.start > 0 && source[match.start - 1] == r'\') return false;
-    parser.addElement(md.Element.text('latex-inline', match.group(1)!));
+    // markdown 7.2.x renamed addElement to addNode.
+    parser.addNode(md.Element.text('latex-inline', match.group(1)!));
     return true;
   }
 }
 
 class _LatexInlineBuilder extends MarkdownElementBuilder {
-  const _LatexInlineBuilder({this.textStyle});
+  // Not const: MarkdownElementBuilder has no const constructor.
+  _LatexInlineBuilder({this.textStyle});
 
   final TextStyle? textStyle;
 

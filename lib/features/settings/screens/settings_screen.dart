@@ -76,11 +76,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
           children: [
             _appearance(context, value, controller),
-            _modelSection(context, value, controller, catalogue, installs),
+            _modelSection(context, value, controller, catalogue, installs, tags),
             _samplingSection(context, value, controller),
             _advancedSection(context, value, controller),
             _updatesSection(context, value, controller),
-            _storageSection(context, ref, installs, catalogue),
+            _storageSection(context, installs, catalogue),
             _aboutSection(context),
           ],
         ),
@@ -108,7 +108,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           },
           onChanged: controller.setThemeMode,
         ),
-        _Note(
+        const _Note(
           'Both themes are designed rather than derived: the light theme is a '
           'warm paper surface, not an inverted dark one.',
         ),
@@ -151,7 +151,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: 'Defaults',
       children: [
         if (installs.isEmpty)
-          _Note('No models are installed yet. Download one from the Model '
+          const _Note('No models are installed yet. Download one from the Model '
               'Library to choose a default.')
         else
           _DropdownRow<String?>(
@@ -233,7 +233,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
         if (isUnsafe)
-          _Note(
+          const _Note(
             'A context this small may be shorter than the persona prompt plus '
             'your question, which can produce an empty or confused answer. '
             '2048 is a safer floor for real use.',
@@ -247,7 +247,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     'up to ${model.maxContextLength} tokens, and larger windows '
                     'need more RAM.',
           ),
-        _Note(
+        const _Note(
           'Lowering this is the quickest fix for an out-of-memory error, and it '
           'takes effect the next time a model loads.',
         ),
@@ -284,7 +284,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onChanged: (value) => controller.setSampling(temperature: value),
         ),
         if (repetitionRisk)
-          _Note(
+          const _Note(
             'Temperature is below '
             '${AppConstants.repetitionRiskTemperature}. The Qwythos and Mythos '
             'model cards document repetition loops below this value, so answers '
@@ -292,9 +292,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             tone: _NoteTone.warning,
           )
         else
-          _Note(
+          const _Note(
             'Lower is more focused, higher is more varied. '
-            '${modelName == null ? '' : ''}'
             'A value between 0.4 and 0.8 suits study answers.',
           ),
         const SizedBox(height: 8),

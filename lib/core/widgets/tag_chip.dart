@@ -87,8 +87,8 @@ class TagChip extends StatelessWidget {
               InkWell(
                 onTap: onDeleted,
                 borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
                   child: Icon(
                     Icons.close_rounded,
                     size: 12,
