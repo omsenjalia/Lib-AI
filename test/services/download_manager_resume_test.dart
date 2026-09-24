@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -13,42 +13,20 @@ import 'package:library_ai/core/services/settings_service.dart';
 import 'package:library_ai/core/services/storage_paths.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   test('a retry resumes the saved prefix and verifies the complete file',
       () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     final storage = _MemoryStoragePaths(SettingsService(database));
-    final dio = Dio();
+    final adapter = _ResumeAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
     final manager = DownloadManager(
       database: database,
       connectivity: ConnectivityService(),
       storagePaths: storage,
       dio: dio,
     );
-    final requestRanges = <String?>[];
     final expectedBytes = [0, 1, 2, 3, 4];
     final expectedSha256 = sha256.convert(expectedBytes).toString();
-
-    final serverSubscription = server.listen((request) async {
-      final range = request.headers.value('range');
-      requestRanges.add(range);
-      if (range == null) {
-        // Model an interrupted response: the server cleanly closes after
-        // sending only a prefix of the five-byte fixture.
-        request.response.statusCode = 200;
-        request.response.contentLength = 2;
-        request.response.add([0, 1]);
-      } else {
-        request.response.statusCode = 206;
-        request.response.headers.set('content-range', 'bytes 2-4/5');
-        request.response.contentLength = 3;
-        request.response.add([2, 3, 4]);
-      }
-      await request.response.close();
-    });
-
     final model = CatalogueModel.fromJson({
       'id': 'resume-test',
       'displayName': 'Resume test',
@@ -64,7 +42,7 @@ void main() {
           'sha256': expectedSha256,
           'qualityNote': 'test fixture',
           'fitsTargetDevice': true,
-          'downloadUrl': 'http://127.0.0.1:${server.port}/fixture.gguf',
+          'downloadUrl': 'https://example.invalid/fixture.gguf',
         },
       ],
     });
@@ -84,18 +62,55 @@ void main() {
         includeMmproj: false,
       );
 
-      expect(requestRanges, [null, 'bytes=2-']);
+      expect(adapter.requestRanges, [null, 'bytes=2-']);
       expect(manager.taskFor(model.id)?.phase, DownloadPhase.complete);
       expect(storage.promotedBytes, expectedBytes);
       expect(await database.installation(model.id), isNotNull);
     } finally {
       manager.dispose();
       dio.close(force: true);
-      await serverSubscription.cancel();
-      await server.close(force: true);
       await database.close();
     }
   });
+}
+
+class _ResumeAdapter implements HttpClientAdapter {
+  final requestRanges = <String?>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    String? range;
+    for (final entry in options.headers.entries) {
+      if (entry.key.toLowerCase() == 'range') {
+        range = entry.value?.toString();
+        break;
+      }
+    }
+    requestRanges.add(range);
+
+    if (range == null) {
+      return ResponseBody(
+        Stream<Uint8List>.value(Uint8List.fromList([0, 1])),
+        200,
+        headers: const {'content-length': ['2']},
+      );
+    }
+    return ResponseBody(
+      Stream<Uint8List>.value(Uint8List.fromList([2, 3, 4])),
+      206,
+      headers: const {
+        'content-length': ['3'],
+        'content-range': ['bytes 2-4/5'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 class _MemoryStoragePaths extends StoragePaths {
