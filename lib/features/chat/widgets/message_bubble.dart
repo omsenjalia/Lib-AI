@@ -185,11 +185,14 @@ class MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.error_outline_rounded,
-                          size: 15, color: scheme.error),
-                      SizedBox(width: 6),
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 15,
+                        color: scheme.error,
+                      ),
+                      const SizedBox(width: 6),
                       Text(
                         'Could not answer',
                         style: TextStyle(
@@ -243,7 +246,7 @@ class MessageBubble extends StatelessWidget {
                 children: [
                   Text(
                     modelName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.2,

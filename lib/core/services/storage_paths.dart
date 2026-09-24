@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:saf/saf.dart';
 
 import '../constants/app_constants.dart';
-import '../models/app_settings.dart';
 import 'settings_service.dart';
 
 /// Where Library AI keeps user data.

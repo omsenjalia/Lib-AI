@@ -1,4 +1,4 @@
-/// The study personas Library AI ships with.
+// The study personas Library AI ships with.
 
 /// A persona seeded on first run.
 class SeedPersona {

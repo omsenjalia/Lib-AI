@@ -549,7 +549,7 @@ class _ModelCardState extends State<ModelCard> {
         if (task.error != null) ...[
           const SizedBox(height: 4),
           Text(
-            task!.error!,
+            task.error!,
             style: const TextStyle(
               fontSize: 10.5,
               height: 1.4,
@@ -638,14 +638,14 @@ class _ModelCardState extends State<ModelCard> {
         if (canResume) ...[
           const SizedBox(height: 5),
           Text(
-            'Saved ${formatBytes(task!.receivedBytes)}; the checksum is checked '
+            'Saved ${formatBytes(task.receivedBytes)}; the checksum is checked '
             'before the download resumes.',
             style: TextStyle(fontSize: 10, height: 1.4, color: secondary),
           ),
-        ] else if (interrupted && task!.error != null) ...[
+        ] else if (interrupted && task.error != null) ...[
           const SizedBox(height: 5),
           Text(
-            task!.error!,
+            task.error!,
             style: const TextStyle(
               fontSize: 10.5,
               height: 1.4,

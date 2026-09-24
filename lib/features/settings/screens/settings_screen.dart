@@ -512,7 +512,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               contentPadding: EdgeInsets.zero,
               dense: true,
               leading: Icon(
-                movePending ? Icons.resume_rounded : Icons.drive_file_move_outlined,
+                movePending ? Icons.play_arrow_rounded : Icons.drive_file_move_outlined,
                 size: 18,
               ),
               title: Text(
@@ -617,8 +617,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
 
       final latestInstalls = await ref.read(databaseProvider).allInstallations();
-      if (!context.mounted ||
-          latestInstalls.isEmpty ||
+      if (!context.mounted) return;
+      if (latestInstalls.isEmpty ||
           previousUri == folder.uri ||
           catalogue == null) {
         if (adoptionReport == null ||
@@ -909,13 +909,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     operation.then<void>(
       (_) {
-        if (dialogContext?.mounted ?? false) {
-          Navigator.of(dialogContext!).pop();
+        final activeDialogContext = dialogContext;
+        if (activeDialogContext != null && activeDialogContext.mounted) {
+          Navigator.of(activeDialogContext).pop();
         }
       },
       onError: (Object error, StackTrace stack) {
-        if (dialogContext?.mounted ?? false) {
-          Navigator.of(dialogContext!).pop();
+        final activeDialogContext = dialogContext;
+        if (activeDialogContext != null && activeDialogContext.mounted) {
+          Navigator.of(activeDialogContext).pop();
         }
       },
     );

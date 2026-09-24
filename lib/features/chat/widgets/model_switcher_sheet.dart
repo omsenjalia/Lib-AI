@@ -77,11 +77,11 @@ class ModelSwitcherSheet extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'No models are installed yet.',
                           style: TextStyle(fontSize: 13),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Open Model Library to download one.',
                           style: TextStyle(

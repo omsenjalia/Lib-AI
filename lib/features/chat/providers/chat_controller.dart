@@ -272,7 +272,6 @@ class ChatController extends ChangeNotifier {
     if (trimmed.isEmpty && imagePath == null) return;
     if (_isGenerating) return;
 
-    final settings = _ref.read(currentSettingsProvider);
     final db = _ref.read(databaseProvider);
 
     // 1. Resolve the destination thread, creating one on the first message.
