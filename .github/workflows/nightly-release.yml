@@ -1,0 +1,138 @@
+name: Nightly Release APK
+
+# Daily build: when the default branch moved in the last 24 hours, build a
+# signed release APK and publish it as a direct `release.apk` asset on a dated
+# GitHub Release — no zip, no AAB, no extract step.
+#
+# Cadence: every day at 00:00 IST (18:30 UTC). Manual runs via workflow_dispatch
+# always build, regardless of commit activity.
+
+on:
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for commits in the last 24 hours
+        id: gate
+        run: |
+          STAMP=$(date -u +%Y%m%d)
+          echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run — building regardless of commit activity."
+            exit 0
+          fi
+          COUNT=$(git log --since="24 hours ago" --oneline | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "$COUNT commit(s) in the last 24h — building nightly release."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No commits in the last 24h — skipping nightly release."
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - uses: subosito/flutter-action@v2
+        if: steps.gate.outputs.run == 'true'
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+          cache-key: flutter-3.44.0-stable
+          pub-cache-key: flutter-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Cache pub + Gradle
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-nightly-${{ hashFiles('pubspec.lock', 'android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-nightly-
+            ${{ runner.os }}-android-
+
+      - name: Configure toolchain
+        if: steps.gate.outputs.run == 'true'
+        run: flutter config --enable-native-assets || true
+
+      - name: Decode release keystore
+        if: steps.gate.outputs.run == 'true'
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "has_keystore=false" >> "$GITHUB_OUTPUT"
+            echo "No KEYSTORE_BASE64 secret — will sign with debug keys (dev fallback)."
+          else
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+            echo "has_keystore=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
+        run: flutter pub get
+
+      - name: Generate drift code
+        if: steps.gate.outputs.run == 'true'
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build signed release APK
+        if: steps.gate.outputs.run == 'true'
+        env:
+          SIGNING_MODE: ${{ steps.keystore.outputs.has_keystore == 'true' && 'signed' || 'debug-keys' }}
+          KEYSTORE_PATH: android/app/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          flutter build apk --release --no-obfuscate \
+            --build-name=1.0.0-nightly.${{ steps.gate.outputs.stamp }} \
+            --build-number=${{ github.run_number }}
+          cp build/app/outputs/flutter-apk/app-release.apk release.apk
+          ls -la release.apk
+
+      - name: Publish nightly GitHub Release (release.apk only)
+        if: steps.gate.outputs.run == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly-${{ steps.gate.outputs.stamp }}
+          name: Library AI Nightly ${{ steps.gate.outputs.stamp }} (${{ steps.gate.outputs.short_sha }})
+          make_latest: true
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            Daily build of Library AI (`${{ steps.gate.outputs.short_sha }}`).
+
+            **Install:** download **`release.apk`** below directly onto your Android phone, tap it, and tap **Install** (enable "Install unknown apps" for your browser if prompted). No extraction needed.
+
+            This build ships no models. The app is fully functional offline once a model has been downloaded from its own Model Library screen.
+          files: release.apk

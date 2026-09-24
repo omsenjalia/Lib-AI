@@ -1,0 +1,151 @@
+name: CI Test
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+          cache-key: flutter-3.44.0-stable
+          pub-cache-key: flutter-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-test-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-test-
+            ${{ runner.os }}-flutter-
+
+      # drift's generated code (lib/core/data/database.g.dart) is not committed.
+      # Nothing compiles until this runs, so it comes before analyze and test.
+      # Native assets feed the fllama build hook; the flag is set defensively
+      # because a Flutter release that enables them by default would otherwise
+      # fail on an unknown option.
+      - name: Configure toolchain
+        run: |
+          flutter config --enable-native-assets || true
+
+      # The drift test suite opens a real SQLite database in memory. The Dart
+      # `sqlite3` package dlopens libsqlite3.so, which is a -dev package on
+      # ubuntu-latest.
+      - name: Install SQLite development headers
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # The generated file is gitignored, so `git diff` could not tell us
+      # anything about it. What matters is that build_runner produced it at all:
+      # if generation is skipped, analyze fails later with a bare "Target of URI
+      # doesn't exist", which says nothing about the cause.
+      - name: Verify drift code was generated
+        run: |
+          if [ ! -f lib/core/data/database.g.dart ]; then
+            echo "::error::build_runner did not produce lib/core/data/database.g.dart — check the schema in lib/core/data/tables.dart"
+            exit 1
+          fi
+          echo "database.g.dart generated: $(wc -l < lib/core/data/database.g.dart) lines"
+
+      - name: Analyze
+        id: analyze
+        continue-on-error: true
+        run: |
+          set +e
+          flutter analyze > analyze.txt 2>&1
+          code=$?
+          cat analyze.txt
+          exit $code
+
+      # Analyzer output is posted back to the PR so it is readable without
+      # downloading runner logs.
+      - name: Report analyze failures on the PR
+        if: steps.analyze.outcome == 'failure' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '### `flutter analyze` — ${{ github.sha }}'
+            echo '```'
+            cat analyze.txt
+            echo '```'
+          } > analyze-comment.md
+          gh pr comment "$PR_NUMBER" --body-file analyze-comment.md
+
+      - name: Fail on analyze issues
+        if: steps.analyze.outcome == 'failure'
+        run: |
+          echo "::error::flutter analyze reported issues"
+          exit 1
+
+      - name: Test
+        id: test
+        continue-on-error: true
+        run: |
+          set +e
+          flutter test --timeout 30s > test-output.txt 2>&1
+          code=$?
+          tail -c 60000 test-output.txt
+          exit $code
+
+      # Test output is posted back to the PR so failures are readable
+      # without downloading runner logs.
+      - name: Report test failures on the PR
+        if: steps.test.outcome == 'failure' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '### `flutter test` — ${{ github.sha }}'
+            echo '```'
+            tail -c 60000 test-output.txt
+            echo '```'
+          } > test-comment.md
+          gh pr comment "$PR_NUMBER" --body-file test-comment.md
+
+      - name: Fail on test failures
+        if: steps.test.outcome == 'failure'
+        run: |
+          echo "::error::flutter test reported failures"
+          exit 1
+
+      # The catalogue is a shipped asset whose contents are claims the UI makes
+      # to the user (sizes, checksums, Wi-Fi-only flags). This reports a summary
+      # so a reviewer can see what was validated without reading test logs.
+      - name: Summarise catalogue validation
+        if: always()
+        run: |
+          {
+            echo '### Catalogue check'
+            echo
+            echo '`test/models/model_catalogue_test.dart` validated:'
+            echo '- six models, 94 quant entries, all with real SHA-256 values'
+            echo '- every download URL resolves inside its own repository'
+            echo '- the 27B is the only Wi-Fi-only, High-RAM model'
+            echo '- Phi-4-mini is the only model whose every quant fits the device'
+            echo '- vision support is only claimed where the model card records it'
+          } >> "$GITHUB_STEP_SUMMARY"

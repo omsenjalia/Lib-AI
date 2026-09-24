@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-mode-first: the launch theme is identical in light and dark so the
+         cold-start frame never flashes a colour the app does not use. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:statusBarColor">@color/library_launch_background</item>
+        <item name="android:navigationBarColor">@color/library_launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/library_launch_background</item>
+        <item name="android:statusBarColor">@color/library_launch_background</item>
+        <item name="android:navigationBarColor">@color/library_launch_background</item>
+    </style>
+</resources>

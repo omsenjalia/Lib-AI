@@ -1,0 +1,8 @@
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    # drift generates these; they are not ours to lint.
+    - "**/*.g.dart"
+include: package:flutter_lints/flutter.yaml

@@ -1,0 +1,1305 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-24",
+  "sourceOfTruth": "tool/generate_models_catalogue.py",
+  "researchBrief": "docs/PHASE1_RESEARCH_BRIEF.md",
+  "notes": [
+    "Every sizeBytes value is an exact byte count from the HuggingFace file tree API, not an estimate.",
+    "Version baselines (ggufRepoSha / ggufRepoLastModified) drive the auto-update checker.",
+    "visionSupported is true only where the model card confirms it. Nothing here is assumed.",
+    "The Qwen3.8-27B entry is intentionally marked fitsTargetDevice=false; see its warning field."
+  ],
+  "targetDevice": {
+    "name": "Samsung Galaxy S25",
+    "os": "Android 15",
+    "chipsets": "Snapdragon 8 Elite",
+    "ramOptionsGb": [
+      8,
+      12
+    ],
+    "usableRamGb": 9
+  },
+  "models": [
+    {
+      "id": "qwen3.8-27b",
+      "displayName": "Qwen3.8-27B",
+      "family": "Qwen",
+      "parameterCount": "27B",
+      "sizeClass": "27B",
+      "blurb": "Flagship 27B hybrid-attention multimodal model. Listed for completeness only.",
+      "hfModelId": "Qwen/Qwen3.8-27B",
+      "hfModelSha": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "hfModelLastModified": "2026-08-14T15:00:01.000Z",
+      "hfModelHasGguf": false,
+      "hfModelFileNote": "Official repo ships safetensors only (18 shards, ~55 GB). No GGUF is published upstream; the quantisations below come from the third-party GGUF repo recorded in ggufRepoId.",
+      "visionSupported": true,
+      "visionEvidence": "pipeline_tag=image-text-to-text; architecture Qwen3_5ForConditionalGeneration; model card documents image and video input; preprocessor_config.json and video_preprocessor_config.json present; GGUF repo ships mmproj-BF16.gguf.",
+      "recommendedContextLength": 8192,
+      "maxContextLength": 262144,
+      "contextNote": "262,144 natively. Keep the in-app value at 8192 - KV cache at 27B is expensive.",
+      "wifiOnly": true,
+      "highRam": true,
+      "fitsTargetDevice": false,
+      "ramRequirementGb": 9.2,
+      "warning": "WILL NOT LOAD on a Samsung Galaxy S25. Even the smallest available quant (UD-IQ2_XXS, 7.27 GB) exceeds usable RAM once the KV cache and the 0.93 GB vision projector are counted. Every quant above IQ2_XXS is 9.8 GB or larger. Downloading this model will consume storage and is expected to fail at load time.",
+      "recommendedQuant": "UD-IQ2_XXS",
+      "samplingDefaults": {
+        "temperature": 0.7,
+        "topP": 0.95,
+        "topK": 20
+      },
+      "notes": "No Q3_K_S and no plain Q2_K exist in this repository. The nearest larger quants are UD-Q2_K_XL (9.83 GB) and UD-Q3_K_XL (13.15 GB).",
+      "ggufRepoId": "unsloth/Qwen3.8-27B-GGUF",
+      "ggufRepoSha": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+      "ggufRepoLastModified": "2026-08-20T12:04:25.000Z",
+      "ggufRepoUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF",
+      "downloadUrlPattern": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/{fileName}",
+      "quants": [
+        {
+          "quant": "UD-IQ1_S",
+          "fileName": "Qwen3.8-27B-UD-IQ1_S.gguf",
+          "sizeBytes": 6192222208,
+          "sizeGb": 6.19,
+          "sha256": "3895b6eaa91e705c06ad1938d16c22e86f073c6a67df86260a1da79be3d1f887",
+          "qualityNote": "Emergency quant. Severe quality loss on a 27B.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ1_S.gguf"
+        },
+        {
+          "quant": "UD-IQ1_M",
+          "fileName": "Qwen3.8-27B-UD-IQ1_M.gguf",
+          "sizeBytes": 6729166848,
+          "sizeGb": 6.73,
+          "sha256": "1b5165a7149ea51e683c8eaf23372188ad9fc9d1a795386f7a1b558acf847dc6",
+          "qualityNote": "Emergency quant. Severe quality loss on a 27B.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ1_M.gguf"
+        },
+        {
+          "quant": "UD-IQ2_XXS",
+          "fileName": "Qwen3.8-27B-UD-IQ2_XXS.gguf",
+          "sizeBytes": 7266070528,
+          "sizeGb": 7.27,
+          "sha256": "e792d8fb3142fe6d9171876d6da0f71f05a71028718debc72dbec93ff645e67d",
+          "qualityNote": "Smallest plausible load. Quality is poor but coherent.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ2_XXS.gguf"
+        },
+        {
+          "quant": "UD-IQ2_S",
+          "fileName": "Qwen3.8-27B-UD-IQ2_S.gguf",
+          "sizeBytes": 8371970048,
+          "sizeGb": 8.37,
+          "sha256": "7897d2c5a5cee46aef50895141b2c8a0803c1185f3d03c4fda4cd137a7ad77fe",
+          "qualityNote": "Over budget once KV cache is counted.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ2_S.gguf"
+        },
+        {
+          "quant": "UD-Q2_K_XL",
+          "fileName": "Qwen3.8-27B-UD-Q2_K_XL.gguf",
+          "sizeBytes": 9828981664,
+          "sizeGb": 9.83,
+          "sha256": "fd4730dd8aad070517978752b63d530aeb1740d2283cab9fa24f1e404032ddb0",
+          "qualityNote": "Exceeds usable RAM on an 8 GB device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q2_K_XL.gguf"
+        },
+        {
+          "quant": "UD-IQ3_XXS",
+          "fileName": "Qwen3.8-27B-UD-IQ3_XXS.gguf",
+          "sizeBytes": 10934860704,
+          "sizeGb": 10.93,
+          "sha256": "c0b7c3038681ed2e3040456c1dd45f9858b6c2290bed172c70388a94874f3eee",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ3_XXS.gguf"
+        },
+        {
+          "quant": "UD-IQ3_S",
+          "fileName": "Qwen3.8-27B-UD-IQ3_S.gguf",
+          "sizeBytes": 12040883104,
+          "sizeGb": 12.04,
+          "sha256": "d847e2c1e4aa276e4b7b8e9ad7628050e61e165d49ab995407bc36677a6f3864",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ3_S.gguf"
+        },
+        {
+          "quant": "UD-Q3_K_XL",
+          "fileName": "Qwen3.8-27B-UD-Q3_K_XL.gguf",
+          "sizeBytes": 13146393504,
+          "sizeGb": 13.15,
+          "sha256": "8c2a45ff85e7674ca185ec8eb6cdeab0e617ed9d8018caed0b64380eb2a67a5e",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q3_K_XL.gguf"
+        },
+        {
+          "quant": "UD-IQ4_XS",
+          "fileName": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+          "sizeBytes": 14252845984,
+          "sizeGb": 14.25,
+          "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ4_XS.gguf"
+        },
+        {
+          "quant": "UD-Q4_K_S",
+          "fileName": "Qwen3.8-27B-UD-Q4_K_S.gguf",
+          "sizeBytes": 15358213024,
+          "sizeGb": 15.36,
+          "sha256": "75bc9c8adba2842e72f0ab5201aaa07133c5010b566305c09187fcbdcd364017",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q4_K_S.gguf"
+        },
+        {
+          "quant": "Q4_0",
+          "fileName": "Qwen3.8-27B-Q4_0.gguf",
+          "sizeBytes": 16056478688,
+          "sizeGb": 16.06,
+          "sha256": "ede16c7b36e578ca87a8c70e011e4b4633a32c831c0ce76d0f474582384e671d",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-Q4_0.gguf"
+        },
+        {
+          "quant": "UD-Q4_K_M",
+          "fileName": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+          "sizeBytes": 16464440224,
+          "sizeGb": 16.46,
+          "sha256": "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482",
+          "qualityNote": "The quant the brief assumed would fit. It does not.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q4_1",
+          "fileName": "Qwen3.8-27B-Q4_1.gguf",
+          "sizeBytes": 17540705248,
+          "sizeGb": 17.54,
+          "sha256": "3e020514545c310dfc511dc8d3ddc23482b645189cb9287816d84bed6eddd4ac",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-Q4_1.gguf"
+        },
+        {
+          "quant": "UD-Q4_K_XL",
+          "fileName": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+          "sizeBytes": 17559178144,
+          "sizeGb": 17.56,
+          "sha256": "3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q4_K_XL.gguf"
+        },
+        {
+          "quant": "UD-Q5_K_S",
+          "fileName": "Qwen3.8-27B-UD-Q5_K_S.gguf",
+          "sizeBytes": 18665753504,
+          "sizeGb": 18.67,
+          "sha256": "d8d62ffcf84d42658dd6ccf9782b4d0404700af78b26d750507510c7597b5bfe",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q5_K_S.gguf"
+        },
+        {
+          "quant": "UD-Q5_K_M",
+          "fileName": "Qwen3.8-27B-UD-Q5_K_M.gguf",
+          "sizeBytes": 19771509664,
+          "sizeGb": 19.77,
+          "sha256": "2de73110cb254cbf09b54b717578dadff12ef1194e7271527e68202f39ba4bfd",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q5_K_M.gguf"
+        },
+        {
+          "quant": "UD-Q5_K_XL",
+          "fileName": "Qwen3.8-27B-UD-Q5_K_XL.gguf",
+          "sizeBytes": 20876938144,
+          "sizeGb": 20.88,
+          "sha256": "8601193d3d5760c37fb8ce1b43afebc69df5fb24e1fbc5a547c32e2200305276",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q5_K_XL.gguf"
+        },
+        {
+          "quant": "UD-Q6_K",
+          "fileName": "Qwen3.8-27B-UD-Q6_K.gguf",
+          "sizeBytes": 21983677344,
+          "sizeGb": 21.98,
+          "sha256": "c9c206812fbe4ac7b76a729e25928b63f2ae89d37f69da7a71c20aec763cd436",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q6_K.gguf"
+        },
+        {
+          "quant": "UD-Q6_K_M",
+          "fileName": "Qwen3.8-27B-UD-Q6_K_M.gguf",
+          "sizeBytes": 23088409504,
+          "sizeGb": 23.09,
+          "sha256": "493301830a596b8ad56dc1329f80bbcb578c8e910da395feafdc9cd8263430bb",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q6_K_M.gguf"
+        },
+        {
+          "quant": "UD-Q6_K_L",
+          "fileName": "Qwen3.8-27B-UD-Q6_K_L.gguf",
+          "sizeBytes": 24193919904,
+          "sizeGb": 24.19,
+          "sha256": "121355b4c7422771da25adc74090e3c90138f77ce5c92d348687d47824ec80f4",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q6_K_L.gguf"
+        },
+        {
+          "quant": "UD-Q6_K_XL",
+          "fileName": "Qwen3.8-27B-UD-Q6_K_XL.gguf",
+          "sizeBytes": 25299061664,
+          "sizeGb": 25.3,
+          "sha256": "85bec00cbd06ea278cd035eea4f3d62a21a54fa52b3b5cb51a12c1eb00efb19e",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q6_K_XL.gguf"
+        },
+        {
+          "quant": "UD-Q8_K_L",
+          "fileName": "Qwen3.8-27B-UD-Q8_K_L.gguf",
+          "sizeBytes": 28045695904,
+          "sizeGb": 28.05,
+          "sha256": "2a13bba36d2efa213f9275abc430c40e4d914b145bfde976f30f1bb5b7e23ac2",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q8_K_L.gguf"
+        },
+        {
+          "quant": "Q8_0",
+          "fileName": "Qwen3.8-27B-Q8_0.gguf",
+          "sizeBytes": 29047086048,
+          "sizeGb": 29.05,
+          "sha256": "a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-Q8_0.gguf"
+        },
+        {
+          "quant": "UD-Q8_K_XL",
+          "fileName": "Qwen3.8-27B-UD-Q8_K_XL.gguf",
+          "sizeBytes": 31457991680,
+          "sizeGb": 31.46,
+          "sha256": "af36ecb6b5db1407953345b746c14ac93f0657dda413910b4348683a2d990377",
+          "qualityNote": "Exceeds usable RAM.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q8_K_XL.gguf"
+        }
+      ],
+      "mmproj": {
+        "fileName": "mmproj-BF16.gguf",
+        "sizeBytes": 931146432,
+        "sizeGb": 0.93,
+        "sha256": "83ee4f4f205fa514161778c41df1ea14144faa0f713510893b63c2395f5c2d53",
+        "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/mmproj-BF16.gguf"
+      },
+      "extraFiles": [],
+      "recommendedQuantInfo": {
+        "quant": "UD-IQ2_XXS",
+        "fileName": "Qwen3.8-27B-UD-IQ2_XXS.gguf",
+        "sizeBytes": 7266070528,
+        "sizeGb": 7.27,
+        "sha256": "e792d8fb3142fe6d9171876d6da0f71f05a71028718debc72dbec93ff645e67d",
+        "qualityNote": "Smallest plausible load. Quality is poor but coherent.",
+        "fitsTargetDevice": true,
+        "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ2_XXS.gguf"
+      }
+    },
+    {
+      "id": "mimo-v2.6-9b",
+      "displayName": "MiMo-V2.6-Distill-Qwen-9B",
+      "family": "Xiaomi MiMo",
+      "parameterCount": "9B",
+      "sizeClass": "9B",
+      "blurb": "Agentic and coding distil of Qwen3.5-9B, SFT'd by Xiaomi on MiMo-generated data.",
+      "hfModelId": "XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B",
+      "hfModelSha": null,
+      "hfModelLastModified": null,
+      "hfModelHasGguf": false,
+      "hfModelFileNote": "Official repo ships safetensors only (4 shards, ~18.8 GB). The GGUF listed here is bartowski's conversion; ggml-org publishes an authoritative conversion but only at Q8_0 (9.55 GB), which is too large for this device.",
+      "visionSupported": true,
+      "visionEvidence": "pipeline_tag=image-text-to-text; model card benchmarks a Visual coding domain; preprocessor_config.json and video_preprocessor_config.json present; GGUF repo ships mmproj-MiMo-V2.6-Distill-Qwen-9B-bf16.gguf.",
+      "recommendedContextLength": 8192,
+      "maxContextLength": 262144,
+      "contextNote": "262,144 native. 8192 recommended on-device.",
+      "wifiOnly": false,
+      "highRam": false,
+      "fitsTargetDevice": true,
+      "ramRequirementGb": 7.2,
+      "warning": null,
+      "recommendedQuant": "Q4_K_M",
+      "samplingDefaults": {
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 20
+      },
+      "notes": "Distilled for agentic tool use and code. Chat template is MiMo v2.6's own.",
+      "ggufRepoId": "bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF",
+      "ggufRepoSha": "4371da10c84fb26da3592d4cf312d24aa82b7b65",
+      "ggufRepoLastModified": "2026-09-21T22:44:19.000Z",
+      "ggufRepoUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF",
+      "downloadUrlPattern": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/{fileName}",
+      "quants": [
+        {
+          "quant": "Q2_K",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q2_K.gguf",
+          "sizeBytes": 3644380704,
+          "sizeGb": 3.64,
+          "sha256": "1878a8f3eec5accd93ea22c46155d51c461b463ccb816cd44084ed555c81b909",
+          "qualityNote": "Smallest. Noticeable quality loss.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q2_K.gguf"
+        },
+        {
+          "quant": "IQ3_XXS",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-IQ3_XXS.gguf",
+          "sizeBytes": 4138833440,
+          "sizeGb": 4.14,
+          "sha256": "83d6383197adda49ed71fd6764f5d22c7993b5bc5554b5e8fd5151bc987ff04b",
+          "qualityNote": "Very low bit. Usable for testing only.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-IQ3_XXS.gguf"
+        },
+        {
+          "quant": "Q3_K_S",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q3_K_S.gguf",
+          "sizeBytes": 4260304416,
+          "sizeGb": 4.26,
+          "sha256": "bebb948e54d473ee212eb529b5a4a47ae9645da2ae19a52bcb10ad147d09065f",
+          "qualityNote": "Low quality but workable.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q3_K_S.gguf"
+        },
+        {
+          "quant": "IQ3_XS",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-IQ3_XS.gguf",
+          "sizeBytes": 4268037664,
+          "sizeGb": 4.27,
+          "sha256": "12e213f5aab8ee66706eebc795d8c9f50acd43318538bca8411b584cad7d8132",
+          "qualityNote": "Low quality but workable.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-IQ3_XS.gguf"
+        },
+        {
+          "quant": "Q3_K_M",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q3_K_M.gguf",
+          "sizeBytes": 4479948320,
+          "sizeGb": 4.48,
+          "sha256": "d98e54ec9650b6554cfdeea531e2420009207d50471170d0c3640483df8e87eb",
+          "qualityNote": "Reasonable compromise if RAM is tight.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q3_K_M.gguf"
+        },
+        {
+          "quant": "Q3_K_L",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q3_K_L.gguf",
+          "sizeBytes": 4659156512,
+          "sizeGb": 4.66,
+          "sha256": "b51b85fd3bc9d060017a66ffa2d8b13ab0f743c614c06355a20bd73d03d7f627",
+          "qualityNote": "Reasonable compromise if RAM is tight.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q3_K_L.gguf"
+        },
+        {
+          "quant": "IQ3_M",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-IQ3_M.gguf",
+          "sizeBytes": 4846458400,
+          "sizeGb": 4.85,
+          "sha256": "e2638eb0a3751b530c0b91c70292d961687d5ff993c1125a867461564d341724",
+          "qualityNote": "Reasonable compromise if RAM is tight.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-IQ3_M.gguf"
+        },
+        {
+          "quant": "IQ4_XS",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-IQ4_XS.gguf",
+          "sizeBytes": 5227304480,
+          "sizeGb": 5.23,
+          "sha256": "eccfbc188e71dec8350fbdd5af898d2a50691ac67e077327c52baa9da1e91d90",
+          "qualityNote": "Good quality/size balance.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-IQ4_XS.gguf"
+        },
+        {
+          "quant": "Q4_0",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q4_0.gguf",
+          "sizeBytes": 5482829344,
+          "sizeGb": 5.48,
+          "sha256": "0dadc6593e5fe790a510fcb7fcd1dc6993664db562b2e8ec7b34825e99d52f4f",
+          "qualityNote": "Legacy 4-bit. Prefer Q4_K_M.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q4_0.gguf"
+        },
+        {
+          "quant": "Q4_K_S",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q4_K_S.gguf",
+          "sizeBytes": 5483255328,
+          "sizeGb": 5.48,
+          "sha256": "db48a409bf4c11033ab4bd24ff3b1ee028578a5acc62e0b34887edbed9708253",
+          "qualityNote": "Good quality/size balance.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q4_K_S.gguf"
+        },
+        {
+          "quant": "IQ4_NL",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-IQ4_NL.gguf",
+          "sizeBytes": 5825058336,
+          "sizeGb": 5.83,
+          "sha256": "9b3a443818d653af7c2a0c56aebc51668a7048ef72f8c1d77d669f544c28f6a7",
+          "qualityNote": "Very close to Q4_K_M in quality.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-IQ4_NL.gguf"
+        },
+        {
+          "quant": "Q4_K_M",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q4_K_M.gguf",
+          "sizeBytes": 5841049120,
+          "sizeGb": 5.84,
+          "sha256": "4bca6f18c73f72270c7a20c2ea2bea581de8246e318714277120369d34048c81",
+          "qualityNote": "RECOMMENDED. Best balance for this device.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q4_K_L",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q4_K_L.gguf",
+          "sizeBytes": 6202021408,
+          "sizeGb": 6.2,
+          "sha256": "db6b5e7b5d25525da87f4a3899555215693e8cf4ab1be9fff90ea5dee4ba957d",
+          "qualityNote": "Slightly better than Q4_K_M, slightly larger.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q4_K_L.gguf"
+        },
+        {
+          "quant": "Q5_K_S",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q5_K_S.gguf",
+          "sizeBytes": 6496015904,
+          "sizeGb": 6.5,
+          "sha256": "f81aa5e3e5dc6f108dd7fd37c0738976994b62929f21e2e3a3bb2ed70fb92355",
+          "qualityNote": "Higher fidelity, more RAM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q5_K_S.gguf"
+        },
+        {
+          "quant": "Q5_K_M",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q5_K_M.gguf",
+          "sizeBytes": 6876124704,
+          "sizeGb": 6.88,
+          "sha256": "04cf46f2b5584ef922697d6c063f94879434fb86c467f1a09e52daf0cddaf35f",
+          "qualityNote": "Higher fidelity, more RAM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q6_K_S",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q6_K_S.gguf",
+          "sizeBytes": 7509284384,
+          "sizeGb": 7.51,
+          "sha256": "df3b6b6be2477f280a6fa89ebb5fb455523849c20dd943b416ad43e076206f06",
+          "qualityNote": "Getting tight for an 8 GB device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q6_K_S.gguf"
+        },
+        {
+          "quant": "Q6_K",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q6_K.gguf",
+          "sizeBytes": 7793710624,
+          "sizeGb": 7.79,
+          "sha256": "ef96d05a2ddf2cbb450d1af1ac3860ec769d3575bafa70692ee5609bda3fad7d",
+          "qualityNote": "Getting tight for an 8 GB device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q6_K.gguf"
+        },
+        {
+          "quant": "Q6_K_L",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q6_K_L.gguf",
+          "sizeBytes": 8106579488,
+          "sizeGb": 8.11,
+          "sha256": "556d51c9f191fc06a1fd751fdb4b4082f4add0023d9ac8b7198dcecfb772cd99",
+          "qualityNote": "Getting tight for an 8 GB device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q6_K_L.gguf"
+        },
+        {
+          "quant": "Q8_0",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q8_0.gguf",
+          "sizeBytes": 9545979424,
+          "sizeGb": 9.55,
+          "sha256": "2fad0aa11bb9e7aa491ff12f768954f9dd0a6e7d4ce4a897ca73ec420f3b90ae",
+          "qualityNote": "Near-lossless. Too large for comfortable load.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q8_0.gguf"
+        },
+        {
+          "quant": "BF16",
+          "fileName": "MiMo-V2.6-Distill-Qwen-9B-bf16.gguf",
+          "sizeBytes": 17920693440,
+          "sizeGb": 17.92,
+          "sha256": "5e4a50f5e41abb867585bfddd808997bc195bdd8f0df78210cd97ba406dc328e",
+          "qualityNote": "Full precision. Not loadable on this device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-bf16.gguf"
+        }
+      ],
+      "mmproj": {
+        "fileName": "mmproj-MiMo-V2.6-Distill-Qwen-9B-bf16.gguf",
+        "sizeBytes": 921704992,
+        "sizeGb": 0.92,
+        "sha256": "197656f5ea308d2e9e008c5c1cb239b0297d7d1c7b4c0769cee3b46c2b891714",
+        "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/mmproj-MiMo-V2.6-Distill-Qwen-9B-bf16.gguf"
+      },
+      "extraFiles": [],
+      "recommendedQuantInfo": {
+        "quant": "Q4_K_M",
+        "fileName": "MiMo-V2.6-Distill-Qwen-9B-Q4_K_M.gguf",
+        "sizeBytes": 5841049120,
+        "sizeGb": 5.84,
+        "sha256": "4bca6f18c73f72270c7a20c2ea2bea581de8246e318714277120369d34048c81",
+        "qualityNote": "RECOMMENDED. Best balance for this device.",
+        "fitsTargetDevice": true,
+        "downloadUrl": "https://huggingface.co/bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF/resolve/main/MiMo-V2.6-Distill-Qwen-9B-Q4_K_M.gguf"
+      }
+    },
+    {
+      "id": "qwythos-9b-v2",
+      "displayName": "Qwythos-9B-v2",
+      "family": "Empero AI",
+      "parameterCount": "9B",
+      "sizeClass": "9B",
+      "blurb": "Reasoning model post-trained on Claude Mythos/Fable traces, with repetition looping trained out.",
+      "hfModelId": "empero-ai/Qwythos-9B-v2-GGUF",
+      "hfModelSha": null,
+      "hfModelLastModified": null,
+      "hfModelHasGguf": true,
+      "hfModelFileNote": null,
+      "visionSupported": true,
+      "visionEvidence": "Model card has a dedicated 'Vision (image input)' section with a worked llama-mtmd-cli example; tags include multimodal and vision; repo ships mmproj-Qwythos-9B-v2-BF16.gguf.",
+      "visionCaveat": "The model card states verbatim that training was text-only and the vision tower was never fine-tuned, so image-grounded reasoning inherits base Qwen3.5-9B behaviour and has not been independently evaluated.",
+      "recommendedContextLength": 8192,
+      "maxContextLength": 1048576,
+      "contextNote": "Ships YaRN rope-scaling for a 1,048,576-token window. 8192 recommended on-device; lower it to cut KV-cache memory.",
+      "wifiOnly": false,
+      "highRam": false,
+      "fitsTargetDevice": true,
+      "ramRequirementGb": 7.1,
+      "warning": null,
+      "recommendedQuant": "Q4_K_M",
+      "samplingDefaults": {
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 20,
+        "repeatPenalty": 1.05
+      },
+      "notes": "Hybrid Gated-DeltaNet architecture (3:1 SSM:attention). K-quants keep SSM state tensors at higher precision, so files run ~2-4% larger than a flat K-quant. Repo ships SHA256SUMS.",
+      "ggufRepoId": "empero-ai/Qwythos-9B-v2-GGUF",
+      "ggufRepoSha": "97c11b03687f194b300efbdb4760d9bc4021b759",
+      "ggufRepoLastModified": "2026-07-12T00:58:46.000Z",
+      "ggufRepoUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF",
+      "downloadUrlPattern": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/{fileName}",
+      "quants": [
+        {
+          "quant": "Q4_K_M",
+          "fileName": "Qwythos-9B-v2-Q4_K_M.gguf",
+          "sizeBytes": 5736063744,
+          "sizeGb": 5.74,
+          "sha256": "c0a588704f422b713eca29b2c1f192ae6f69aea3f9e7cb64f9ecdb76ff7a85f4",
+          "qualityNote": "RECOMMENDED. Model author's stated default.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q5_K_M",
+          "fileName": "Qwythos-9B-v2-Q5_K_M.gguf",
+          "sizeBytes": 6523806464,
+          "sizeGb": 6.52,
+          "sha256": "fc5251e8e3e87d58946522833eb896c84375a715b6f89c54cdd10082ecc6ea8d",
+          "qualityNote": "Balanced quality/size.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q6_K",
+          "fileName": "Qwythos-9B-v2-Q6_K.gguf",
+          "sizeBytes": 7458300672,
+          "sizeGb": 7.46,
+          "sha256": "dd39e148823f0bab858e946d603e4bf424240aae34435580be820f09c75ca379",
+          "qualityNote": "High quality. Tight but feasible.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-Q6_K.gguf"
+        },
+        {
+          "quant": "Q8_0",
+          "fileName": "Qwythos-9B-v2-Q8_0.gguf",
+          "sizeBytes": 9527501568,
+          "sizeGb": 9.53,
+          "sha256": "3324ac1a7260fbb484d10373df7d54d156ff6c4f5c577d87dbd0218928beab89",
+          "qualityNote": "Near-lossless. Too large for comfortable load.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-Q8_0.gguf"
+        },
+        {
+          "quant": "BF16",
+          "fileName": "Qwythos-9B-v2-BF16.gguf",
+          "sizeBytes": 17920697088,
+          "sizeGb": 17.92,
+          "sha256": "663e4694583caf7b3e5bdeb76c27aebb7ea86bcc2760419fea82e51e2d8087c7",
+          "qualityNote": "Full precision. Not loadable on this device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-BF16.gguf"
+        },
+        {
+          "quant": "Q4_K_M (MTP)",
+          "fileName": "Qwythos-9B-v2-MTP-Q4_K_M.gguf",
+          "sizeBytes": 5903822528,
+          "sizeGb": 5.9,
+          "sha256": "cfdd00ac1c1dc9ced33f23817fb4282f2594067e02e34d82e3e63bc0ea275b05",
+          "qualityNote": "Multi-token-prediction head. Needs newer llama.cpp.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-MTP-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q5_K_M (MTP)",
+          "fileName": "Qwythos-9B-v2-MTP-Q5_K_M.gguf",
+          "sizeBytes": 6710963904,
+          "sizeGb": 6.71,
+          "sha256": "d8ea0d2289793401a6ec546e713c885fba9e27d14cd70a36c570f975e383e659",
+          "qualityNote": "MTP variant.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-MTP-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q6_K (MTP)",
+          "fileName": "Qwythos-9B-v2-MTP-Q6_K.gguf",
+          "sizeBytes": 7666069184,
+          "sizeGb": 7.67,
+          "sha256": "24271fb6e16b2b8f581d192cf77d947453d7852f965ce6801fefa6964bbea060",
+          "qualityNote": "MTP variant.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-MTP-Q6_K.gguf"
+        },
+        {
+          "quant": "Q8_0 (MTP)",
+          "fileName": "Qwythos-9B-v2-MTP-Q8_0.gguf",
+          "sizeBytes": 9786060480,
+          "sizeGb": 9.79,
+          "sha256": "6d72e896721f2be249b2584fb06a007a8f8ce506e592ea54c103952303a5f11f",
+          "qualityNote": "MTP variant.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-MTP-Q8_0.gguf"
+        },
+        {
+          "quant": "BF16 (MTP)",
+          "fileName": "Qwythos-9B-v2-MTP-BF16.gguf",
+          "sizeBytes": 18407321280,
+          "sizeGb": 18.41,
+          "sha256": "2c46b135e2fef3c4d4b2a0e98394ae5ac5cdec54b1a5451c74ea568fbafb6075",
+          "qualityNote": "MTP full precision.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-MTP-BF16.gguf"
+        }
+      ],
+      "mmproj": {
+        "fileName": "mmproj-Qwythos-9B-v2-BF16.gguf",
+        "sizeBytes": 921704512,
+        "sizeGb": 0.92,
+        "sha256": "0d1687cb33124c78acab788b342d4a2eaf85b3035e87c3abe4ee9d0b84ddb4f5",
+        "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/mmproj-Qwythos-9B-v2-BF16.gguf"
+      },
+      "extraFiles": [
+        {
+          "fileName": "SHA256SUMS",
+          "sizeBytes": 1025,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/SHA256SUMS"
+        }
+      ],
+      "recommendedQuantInfo": {
+        "quant": "Q4_K_M",
+        "fileName": "Qwythos-9B-v2-Q4_K_M.gguf",
+        "sizeBytes": 5736063744,
+        "sizeGb": 5.74,
+        "sha256": "c0a588704f422b713eca29b2c1f192ae6f69aea3f9e7cb64f9ecdb76ff7a85f4",
+        "qualityNote": "RECOMMENDED. Model author's stated default.",
+        "fitsTargetDevice": true,
+        "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-v2-GGUF/resolve/main/Qwythos-9B-v2-Q4_K_M.gguf"
+      }
+    },
+    {
+      "id": "qwythos-9b-mythos-5-1m",
+      "displayName": "Qwythos-9B-Claude-Mythos-5.1M",
+      "family": "Empero AI",
+      "parameterCount": "9B",
+      "sizeClass": "9B",
+      "blurb": "Full-parameter reasoning model post-trained on 500M+ tokens of Claude Mythos/Fable traces.",
+      "hfModelId": "empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF",
+      "hfModelSha": null,
+      "hfModelLastModified": null,
+      "hfModelHasGguf": true,
+      "hfModelFileNote": null,
+      "visionSupported": true,
+      "visionEvidence": "Model card has a full 'Vision (image input)' section including an OpenAI-compatible server example; tags include multimodal and vision; repo ships mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf.",
+      "visionCaveat": "Vision tower frozen from the Qwen3.5-9B base; the SFT was text-only and image reasoning has not been independently evaluated.",
+      "recommendedContextLength": 8192,
+      "maxContextLength": 1048576,
+      "contextNote": "YaRN rope-scaling baked in for a 1,048,576-token window. 8192 recommended on-device.",
+      "wifiOnly": false,
+      "highRam": false,
+      "fitsTargetDevice": true,
+      "ramRequirementGb": 7.0,
+      "warning": "Avoid greedy decoding and temperatures at or below 0.3 with this model - the model card documents repetition loops under low-temperature sampling.",
+      "recommendedQuant": "Q4_K_M",
+      "samplingDefaults": {
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 20,
+        "repeatPenalty": 1.05
+      },
+      "notes": "Reported +34 pts MMLU / +30 pts gsm8k-strict over base Qwen3.5-9B. Native function calling. Repo ships SHA256SUMS and TEST_REPORT.md.",
+      "ggufRepoId": "empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF",
+      "ggufRepoSha": "5cebd89dd078b033c26988248740ddadf40f2fbd",
+      "ggufRepoLastModified": "2026-07-14T13:12:53.000Z",
+      "ggufRepoUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF",
+      "downloadUrlPattern": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/{fileName}",
+      "quants": [
+        {
+          "quant": "Q4_K_M",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf",
+          "sizeBytes": 5629108896,
+          "sizeGb": 5.63,
+          "sha256": "5c09e7f207d2fd9069c802ff77632fa7cdaffe7fb5ba40ff9f060aaeaa09acd5",
+          "qualityNote": "RECOMMENDED. Model author's stated default.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q5_K_M",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-Q5_K_M.gguf",
+          "sizeBytes": 6467969696,
+          "sizeGb": 6.47,
+          "sha256": "20013a03b23d4b5c0608cb57c489778ef7dd5fd80ee750b93c8a08f03293aab7",
+          "qualityNote": "Balanced quality/size.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q6_K",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-Q6_K.gguf",
+          "sizeBytes": 7359259296,
+          "sizeGb": 7.36,
+          "sha256": "2bef47eee2e83fa5e2ac5619102d8418144147be1270870aba42b22a606831e6",
+          "qualityNote": "High quality. Tight but feasible.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-Q6_K.gguf"
+        },
+        {
+          "quant": "Q8_0",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-Q8_0.gguf",
+          "sizeBytes": 9527501472,
+          "sizeGb": 9.53,
+          "sha256": "e8118b9cde68a1a1dc3299060e9af7d8640c47e670e83ecd4204f15326938b70",
+          "qualityNote": "Near-lossless. Too large for comfortable load.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-Q8_0.gguf"
+        },
+        {
+          "quant": "BF16",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-BF16.gguf",
+          "sizeBytes": 17920696992,
+          "sizeGb": 17.92,
+          "sha256": "8a1d1d5dbc6bf921222d33dee2003fc98e1185f83aba54cce50acb5c278df1cb",
+          "qualityNote": "Full precision. Not loadable on this device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-BF16.gguf"
+        },
+        {
+          "quant": "Q4_K_M (MTP)",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q4_K_M.gguf",
+          "sizeBytes": 5887667808,
+          "sizeGb": 5.89,
+          "sha256": "318caed45110f5e3c60bff1142e0d1e658e046e670830d9be643df33940f4f98",
+          "qualityNote": "MTP variant.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-MTP-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q5_K_M (MTP)",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q5_K_M.gguf",
+          "sizeBytes": 6726528608,
+          "sizeGb": 6.73,
+          "sha256": "a21b7f12f9908dbfbaeb2ad8ddd51c936ecadc780796abd70a8e5b08cdc6cd8e",
+          "qualityNote": "MTP variant.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-MTP-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q6_K (MTP)",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q6_K.gguf",
+          "sizeBytes": 7617818208,
+          "sizeGb": 7.62,
+          "sha256": "b6ca7dc848d9857c7759d7da6da502d1cb8941b69471375d74c7a539ddc381e9",
+          "qualityNote": "MTP variant.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-MTP-Q6_K.gguf"
+        },
+        {
+          "quant": "Q8_0 (MTP)",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q8_0.gguf",
+          "sizeBytes": 9786060384,
+          "sizeGb": 9.79,
+          "sha256": "9a8f04df5b8b8af60a16ade370c9bd1a14d82e980e6d45946a0eb9282c019513",
+          "qualityNote": "MTP variant.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-MTP-Q8_0.gguf"
+        },
+        {
+          "quant": "BF16 (MTP)",
+          "fileName": "Qwythos-9B-Claude-Mythos-5-1M-MTP-BF16.gguf",
+          "sizeBytes": 18407321184,
+          "sizeGb": 18.41,
+          "sha256": "f188232e7e19f38f32c0fc2dfd57c801bd0ff1e32e7a30402885ae83741aeeb3",
+          "qualityNote": "MTP full precision.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-MTP-BF16.gguf"
+        }
+      ],
+      "mmproj": {
+        "fileName": "mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf",
+        "sizeBytes": 918165472,
+        "sizeGb": 0.92,
+        "sha256": "f977efc337a2ac2ba183eea0c73e25b75fc240d56c05ed4d9b56ab451f64c82c",
+        "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf"
+      },
+      "extraFiles": [
+        {
+          "fileName": "SHA256SUMS",
+          "sizeBytes": 1312,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/SHA256SUMS"
+        },
+        {
+          "fileName": "TEST_REPORT.md",
+          "sizeBytes": 3721,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/TEST_REPORT.md"
+        }
+      ],
+      "recommendedQuantInfo": {
+        "quant": "Q4_K_M",
+        "fileName": "Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf",
+        "sizeBytes": 5629108896,
+        "sizeGb": 5.63,
+        "sha256": "5c09e7f207d2fd9069c802ff77632fa7cdaffe7fb5ba40ff9f060aaeaa09acd5",
+        "qualityNote": "RECOMMENDED. Model author's stated default.",
+        "fitsTargetDevice": true,
+        "downloadUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf"
+      }
+    },
+    {
+      "id": "qwen3.5-9b-opus-4.6-distill",
+      "displayName": "Qwen3.5-9B-Claude-Opus-4.6-Distill",
+      "family": "Empero AI",
+      "parameterCount": "9B",
+      "sizeClass": "9B",
+      "blurb": "Text-only reasoning distil of Qwen3.5-9B trained on Claude Opus 4.6 reasoning traces.",
+      "hfModelId": "empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF",
+      "hfModelSha": null,
+      "hfModelLastModified": null,
+      "hfModelHasGguf": true,
+      "hfModelFileNote": null,
+      "visionSupported": false,
+      "visionEvidence": null,
+      "visionAbsenceNote": "Confirmed text-only. No mmproj-*.gguf exists in the repository, the card carries no vision or multimodal tag, and it makes no vision claim. OCR mode must refuse this model.",
+      "recommendedContextLength": 4096,
+      "maxContextLength": 4096,
+      "contextNote": "SFT max sequence length was 4096. Do not raise this expecting better results.",
+      "wifiOnly": false,
+      "highRam": false,
+      "fitsTargetDevice": true,
+      "ramRequirementGb": 5.8,
+      "warning": null,
+      "recommendedQuant": "Q4_K_M",
+      "samplingDefaults": {
+        "temperature": 0.7,
+        "topP": 0.95,
+        "topK": 20
+      },
+      "notes": "Emits reasoning inside <think>...</think> tags. The repo README documents lowercase filenames that do not match the real files; the filenames here are the actual repository paths.",
+      "ggufRepoId": "empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF",
+      "ggufRepoSha": "892a4362ba5896d67d566a316973fefb70f5135f",
+      "ggufRepoLastModified": "2026-03-15T23:23:35.000Z",
+      "ggufRepoUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF",
+      "downloadUrlPattern": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/{fileName}",
+      "quants": [
+        {
+          "quant": "Q2_K",
+          "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q2_K.gguf",
+          "sizeBytes": 3827261760,
+          "sizeGb": 3.83,
+          "sha256": "02e0ebbd94ef6e286695ac7f0c16358810f08b677576d0b25fddf177ae78ab01",
+          "qualityNote": "Smallest. Noticeable quality loss.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q2_K.gguf"
+        },
+        {
+          "quant": "Q3_K_M",
+          "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q3_K_M.gguf",
+          "sizeBytes": 4623524160,
+          "sizeGb": 4.62,
+          "sha256": "c42e7c5ca93a34c8a95f5fd784a93b48f922e633f0de78f06966b0b3bb3ac63e",
+          "qualityNote": "Low quality but workable.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q3_K_M.gguf"
+        },
+        {
+          "quant": "Q4_K_M",
+          "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q4_K_M.gguf",
+          "sizeBytes": 5629108544,
+          "sizeGb": 5.63,
+          "sha256": "db8793fad2be4a47521ab93030bc7846262fb7e38dd84b386c61f772d8299493",
+          "qualityNote": "RECOMMENDED. Best balance for this device.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q5_K_M",
+          "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q5_K_M.gguf",
+          "sizeBytes": 6467969344,
+          "sizeGb": 6.47,
+          "sha256": "93b3b3608e672aa6d03d09e6075ff5826d18fa188f99eb6de2869bb4193fd2d2",
+          "qualityNote": "Higher fidelity, more RAM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q6_K",
+          "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q6_K.gguf",
+          "sizeBytes": 7359258944,
+          "sizeGb": 7.36,
+          "sha256": "bb44c32d77a3f7846afa523a20306efc5d7cb68781e187f87cf93a3e5994cbc9",
+          "qualityNote": "High quality. Tight but feasible.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q6_K.gguf"
+        },
+        {
+          "quant": "Q8_0",
+          "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q8_0.gguf",
+          "sizeBytes": 9527501120,
+          "sizeGb": 9.53,
+          "sha256": "9ff5de17a0c98581c828c259e0beea9c9dca881b0371f61c974f59c125b08b27",
+          "qualityNote": "Near-lossless. Too large for comfortable load.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q8_0.gguf"
+        },
+        {
+          "quant": "F16",
+          "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-f16.gguf",
+          "sizeBytes": 17920696640,
+          "sizeGb": 17.92,
+          "sha256": "37a8dc8761689e17ab46787274a3b5827c1e63e9767d494c015c954dbedab66b",
+          "qualityNote": "Full precision. Not loadable on this device.",
+          "fitsTargetDevice": false,
+          "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-f16.gguf"
+        }
+      ],
+      "mmproj": null,
+      "extraFiles": [],
+      "recommendedQuantInfo": {
+        "quant": "Q4_K_M",
+        "fileName": "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q4_K_M.gguf",
+        "sizeBytes": 5629108544,
+        "sizeGb": 5.63,
+        "sha256": "db8793fad2be4a47521ab93030bc7846262fb7e38dd84b386c61f772d8299493",
+        "qualityNote": "RECOMMENDED. Best balance for this device.",
+        "fitsTargetDevice": true,
+        "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q4_K_M.gguf"
+      }
+    },
+    {
+      "id": "phi-4-mini-3.8b",
+      "displayName": "Phi-4-mini-instruct",
+      "family": "Microsoft Phi",
+      "parameterCount": "3.8B",
+      "sizeClass": "3.8B",
+      "blurb": "Compact 3.8B instruction model with a 128K window. The lightest entry in the catalogue - even its largest quant loads comfortably on an 8 GB device.",
+      "hfModelId": "microsoft/Phi-4-mini-instruct",
+      "hfModelSha": "cfbefacb99257ffa30c83adab238a50856ac3083",
+      "hfModelLastModified": "2025-12-10T20:24:40.000Z",
+      "hfModelHasGguf": false,
+      "hfModelFileNote": "The official repo ships safetensors only (2 shards, 3,836,021,760 parameters). The GGUF listed here is bartowski's imatrix conversion. Note the repository id: bartowski publishes it as bartowski/microsoft_Phi-4-mini-instruct-GGUF, prefixing the upstream org with an underscore. `bartowski/Phi-4-mini-instruct-GGUF` does not exist and returns 404.",
+      "visionSupported": false,
+      "visionEvidence": null,
+      "visionAbsenceNote": "Confirmed text-only. pipeline_tag is text-generation and the repo carries no vision, image-to-text or multimodal tag; there is no preprocessor_config.json and the GGUF repository ships no mmproj-*.gguf. OCR mode must refuse this model.",
+      "recommendedContextLength": 8192,
+      "maxContextLength": 131072,
+      "contextNote": "131,072 tokens (128K), taken from the GGUF's own metadata (architecture phi3, context_length 131072) - that is the value the loader will honour. 8192 recommended on-device.",
+      "wifiOnly": false,
+      "highRam": false,
+      "fitsTargetDevice": true,
+      "ramRequirementGb": 3.4,
+      "warning": null,
+      "recommendedQuant": "Q4_K_M",
+      "samplingDefaults": {
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 20
+      },
+      "notes": "The upstream card samples greedily in its own examples (do_sample=False, temperature 0.0) and neither it nor generation_config.json documents a sampler, so the values here are this app's house defaults - chosen so answers do not degenerate into repetition, and adjustable in Settings. Every one of the 23 published quants fits this device. The card cautions that a 3.8B model cannot hold much factual knowledge and suggests retrieval augmentation for fact-heavy questions.",
+      "ggufRepoId": "bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+      "ggufRepoSha": "7ff82c2aaa4dde30121698a973765f39be5288c0",
+      "ggufRepoLastModified": "2025-02-28T15:56:14.000Z",
+      "ggufRepoUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+      "downloadUrlPattern": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/{fileName}",
+      "quants": [
+        {
+          "quant": "IQ2_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ2_M.gguf",
+          "sizeBytes": 1507424640,
+          "sizeGb": 1.51,
+          "sha256": "33c12b44229a85d88a3bedfe849e138643bbde5478925d191faeb409bc2ea3ec",
+          "qualityNote": "Smallest. Relatively low quality, but usable.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ2_M.gguf"
+        },
+        {
+          "quant": "IQ3_XXS",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ3_XXS.gguf",
+          "sizeBytes": 1678866816,
+          "sizeGb": 1.68,
+          "sha256": "80c87df8ba98f4e02f5e3bb8b71cab541dafb601ef071a195a4df38c56e213d7",
+          "qualityNote": "Comparable to the Q3 quants.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ3_XXS.gguf"
+        },
+        {
+          "quant": "Q2_K",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q2_K.gguf",
+          "sizeBytes": 1682636160,
+          "sizeGb": 1.68,
+          "sha256": "85134b59572e8726252f02bae6476ed6cf8c3109f5dc05da363965430157608d",
+          "qualityNote": "Very low quality but surprisingly usable.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q2_K.gguf"
+        },
+        {
+          "quant": "Q2_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q2_K_L.gguf",
+          "sizeBytes": 1831483776,
+          "sizeGb": 1.83,
+          "sha256": "b233015a8c8fbd13f080cbebc9a8dc496c2ce52faed06d17fb0963192e0378b5",
+          "qualityNote": "Q8_0 embeddings and output. Very low quality.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q2_K_L.gguf"
+        },
+        {
+          "quant": "IQ3_XS",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ3_XS.gguf",
+          "sizeBytes": 1840708992,
+          "sizeGb": 1.84,
+          "sha256": "a94bcca75234c1775025a319a1765e3c61c5b18298d0314633f7f7524356ec2e",
+          "qualityNote": "Slightly better than Q3_K_S.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ3_XS.gguf"
+        },
+        {
+          "quant": "Q3_K_S",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_S.gguf",
+          "sizeBytes": 1897332096,
+          "sizeGb": 1.9,
+          "sha256": "a1dd4dc181bd94e896a947dbf413f04d9cce2b962a22fe363812a28b5ac34826",
+          "qualityNote": "Low quality, not recommended by the author.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_S.gguf"
+        },
+        {
+          "quant": "IQ3_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ3_M.gguf",
+          "sizeBytes": 2017656192,
+          "sizeGb": 2.02,
+          "sha256": "0d6a07d53a3ebd474a8ca9abc9415af39e88f041cfbfe388e3bf632b84e7b232",
+          "qualityNote": "Medium-low quality; comparable to Q3_K_M.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ3_M.gguf"
+        },
+        {
+          "quant": "Q3_K_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_M.gguf",
+          "sizeBytes": 2117533056,
+          "sizeGb": 2.12,
+          "sha256": "514a111e3b847b1698b253bf8e8ada7c1bb81dc10dc4bccab590edaff5aec06c",
+          "qualityNote": "Low quality.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_M.gguf"
+        },
+        {
+          "quant": "IQ4_XS",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ4_XS.gguf",
+          "sizeBytes": 2224487808,
+          "sizeGb": 2.22,
+          "sha256": "88f5f428d64ea04332eaf3dc19d05ad4df3e04847ad9d2b0e3c947233f361a56",
+          "qualityNote": "Good quality/size balance.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ4_XS.gguf"
+        },
+        {
+          "quant": "Q3_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_L.gguf",
+          "sizeBytes": 2249653632,
+          "sizeGb": 2.25,
+          "sha256": "d04c6c4014f24f56dc3341aa69e198815f2931a8769aeb630ced541f792889b4",
+          "qualityNote": "Lower quality but usable where RAM is tight.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_L.gguf"
+        },
+        {
+          "quant": "IQ4_NL",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ4_NL.gguf",
+          "sizeBytes": 2325151104,
+          "sizeGb": 2.33,
+          "sha256": "c75b97730ea19e533d5a5fcbb695984bfd6278e170bf49e1251ea4f5e85b7763",
+          "qualityNote": "Slightly larger than IQ4_XS, repacks on ARM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ4_NL.gguf"
+        },
+        {
+          "quant": "Q4_0",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_0.gguf",
+          "sizeBytes": 2331442560,
+          "sizeGb": 2.33,
+          "sha256": "2124412a2d3410dd05c5d01796457283812210633165a2a86c909f815971518e",
+          "qualityNote": "Legacy 4-bit. Repacks online on ARM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_0.gguf"
+        },
+        {
+          "quant": "Q4_K_S",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_S.gguf",
+          "sizeBytes": 2337734016,
+          "sizeGb": 2.34,
+          "sha256": "d75c4e4a4a4f9c775ca5fec8802e7a65bbbe9241034f5b39e6a8d092f3805880",
+          "qualityNote": "Good quality/size balance.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_S.gguf"
+        },
+        {
+          "quant": "Q3_K_XL",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_XL.gguf",
+          "sizeBytes": 2398501248,
+          "sizeGb": 2.4,
+          "sha256": "d95f8462d750d574db0c60ed5e83c551a42d94da99b4a5f85d54b5bbbf0c14e0",
+          "qualityNote": "Q8_0 embeddings; lower quality, low RAM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_XL.gguf"
+        },
+        {
+          "quant": "Q4_K_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+          "sizeBytes": 2491874688,
+          "sizeGb": 2.49,
+          "sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2",
+          "qualityNote": "RECOMMENDED. Author's stated default size for most use cases.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q4_1",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_1.gguf",
+          "sizeBytes": 2526477696,
+          "sizeGb": 2.53,
+          "sha256": "788a028447e152719d2673930fdfb0df5f73cc134b666915565492e32fe93f26",
+          "qualityNote": "Legacy format, similar to Q4_K_S.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_1.gguf"
+        },
+        {
+          "quant": "Q4_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_L.gguf",
+          "sizeBytes": 2640722304,
+          "sizeGb": 2.64,
+          "sha256": "ea4e670db872d1cf505e02bf8f85745ce98a564c1429fc3609cc9462089da13e",
+          "qualityNote": "Q8_0 embeddings; a little better than Q4_K_M.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_L.gguf"
+        },
+        {
+          "quant": "Q5_K_S",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q5_K_S.gguf",
+          "sizeBytes": 2727804288,
+          "sizeGb": 2.73,
+          "sha256": "b027246d847c6d6c5419a14885256061e911cc864001820b16e037868d43d090",
+          "qualityNote": "High quality, small enough for an 8 GB device.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q5_K_S.gguf"
+        },
+        {
+          "quant": "Q5_K_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q5_K_M.gguf",
+          "sizeBytes": 2848128384,
+          "sizeGb": 2.85,
+          "sha256": "840ad85cff01e41701e2b2a3826016916f8e51242c8f25d62e59fa7eb93acbc5",
+          "qualityNote": "High quality. Comfortable here, unlike on the 9B models.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q5_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q5_K_L.gguf",
+          "sizeBytes": 2996976000,
+          "sizeGb": 3.0,
+          "sha256": "9e2c332c023f50ae7ed5fd51c8ca3ed846e364ad8a98471da99603082509734b",
+          "qualityNote": "Q8_0 embeddings; high quality.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q5_K_L.gguf"
+        },
+        {
+          "quant": "Q6_K",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q6_K.gguf",
+          "sizeBytes": 3155623296,
+          "sizeGb": 3.16,
+          "sha256": "59dba927b98f39c26859aab7fb27d5f577666f8a5db38f0eccf3f207902ba23b",
+          "qualityNote": "Near-perfect quality and still fits an 8 GB device.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q6_K.gguf"
+        },
+        {
+          "quant": "Q6_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q6_K_L.gguf",
+          "sizeBytes": 3304470912,
+          "sizeGb": 3.3,
+          "sha256": "ad6e8f3dbaca28a7d8c269058bd6ba543b7d0932be06927f847f24c9bb0d8408",
+          "qualityNote": "Near-perfect quality, Q8_0 embeddings.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q6_K_L.gguf"
+        },
+        {
+          "quant": "Q8_0",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q8_0.gguf",
+          "sizeBytes": 4084611456,
+          "sizeGb": 4.08,
+          "sha256": "a12f242c4ee379b9da91673e5d78b30bfacfe4fd86a0b2259d2ecad5d93cb6c7",
+          "qualityNote": "Near-lossless. The largest quant here, and it still fits.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q8_0.gguf"
+        }
+      ],
+      "mmproj": null,
+      "extraFiles": [],
+      "recommendedQuantInfo": {
+        "quant": "Q4_K_M",
+        "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+        "sizeBytes": 2491874688,
+        "sizeGb": 2.49,
+        "sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2",
+        "qualityNote": "RECOMMENDED. Author's stated default size for most use cases.",
+        "fitsTargetDevice": true,
+        "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+      }
+    }
+  ]
+}

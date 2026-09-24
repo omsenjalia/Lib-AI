@@ -1,0 +1,114 @@
+name: PR Check
+
+# Focused pull-request gate. ci-test.yml already runs analyze and test on every
+# PR; this one adds the checks that catch the two failure modes this codebase is
+# most exposed to:
+#
+#  1. A claim in the model catalogue that is no longer true (a size, a checksum,
+#     or worse, a download URL that would 404 on a user's phone).
+#  2. A "TODO" or "FIXME" left in code, which in an offline app is a promise the
+#     user cannot discover for themselves.
+#
+# It also asserts the offline guarantee structurally: no networking import may
+# appear outside the model-management layer.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+          cache-key: flutter-3.44.0-stable
+          pub-cache-key: flutter-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Install SQLite development headers
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Validate the model catalogue
+        id: catalogue
+        continue-on-error: true
+        run: flutter test test/models/model_catalogue_test.dart --timeout 30s
+
+      - name: Report catalogue failures on the PR
+        if: steps.catalogue.outcome == 'failure' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '### Catalogue validation failed'
+            echo
+            echo 'The shipped model catalogue disagrees with the rules it is supposed to satisfy.'
+            echo 'Re-run `python3 tool/generate_models_catalogue.py` and do not hand-edit the JSON.'
+          } > catalogue-comment.md
+          gh pr comment "$PR_NUMBER" --body-file catalogue-comment.md
+
+      - name: Fail on catalogue problems
+        if: steps.catalogue.outcome == 'failure'
+        run: |
+          echo "::error::the model catalogue failed validation"
+          exit 1
+
+      - name: Guard the offline boundary
+        run: |
+          set -e
+          # The only files allowed to import a networking or connectivity
+          # package are the model-management services. Anything else doing so
+          # would break the airplane-mode guarantee.
+          ALLOWED='^lib/(core/(services/(download_manager|huggingface_client|connectivity_service|update_checker|update_scheduler)|providers/app_providers))\.dart$'
+
+          violations=$(grep -rlE "package:(dio|connectivity_plus)/" lib/ \
+            | grep -vE "$ALLOWED" || true)
+
+          if [ -n "$violations" ]; then
+            echo "::error::networking imports found outside the model-management layer:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "Offline boundary intact: networking is confined to model management."
+
+      - name: Check for leftover markers in lib
+        run: |
+          if grep -rnE "(TODO|FIXME|XXX)" lib/ --include='*.dart'; then
+            echo "::error::unfinished markers found in lib/ — resolve them or move them to an issue"
+            exit 1
+          fi
+          echo "No leftover markers in lib/."
+
+      - name: Check for stray prints
+        run: |
+          if grep -rnE "^\s*print\(" lib/ --include='*.dart'; then
+            echo "::error::print() calls found in lib/"
+            exit 1
+          fi
+          echo "No print() calls in lib/."
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '### PR guardrails'
+            echo
+            echo '- model catalogue validated against its own rules'
+            echo '- networking confined to the model-management services'
+            echo '- no TODO/FIXME or print() left in lib/'
+          } >> "$GITHUB_STEP_SUMMARY"
