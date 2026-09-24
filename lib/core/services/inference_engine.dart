@@ -266,6 +266,11 @@ class InferenceEngine {
   /// the caller can show specific recovery guidance - in particular, memory
   /// exhaustion gets different advice from a corrupt file.
   ///
+  /// [contextLength] is the total the engine is asked to allocate. Note that
+  /// fllama splits it across four llama.cpp slots, so any prompt budget has to
+  /// come from `AppConstants.perChatContextLength`; see that member for the
+  /// detail.
+  ///
   /// Concurrent requests are serialised. Three paths can ask for a load -
   /// opening a conversation, sending a turn, and switching models - and two of
   /// them answering at once is not hypothetical: switching models and then

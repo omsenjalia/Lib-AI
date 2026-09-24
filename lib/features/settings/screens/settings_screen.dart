@@ -220,7 +220,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                   Text(
-                    '$value tokens',
+                    '$value total · '
+                    '${AppConstants.perChatContextLength(value)} per '
+                    'chat',
                     style: ClaudeType.caption.copyWith(
                       color: tokens.primary,
                       fontWeight: FontWeight.w700,
@@ -270,6 +272,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : 'Default in new conversations. ${model.displayName} supports '
                     'up to ${model.maxContextLength} tokens, and larger windows '
                     'need more RAM.',
+          ),
+          const _Note(
+            'The engine runs four llama.cpp slots per model and divides this '
+            'between them, so each conversation gets a quarter of the number '
+            'above. Memory is charged for the total, not the quarter.',
+            tone: _NoteTone.honest,
           ),
         const _Note(
           'Lowering this is the quickest fix for an out-of-memory error, and it '

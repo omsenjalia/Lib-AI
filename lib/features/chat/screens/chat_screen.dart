@@ -90,12 +90,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               titleColor: activeModelId != null && model == null
                   ? tokens.errorText
                   : tokens.bodyStrong,
-              contextFraction: chat.contextLength <= 0
+              contextFraction: chat.chatContextLength <= 0
                   ? 0
-                  : chat.usedTokens / chat.contextLength,
+                  : chat.usedTokens / chat.chatContextLength,
               contextLabel:
-                  '${(100 * chat.usedTokens / chat.contextLength).clamp(0, 100).round()}% '
-                  'of ${_formatTokens(chat.contextLength)} context'
+                  '${(100 * chat.usedTokens / chat.chatContextLength).clamp(0, 100).round()}% '
+                  'of ${_formatTokens(chat.chatContextLength)} context'
                   '${chat.tokensAreExact ? '' : ' (estimated)'}',
               onMenu: () => _sidebarKey.currentState?.toggle(),
               onTitle: () => _switchModel(chat),

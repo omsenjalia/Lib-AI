@@ -123,6 +123,17 @@ class ChatController extends ChangeNotifier {
     );
   }
 
+  /// The window one conversation actually gets from [contextLength].
+  ///
+  /// [contextLength] is the figure the engine is asked for, and the engine
+  /// splits it across four llama.cpp slots: see
+  /// [AppConstants.perChatContextLength]. Budgeting prompts against the
+  /// requested figure is how a long thread ends up past the slot limit, at
+  /// which point the server context-shifts and silently discards the oldest
+  /// tokens - the system prompt first, because nothing sets `n_keep`.
+  int get chatContextLength =>
+      AppConstants.perChatContextLength(contextLength);
+
   Conversation? get _conversation {
     final id = _conversationId;
     if (id == null) return null;
@@ -651,7 +662,8 @@ class ChatController extends ChangeNotifier {
     required Persona? persona,
     required int contextLength,
   }) {
-    final budget = (contextLength * contextBudgetFraction).floor();
+    final window = AppConstants.perChatContextLength(contextLength);
+    final budget = (window * contextBudgetFraction).floor();
     final system = _systemPrompt(persona);
 
     final selected = <Message>[];
@@ -684,7 +696,7 @@ class ChatController extends ChangeNotifier {
     ];
   }
 
-  /// How much of the window the prompt may occupy.
+  /// How much of the per-chat window the prompt may occupy.
   ///
   /// The remaining headroom is where the answer goes; filling the window with
   /// history is how a chat ends up producing two tokens of reply before hitting
@@ -714,7 +726,7 @@ class ChatController extends ChangeNotifier {
     for (final message in history) {
       used += message.tokenCount ?? TokenEstimator.estimate(message.content);
     }
-    final remaining = contextLength - used;
+    final remaining = chatContextLength - used;
     // Never ask for more than the window can hold, and never less than a
     // paragraph's worth - a 3-token budget produces a broken-looking answer.
     return remaining.clamp(128, 4096);
