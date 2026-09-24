@@ -9,6 +9,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/models/model_catalogue.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/inference_engine.dart';
+import '../../../core/services/memory_budget.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/token_estimator.dart';
 
@@ -427,6 +428,44 @@ class ChatController extends ChangeNotifier {
         downloadUrl: '',
       ),
     );
+
+    // Memory preflight, before anything is asked of the native side.
+    //
+    // A load that does not fit fails inside llama.cpp, where Android kills the
+    // process instead of raising something this app can catch. That is the
+    // reported "it woke the model up and just disappeared" failure. Refusing
+    // here turns it into a message with a next step, and the check costs one
+    // read of /proc/meminfo.
+    final available = await MemoryBudget.availableBytes();
+    if (available != null) {
+      // llama.cpp does not release the previous model when a new one loads; it
+      // stays resident for around two minutes, which the model switcher already
+      // tells the user. Peak memory therefore holds both.
+      final residentId = engine.status.modelId;
+      final swappingFrom = residentId != null && residentId != modelId
+          ? catalogue.byId(residentId)
+          : null;
+      final required = MemoryBudget.peakRequirementBytes(
+        requirementGb: model.ramRequirementGb,
+        alsoResidentGb: swappingFrom?.ramRequirementGb ?? 0,
+        contextLength: contextLength,
+        recommendedContextLength: model.recommendedContextLength,
+      );
+
+      if (!MemoryBudget.fits(available: available, required: required)) {
+        final error = InsufficientMemoryException(
+          'Not enough free memory to load ${model.displayName}.',
+          detail: 'It needs about ${formatBytes(required)} free; this device '
+              'has ${formatBytes(available)} available right now'
+              '${swappingFrom == null ? '' : ', with '
+                  '${swappingFrom.displayName} still resident from the last '
+                  'switch'}.',
+        );
+        _lastError = error;
+        notifyListeners();
+        throw error;
+      }
+    }
 
     await engine.load(
       model: model,

@@ -263,6 +263,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (chosen == null) return;
     await ref.read(settingsControllerProvider.notifier).setDefaultModel(chosen);
     if (!mounted) return;
+
+    // Loading the new model here would put a second model in memory while the
+    // current one is still answering: fllama holds the previous model for about
+    // two minutes, and a load cancels only the generation, not the memory.
+    // Defer to the next send, which is the first moment the model is actually
+    // needed.
+    if (chat.isGenerating) return;
+
     try {
       await chat.ensureModelLoaded();
     } on AppException catch (error) {
