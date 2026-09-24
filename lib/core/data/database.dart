@@ -105,7 +105,7 @@ class AppDatabase extends _$AppDatabase {
   /// [deleteConversation] deletes messages by hand.
   Future<void> deleteSubjectTag(int id) async {
     await (update(conversations)..where((t) => t.subjectTagId.equals(id)))
-        .write(ConversationsCompanion(subjectTagId: const Value(null)));
+        .write(const ConversationsCompanion(subjectTagId: Value(null)));
     await (delete(subjectTags)..where((t) => t.id.equals(id))).go();
   }
 
@@ -157,7 +157,7 @@ class AppDatabase extends _$AppDatabase {
   /// `PRAGMA foreign_keys` is on; see [deleteSubjectTag].
   Future<void> deletePersona(int id) async {
     await (update(conversations)..where((t) => t.personaId.equals(id)))
-        .write(ConversationsCompanion(personaId: const Value(null)));
+        .write(const ConversationsCompanion(personaId: Value(null)));
     await (delete(personas)..where((t) => t.id.equals(id))).go();
   }
 
