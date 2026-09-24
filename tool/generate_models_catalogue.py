@@ -71,9 +71,9 @@ REPOS = {
 # (file_name, quant_label, size_bytes, quality_note[, fits_9gb])
 QUANTS = {
     "qwen3.8-27b": [
-        ("Qwen3.8-27B-UD-IQ1_S.gguf", "UD-IQ1_S", 6192222208, "Emergency quant. Severe quality loss on a 27B.", True),
-        ("Qwen3.8-27B-UD-IQ1_M.gguf", "UD-IQ1_M", 6729166848, "Emergency quant. Severe quality loss on a 27B.", True),
-        ("Qwen3.8-27B-UD-IQ2_XXS.gguf", "UD-IQ2_XXS", 7266070528, "Smallest plausible load. Quality is poor but coherent.", True),
+        ("Qwen3.8-27B-UD-IQ1_S.gguf", "UD-IQ1_S", 6192222208, "Emergency quant. Severe quality loss on a 27B, and still over budget once the KV cache is counted.", False),
+        ("Qwen3.8-27B-UD-IQ1_M.gguf", "UD-IQ1_M", 6729166848, "Emergency quant. Severe quality loss on a 27B, and still over budget once the KV cache is counted.", False),
+        ("Qwen3.8-27B-UD-IQ2_XXS.gguf", "UD-IQ2_XXS", 7266070528, "The D1 default quant. Quality is poor but coherent, and over budget once the KV cache and projector are counted.", False),
         ("Qwen3.8-27B-UD-IQ2_S.gguf", "UD-IQ2_S", 8371970048, "Over budget once KV cache is counted.", False),
         ("Qwen3.8-27B-UD-Q2_K_XL.gguf", "UD-Q2_K_XL", 9828981664, "Exceeds usable RAM on an 8 GB device.", False),
         ("Qwen3.8-27B-UD-IQ3_XXS.gguf", "UD-IQ3_XXS", 10934860704, "Exceeds usable RAM.", False),
@@ -337,7 +337,7 @@ def build():
         "highRam": True,
         "fitsTargetDevice": False,
         "ramRequirementGb": 9.2,
-        "warning": "WILL NOT LOAD on a Samsung Galaxy S25. Even the smallest available quant (UD-IQ2_XXS, 7.27 GB) exceeds usable RAM once the KV cache and the 0.93 GB vision projector are counted. Every quant above IQ2_XXS is 9.8 GB or larger. Downloading this model will consume storage and is expected to fail at load time.",
+        "warning": "WILL NOT LOAD on a Samsung Galaxy S25. Even the smallest available quant (UD-IQ1_S, 6.19 GB) exceeds usable RAM once the KV cache and the 0.93 GB vision projector are counted. The default quant is UD-IQ2_XXS (7.27 GB), and every quant above it is at least 8.37 GB. Downloading this model will consume storage and is expected to fail at load time.",
         "recommendedQuant": "UD-IQ2_XXS",
         "samplingDefaults": {"temperature": 0.7, "topP": 0.95, "topK": 20},
         "notes": "No Q3_K_S and no plain Q2_K exist in this repository. The nearest larger quants are UD-Q2_K_XL (9.83 GB) and UD-Q3_K_XL (13.15 GB).",

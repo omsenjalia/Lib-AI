@@ -142,8 +142,14 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
-  Future<void> deletePersona(int id) =>
-      (delete(personas)..where((t) => t.id.equals(id))).go();
+  /// Deletes a persona. Conversations that used it keep every message: their
+  /// persona reference is cleared first, because the foreign key on
+  /// `conversations.personaId` would otherwise reject the delete.
+  Future<void> deletePersona(int id) async {
+    await (update(conversations)..where((t) => t.personaId.equals(id)))
+        .write(const ConversationsCompanion(personaId: Value(null)));
+    await (delete(personas)..where((t) => t.id.equals(id))).go();
+  }
 
   // ----------------------------------------------------------- conversations
 
