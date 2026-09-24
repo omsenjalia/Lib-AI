@@ -98,6 +98,7 @@ class ClaudeRow extends StatelessWidget {
     this.onTap,
     this.height = 56,
     this.labelColor,
+    this.subtitleColor,
     this.showDivider = true,
   });
 
@@ -108,6 +109,10 @@ class ClaudeRow extends StatelessWidget {
   final VoidCallback? onTap;
   final double height;
   final Color? labelColor;
+
+  /// Overrides the subtitle colour, for the rare row whose second line is a
+  /// warning rather than a description.
+  final Color? subtitleColor;
   final bool showDivider;
 
   @override
@@ -148,7 +153,7 @@ class ClaudeRow extends StatelessWidget {
                           Text(
                             subtitle!,
                             style: ClaudeType.caption.copyWith(
-                              color: tokens.muted,
+                              color: subtitleColor ?? tokens.muted,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
