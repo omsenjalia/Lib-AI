@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -12,6 +11,29 @@ import '../models/model_catalogue.dart';
 import '../models/transfer_state.dart';
 import 'connectivity_service.dart';
 import 'storage_paths.dart';
+
+class _DownloadCancelledException implements Exception {
+  const _DownloadCancelledException();
+}
+
+class _InvalidDownloadResponseException implements Exception {
+  const _InvalidDownloadResponseException(this.message);
+
+  final String message;
+}
+
+@immutable
+class _ParsedContentRange {
+  const _ParsedContentRange({
+    required this.start,
+    required this.end,
+    required this.total,
+  });
+
+  final int start;
+  final int end;
+  final int total;
+}
 
 /// Collects a single digest produced by a chunked hash conversion.
 ///
@@ -61,9 +83,11 @@ class DownloadManager {
   DownloadManager({
     required AppDatabase database,
     required ConnectivityService connectivity,
+    required StoragePaths storagePaths,
     Dio? dio,
   })  : _db = database,
         _connectivity = connectivity,
+        _storagePaths = storagePaths,
         _dio = dio ??
             Dio(
               BaseOptions(
@@ -77,6 +101,7 @@ class DownloadManager {
 
   final AppDatabase _db;
   final ConnectivityService _connectivity;
+  final StoragePaths _storagePaths;
   final Dio _dio;
 
   final _controller = StreamController<Map<String, DownloadTask>>.broadcast();
@@ -179,7 +204,7 @@ class DownloadManager {
           ),
         );
 
-        final destination = await StoragePaths.modelFilePath(
+        final destination = await _storagePaths.modelFileTarget(
           model.id,
           spec.fileName,
         );
@@ -199,11 +224,12 @@ class DownloadManager {
           return;
         }
 
+        final locator = await _storagePaths.modelFileLocator(destination);
         if (spec.isMmproj) {
-          mmprojLocalPath = destination;
+          mmprojLocalPath = locator;
           totalBytes += spec.expectedBytes;
         } else {
-          modelLocalPath = destination;
+          modelLocalPath = locator;
           totalBytes += spec.expectedBytes;
         }
       }
@@ -254,18 +280,23 @@ class DownloadManager {
         ),
       );
     } on AppException catch (error) {
-      _publishFailure(model.id, quant.quant, error.message, error.detail);
+      _publishFailure(
+        model.id,
+        quant.quant,
+        error.message,
+        detail: error.detail,
+      );
     } catch (error) {
       _publishFailure(
         model.id,
         quant.quant,
         'Download failed.',
-        '$error',
+        detail: '$error',
       );
     }
   }
 
-  /// Streams one file to disk, hashing as it goes.
+  /// Streams one file to the active storage backend, hashing as it goes.
   ///
   /// Returns true when the file was written and verified, false when the
   /// transfer was cancelled or failed (in which case the terminal task state
@@ -274,31 +305,88 @@ class DownloadManager {
     required String modelId,
     required String quant,
     required _FileSpec spec,
-    required String destination,
+    required ModelFileTarget destination,
     required int fileIndex,
     required int fileCount,
     required bool includesMmproj,
+    bool forceRestart = false,
   }) async {
-    // Download to a sibling `.part` file. The real path only appears once the
-    // bytes are verified, so a half-written file can never be mistaken for a
-    // usable model by the loader.
-    final partFile = File('$destination.part');
-    IOSink? sink;
+    if (_cancelRequests[modelId] == true) {
+      await _finish(modelId, DownloadPhase.cancelled);
+      return false;
+    }
+
+    if (forceRestart) await _storagePaths.deleteModelPart(destination);
+    var existingBytes = await _storagePaths.modelPartSize(destination);
+    if (existingBytes > spec.expectedBytes) {
+      await _storagePaths.deleteModelPart(destination);
+      existingBytes = 0;
+    }
+
+    // A process may have been killed after receiving the final byte but before
+    // promotion. Verify such a complete part locally instead of downloading it
+    // again. The catalogue SHA-256 is required before promoting it.
+    final expected = spec.sha256;
+    if (existingBytes == spec.expectedBytes && existingBytes > 0) {
+      final partLocator = await _storagePaths.modelPartLocator(destination);
+      if (partLocator != null && expected != null && expected.isNotEmpty) {
+        _publish(
+          DownloadTask(
+            modelId: modelId,
+            quant: quant,
+            fileName: spec.fileName,
+            totalBytes: spec.expectedBytes,
+            receivedBytes: existingBytes,
+            phase: DownloadPhase.verifying,
+            includesMmproj: includesMmproj,
+            fileIndex: fileIndex,
+            fileCount: fileCount,
+          ),
+        );
+        final actual = await _storagePaths.sha256Of(partLocator);
+        if (actual.toLowerCase() == expected.toLowerCase()) {
+          await _storagePaths.promoteModelPart(destination);
+          return true;
+        }
+      }
+      await _storagePaths.deleteModelPart(destination);
+      existingBytes = 0;
+    }
+
     final stopwatch = Stopwatch()..start();
     var received = 0;
+    var newBytesReceived = 0;
     var lastSampleAt = 0;
     var lastSampleBytes = 0;
     var speed = 0.0;
 
     try {
+      _publish(
+        DownloadTask(
+          modelId: modelId,
+          quant: quant,
+          fileName: spec.fileName,
+          totalBytes: spec.expectedBytes,
+          receivedBytes: existingBytes,
+          phase: DownloadPhase.downloading,
+          includesMmproj: includesMmproj,
+          fileIndex: fileIndex,
+          fileCount: fileCount,
+        ),
+      );
+
       final response = await _dio.get<ResponseBody>(
         spec.url,
         options: Options(
           responseType: ResponseType.stream,
           followRedirects: true,
-          // A 7 GB transfer over a slow connection is not a timeout case; the
-          // per-chunk read is what would stall, not the whole response.
-          receiveTimeout: Duration.zero,
+          headers: {
+            if (existingBytes > 0) 'Range': 'bytes=$existingBytes-',
+          },
+          // This is an inactivity timeout, not a total transfer deadline. A
+          // healthy slow stream may run for hours; a stalled stream fails but
+          // keeps its flushed bytes for the next Range retry.
+          receiveTimeout: const Duration(minutes: 2),
         ),
       );
 
@@ -308,81 +396,183 @@ class DownloadManager {
         return false;
       }
 
-      // dio 5.x exposes ResponseBody.headers as a plain
-      // Map<String, List<String>> (its `Headers` wrapper only exists on
-      // Response), so index it directly rather than calling .value().
-      final declaredLength = int.tryParse(
-        body.headers[Headers.contentLengthHeader]?.first ?? '',
-      );
-      final total = declaredLength ?? spec.expectedBytes;
-
-      if (partFile.existsSync()) await partFile.delete();
-      // All writes go through a non-nullable local: the catch clauses below
-      // reassign `sink`, which stops flow analysis from promoting it inside
-      // the try block.
-      final out = partFile.openWrite();
-      sink = out;
+      final statusCode = response.statusCode;
+      var append = false;
+      var prefixBytes = 0;
+      if (statusCode == 206) {
+        final contentRange = _parseContentRange(
+          _responseHeader(body.headers, 'content-range'),
+        );
+        if (contentRange == null ||
+            contentRange.start != existingBytes ||
+            contentRange.end != spec.expectedBytes - 1 ||
+            contentRange.total != spec.expectedBytes) {
+          await _discardResponseBody(body);
+          if (!forceRestart) {
+            await _storagePaths.deleteModelPart(destination);
+            return _downloadFile(
+              modelId: modelId,
+              quant: quant,
+              spec: spec,
+              destination: destination,
+              fileIndex: fileIndex,
+              fileCount: fileCount,
+              includesMmproj: includesMmproj,
+              forceRestart: true,
+            );
+          }
+          _publishFailure(
+            modelId,
+            quant,
+            'The server returned an invalid resumed download.',
+            detail: _responseHeader(body.headers, 'content-range'),
+          );
+          return false;
+        }
+        append = existingBytes > 0;
+        prefixBytes = existingBytes;
+      } else if (statusCode != 200) {
+        _publishFailure(
+          modelId,
+          quant,
+          'Unexpected response while downloading ${spec.fileName}.',
+          detail: 'HTTP status $statusCode',
+        );
+        return false;
+      }
+      // A 200 response means the server ignored Range. The stream below
+      // overwrites the old partial file and starts a clean digest.
 
       final digestSink = _DigestSink();
       final hasher = sha256.startChunkedConversion(digestSink);
-
-      await for (final chunk in body.stream) {
-        if (_cancelRequests[modelId] == true) {
-          await out.flush();
-          await out.close();
-          sink = null;
-          await _safeDelete(partFile);
-          await _finish(modelId, DownloadPhase.cancelled);
-          return false;
+      received = prefixBytes;
+      if (append && prefixBytes > 0) {
+        var hashedPrefixBytes = 0;
+        await for (final chunk in _storagePaths.readModelPart(destination)) {
+          if (_cancelRequests[modelId] == true) {
+            hasher.close();
+            await _finish(
+              modelId,
+              DownloadPhase.cancelled,
+              receivedBytes: hashedPrefixBytes,
+            );
+            return false;
+          }
+          hasher.add(chunk);
+          hashedPrefixBytes += chunk.length;
         }
-
-        out.add(chunk);
-        hasher.add(chunk);
-        received += chunk.length;
-
-        // Sample speed roughly twice a second. Faster updates would make the
-        // ETA jitter without becoming more accurate.
-        final elapsed = stopwatch.elapsedMilliseconds;
-        if (elapsed - lastSampleAt >= 500) {
-          final instantSpeed =
-              (received - lastSampleBytes) / ((elapsed - lastSampleAt) / 1000);
-          // Exponential moving average so the number is readable.
-          speed = speed == 0 ? instantSpeed : (speed * 0.6) + (instantSpeed * 0.4);
-          lastSampleAt = elapsed;
-          lastSampleBytes = received;
-
-          _publish(
-            DownloadTask(
+        if (hashedPrefixBytes != prefixBytes) {
+          hasher.close();
+          await _discardResponseBody(body);
+          if (!forceRestart) {
+            await _storagePaths.deleteModelPart(destination);
+            return _downloadFile(
               modelId: modelId,
               quant: quant,
-              fileName: spec.fileName,
-              totalBytes: total,
-              receivedBytes: received,
-              phase: DownloadPhase.downloading,
-              bytesPerSecond: speed,
-              eta: speed > 0
-                  ? Duration(seconds: ((total - received) / speed).round())
-                  : null,
-              includesMmproj: includesMmproj,
+              spec: spec,
+              destination: destination,
               fileIndex: fileIndex,
               fileCount: fileCount,
-            ),
+              includesMmproj: includesMmproj,
+              forceRestart: true,
+            );
+          }
+          _publishFailure(
+            modelId,
+            quant,
+            'The saved partial file could not be read.',
           );
+          return false;
         }
       }
 
-      hasher.close();
-      await out.flush();
-      await out.close();
-      sink = null;
+      Stream<List<int>> monitoredStream() async* {
+        await for (final chunk in body.stream) {
+          if (_cancelRequests[modelId] == true) {
+            throw const _DownloadCancelledException();
+          }
+          if (received + chunk.length > spec.expectedBytes) {
+            throw const _InvalidDownloadResponseException(
+              'The server returned more bytes than the catalogue file size.',
+            );
+          }
 
-      // --- integrity check --------------------------------------------------
+          hasher.add(chunk);
+          received += chunk.length;
+          newBytesReceived += chunk.length;
+
+          // Sample speed roughly twice a second. Faster updates would make the
+          // ETA jitter without becoming more accurate.
+          final elapsed = stopwatch.elapsedMilliseconds;
+          if (elapsed - lastSampleAt >= 500) {
+            final instantSpeed =
+                (newBytesReceived - lastSampleBytes) /
+                    ((elapsed - lastSampleAt) / 1000);
+            speed = speed == 0
+                ? instantSpeed
+                : (speed * 0.6) + (instantSpeed * 0.4);
+            lastSampleAt = elapsed;
+            lastSampleBytes = newBytesReceived;
+
+            _publish(
+              DownloadTask(
+                modelId: modelId,
+                quant: quant,
+                fileName: spec.fileName,
+                totalBytes: spec.expectedBytes,
+                receivedBytes: received,
+                phase: DownloadPhase.downloading,
+                bytesPerSecond: speed,
+                eta: speed > 0
+                    ? Duration(
+                        seconds: ((spec.expectedBytes - received) / speed)
+                            .round(),
+                      )
+                    : null,
+                includesMmproj: includesMmproj,
+                fileIndex: fileIndex,
+                fileCount: fileCount,
+              ),
+            );
+          }
+          yield chunk;
+        }
+      }
+
+      await _storagePaths.writeModelPart(
+        destination,
+        monitoredStream(),
+        append: append,
+      );
+      if (_cancelRequests[modelId] == true) {
+        await _finish(
+          modelId,
+          DownloadPhase.cancelled,
+          receivedBytes: received,
+        );
+        return false;
+      }
+      hasher.close();
+
+      // A cleanly closed but short body is still incomplete. Keep it so the
+      // next user retry can request the remaining byte range.
+      if (received != spec.expectedBytes) {
+        _publishFailure(
+          modelId,
+          quant,
+          'The download stopped before the file was complete.',
+          detail: 'Received $received of ${spec.expectedBytes} bytes.',
+          receivedBytes: received,
+        );
+        return false;
+      }
+
       _publish(
         DownloadTask(
           modelId: modelId,
           quant: quant,
           fileName: spec.fileName,
-          totalBytes: total,
+          totalBytes: spec.expectedBytes,
           receivedBytes: received,
           phase: DownloadPhase.verifying,
           includesMmproj: includesMmproj,
@@ -391,74 +581,147 @@ class DownloadManager {
         ),
       );
 
-      final expected = spec.sha256;
       final actual = digestSink.value?.toString();
       if (expected != null && expected.isNotEmpty && actual != null) {
         if (expected.toLowerCase() != actual.toLowerCase()) {
-          await _safeDelete(partFile);
+          await _storagePaths.deleteModelPart(destination);
+          if (append && !forceRestart) {
+            return _downloadFile(
+              modelId: modelId,
+              quant: quant,
+              spec: spec,
+              destination: destination,
+              fileIndex: fileIndex,
+              fileCount: fileCount,
+              includesMmproj: includesMmproj,
+              forceRestart: true,
+            );
+          }
           _publishFailure(
             modelId,
             quant,
             'Downloaded file failed its integrity check.',
-            'Expected $expected but computed $actual',
+            detail: 'Expected $expected but computed $actual',
           );
           return false;
         }
       }
 
-      // Atomic-ish promotion into place.
-      final target = File(destination);
-      if (await target.exists()) await target.delete();
-      await partFile.rename(destination);
+      await _storagePaths.promoteModelPart(destination);
       return true;
+    } on _DownloadCancelledException {
+      // Cancellation acts as pause: the flushed `.part` remains available for
+      // the next explicit retry.
+      await _finish(
+        modelId,
+        DownloadPhase.cancelled,
+        receivedBytes: received,
+      );
+      return false;
+    } on _InvalidDownloadResponseException catch (error) {
+      await _storagePaths.deleteModelPart(destination);
+      _publishFailure(
+        modelId,
+        quant,
+        'The server returned an invalid model file.',
+        detail: error.message,
+      );
+      return false;
     } on DioException catch (error) {
-      await sink?.close();
-      sink = null;
-      await _safeDelete(partFile);
+      if (error.response?.statusCode == 416 &&
+          existingBytes > 0 &&
+          !forceRestart) {
+        await _storagePaths.deleteModelPart(destination);
+        return _downloadFile(
+          modelId: modelId,
+          quant: quant,
+          spec: spec,
+          destination: destination,
+          fileIndex: fileIndex,
+          fileCount: fileCount,
+          includesMmproj: includesMmproj,
+          forceRestart: true,
+        );
+      }
+      // Network errors, timeouts, and user pauses deliberately keep the bytes
+      // already written to `.part`; a retry will validate and resume them.
       _publishFailure(
         modelId,
         quant,
         'Could not download ${spec.fileName}.',
-        error.message ?? '${error.type}',
+        detail: error.message ?? '${error.type}',
+        receivedBytes: received,
       );
       return false;
     } catch (error) {
-      await sink?.close();
-      sink = null;
-      await _safeDelete(partFile);
-      _publishFailure(modelId, quant, 'Download failed.', '$error');
+      // If storage itself failed, preserve whatever was flushed. The next
+      // attempt validates the full prefix against the catalogue SHA-256.
+      _publishFailure(
+        modelId,
+        quant,
+        'Download failed.',
+        detail: '$error',
+        receivedBytes: received,
+      );
       return false;
     }
   }
 
-  Future<void> _safeDelete(File file) async {
-    try {
-      if (await file.exists()) await file.delete();
-    } catch (_) {
-      // Leaving a stray `.part` file is harmless; it is overwritten or cleaned
-      // up on the next attempt.
-    }
+  Future<void> _discardResponseBody(ResponseBody body) async {
+    final subscription = body.stream.listen((_) {});
+    await subscription.cancel();
   }
 
-  Future<void> _finish(String modelId, DownloadPhase phase) async {
+  String? _responseHeader(Map<String, List<String>> headers, String name) {
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == name.toLowerCase() &&
+          entry.value.isNotEmpty) {
+        return entry.value.first;
+      }
+    }
+    return null;
+  }
+
+  _ParsedContentRange? _parseContentRange(String? value) {
+    if (value == null) return null;
+    final match = RegExp(r'^bytes\s+(\d+)-(\d+)/(\d+)$', caseSensitive: false)
+        .firstMatch(value.trim());
+    if (match == null) return null;
+    final start = int.tryParse(match.group(1)!);
+    final end = int.tryParse(match.group(2)!);
+    final total = int.tryParse(match.group(3)!);
+    if (start == null || end == null || total == null || end < start) {
+      return null;
+    }
+    return _ParsedContentRange(start: start, end: end, total: total);
+  }
+
+  Future<void> _finish(
+    String modelId,
+    DownloadPhase phase, {
+    int? receivedBytes,
+  }) async {
     final existing = _tasks[modelId];
     if (existing == null) return;
-    _publish(existing.copyWith(phase: phase));
+    _publish(
+      existing.copyWith(phase: phase, receivedBytes: receivedBytes),
+    );
   }
 
   void _publishFailure(
     String modelId,
     String quant,
-    String message, [
+    String message, {
     String? detail,
-  ]) {
+    int? receivedBytes,
+  }) {
     _publish(
       DownloadTask(
         modelId: modelId,
         quant: quant,
         fileName: _tasks[modelId]?.fileName ?? '',
         totalBytes: _tasks[modelId]?.totalBytes ?? 0,
-        receivedBytes: _tasks[modelId]?.receivedBytes ?? 0,
+        receivedBytes: receivedBytes ?? _tasks[modelId]?.receivedBytes ?? 0,
         phase: DownloadPhase.failed,
         error: message,
         detail: detail,
@@ -476,29 +739,41 @@ class DownloadManager {
   /// Callers must ensure the model is not currently loaded; the model library
   /// disables the delete action for the active model.
   Future<void> deleteModel(String modelId) async {
-    await StoragePaths.deleteModelDirectory(modelId);
+    final installation = await _db.installation(modelId);
+    if (installation != null) {
+      for (final locator in [
+        installation.localPath,
+        if (installation.mmprojPath != null) installation.mmprojPath!,
+      ]) {
+        try {
+          await _storagePaths.deleteModelFile(locator);
+        } catch (_) {
+          // The user can revoke a SAF grant independently. Remove the local
+          // database row even if the old document tree cannot be reached.
+        }
+      }
+    }
+    await _storagePaths.deleteModelDirectory(modelId);
     await _db.removeInstallation(modelId);
     clearTask(modelId);
   }
 
   /// Bytes on disk for a model, measured rather than taken from the record.
   Future<int> diskUsage(String modelId) async {
-    final dir = await StoragePaths.modelDirectory(modelId);
-    return StoragePaths.directorySize(dir);
+    final installation = await _db.installation(modelId);
+    if (installation == null) return _storagePaths.modelDirectorySize(modelId);
+    var total = await _storagePaths.modelFileSize(installation.localPath);
+    if (installation.mmprojPath != null) {
+      total += await _storagePaths.modelFileSize(installation.mmprojPath!);
+    }
+    return total;
   }
 
   /// Cleans up `.part` files left behind by interrupted downloads.
-  Future<void> sweepPartialDownloads() async {
-    try {
-      final root = await StoragePaths.modelsDirectory();
-      await for (final entity in root.list(recursive: true)) {
-        if (entity is File && entity.path.endsWith('.part')) {
-          await entity.delete();
-        }
-      }
-    } catch (_) {
-      // Best-effort housekeeping; never worth surfacing.
-    }
+  Future<void> sweepPartialDownloads({bool discardResumable = false}) async {
+    await _storagePaths.sweepPartialDownloads(
+      discardResumable: discardResumable,
+    );
   }
 
   void dispose() {

@@ -7,6 +7,7 @@ import 'package:fllama/fllama.dart' as fl;
 
 import '../errors/app_exception.dart';
 import '../models/model_catalogue.dart';
+import 'storage_paths.dart';
 
 /// Stage of the model lifecycle, as far as the UI can honestly report it.
 ///
@@ -171,7 +172,11 @@ class GenerationResult {
 ///    [estimatedReleaseAt] exposes when that transient ends, and the model
 ///    switcher surfaces it.
 class InferenceEngine {
-  InferenceEngine({this.onLog});
+  InferenceEngine({required StoragePaths storagePaths, this.onLog})
+      : _storagePaths = storagePaths;
+
+  final StoragePaths _storagePaths;
+  final List<ModelFileLease> _modelFileLeases = [];
 
   /// Receives llama.cpp's own log lines when a debug logger is attached.
   final void Function(String message)? onLog;
@@ -189,6 +194,25 @@ class InferenceEngine {
 
   bool _stopRequested = false;
   Completer<GenerationResult>? _generationCompleter;
+  Future<bool>? _gpuBackendAvailability;
+  int _activeGpuLayers = 0;
+
+  /// Whether the pinned native library can actually enumerate a usable GPU.
+  ///
+  /// fllama performs this query off the UI isolate. A missing symbol, backend,
+  /// driver, or device resolves to false and inference stays on CPU.
+  Future<bool> get gpuOffloadAvailable =>
+      _gpuBackendAvailability ??= _queryGpuBackendAvailability();
+
+  Future<bool> _queryGpuBackendAvailability() async {
+    try {
+      final devices = await fl.fllamaGpuMemoryInfoGetAll();
+      return devices.isNotEmpty;
+    } catch (error) {
+      onLog?.call('GPU capability query failed; using CPU: $error');
+      return false;
+    }
+  }
 
   Stream<EngineStatus> get statusStream => _statusController.stream;
   EngineStatus get status => _status;
@@ -222,6 +246,47 @@ class InferenceEngine {
     required int contextLength,
     required int gpuLayers,
     bool includeMmproj = true,
+  }) async {
+    await _releaseModelFileLeases();
+    ModelFileLease? modelLease;
+    ModelFileLease? mmprojLease;
+    try {
+      modelLease = await _storagePaths.openModelFile(paths.modelPath);
+      if (includeMmproj && paths.mmprojPath != null) {
+        mmprojLease = await _storagePaths.openModelFile(paths.mmprojPath!);
+      }
+      final resolvedPaths = ModelInstallationPaths(
+        modelPath: modelLease.path,
+        mmprojPath: mmprojLease?.path,
+      );
+      await _loadWithPaths(
+        model: model,
+        quant: quant,
+        paths: resolvedPaths,
+        contextLength: contextLength,
+        gpuLayers: gpuLayers,
+        includeMmproj: includeMmproj,
+      );
+      _modelFileLeases.add(modelLease);
+      if (mmprojLease != null && _status.mmprojPath != null) {
+        _modelFileLeases.add(mmprojLease);
+      } else if (mmprojLease != null) {
+        await mmprojLease.close();
+      }
+    } catch (_) {
+      if (modelLease != null) await modelLease.close();
+      if (mmprojLease != null) await mmprojLease.close();
+      rethrow;
+    }
+  }
+
+  Future<void> _loadWithPaths({
+    required CatalogueModel model,
+    required QuantOption quant,
+    required ModelInstallationPaths paths,
+    required int contextLength,
+    required int gpuLayers,
+    required bool includeMmproj,
   }) async {
     _emit(
       EngineStatus(
@@ -303,15 +368,47 @@ class InferenceEngine {
       message: 'Loading weights into memory',
     ));
 
+    final requestedGpuLayers = gpuLayers.clamp(0, 99).toInt();
+    final hasGpuBackend =
+        requestedGpuLayers > 0 && await gpuOffloadAvailable;
+    _activeGpuLayers = hasGpuBackend ? requestedGpuLayers : 0;
+    if (requestedGpuLayers > 0 && !hasGpuBackend) {
+      onLog?.call(
+        'GPU layers requested but no native GPU backend is available; '
+        'falling back to CPU.',
+      );
+    }
+
     try {
-      await _warmUp(paths: paths, contextLength: contextLength, gpuLayers: gpuLayers);
-    } on AppException catch (error) {
-      _fail(error);
-      rethrow;
-    } catch (error) {
-      final wrapped = _classifyLoadFailure('$error');
-      _fail(wrapped);
-      throw wrapped;
+      await _warmUp(
+        paths: paths,
+        contextLength: contextLength,
+        gpuLayers: _activeGpuLayers,
+      );
+    } catch (gpuError) {
+      if (_activeGpuLayers > 0) {
+        onLog?.call(
+          'GPU warm-up failed; retrying this model on CPU: $gpuError',
+        );
+        _activeGpuLayers = 0;
+        try {
+          await _warmUp(paths: paths, contextLength: contextLength, gpuLayers: 0);
+        } on AppException catch (error) {
+          _fail(error);
+          rethrow;
+        } catch (error) {
+          final wrapped = _classifyLoadFailure('$error');
+          _fail(wrapped);
+          throw wrapped;
+        }
+      } else if (gpuError is AppException) {
+        _fail(gpuError);
+        rethrow;
+      } else {
+        final wrapped = _classifyLoadFailure('$gpuError');
+        _fail(wrapped);
+        throw wrapped;
+      }
     }
 
     _emit(_status.copyWith(
@@ -437,7 +534,6 @@ class InferenceEngine {
     required double topP,
     double repeatPenalty = 1.1,
     int? contextLengthOverride,
-    int gpuLayers = 0,
     required void Function(String delta) onToken,
   }) async {
     final status = _status;
@@ -468,7 +564,7 @@ class InferenceEngine {
       frequencyPenalty: 0,
       // top_k is deliberately absent: the binding does not expose it. See
       // ARCHITECTURE.md and the note on the Settings screen.
-      numGpuLayers: gpuLayers,
+      numGpuLayers: _activeGpuLayers,
       logger: onLog,
     );
 
@@ -632,13 +728,23 @@ class InferenceEngine {
     stop();
     _activeRequestId = null;
     _accumulated = '';
+    await _releaseModelFileLeases();
     _emit(
       EngineStatus(lastActivityAt: DateTime.now()),
     );
   }
 
+  Future<void> _releaseModelFileLeases() async {
+    final leases = List<ModelFileLease>.of(_modelFileLeases);
+    _modelFileLeases.clear();
+    for (final lease in leases) {
+      await lease.close();
+    }
+  }
+
   Future<void> dispose() async {
     stop();
+    await _releaseModelFileLeases();
     await _statusController.close();
   }
 }

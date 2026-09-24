@@ -13,17 +13,27 @@
       and declaring CAMERA without requesting it at runtime would break the
       capture intent instead of enabling it.
 
-      No storage permission is declared either: exports are written to app
-      storage and shared through the system share sheet.
+      No broad storage permission is declared. Optional model storage is
+      user-granted through ACTION_OPEN_DOCUMENT_TREE and a persisted SAF URI;
+      exports remain app-scoped and are shared through the system share sheet.
 
-      POST_NOTIFICATIONS backs the Play-Store-style download notification.
-      Android 13+ requires it, it is requested only when the user starts a
-      download, and a refusal costs nothing but the notification - the download
-      itself is unaffected.
+      POST_NOTIFICATIONS backs the download notification. Android 13+ requires
+      it, it is requested only when the user starts a download, and a refusal
+      does not cancel the transfer.
+
+      The foreground-service permissions below are limited to the
+      user-initiated dataSync transfer: Play policy treats a large model download
+      requested by the user as a user-initiated data transfer. WAKE_LOCK and
+      ACCESS_WIFI_STATE are needed only while that service owns its transfer
+      locks; no background polling or unrelated foreground work is allowed.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <!-- The S25 has 8-12 GB of RAM; tell the OS this app genuinely needs a
          large heap so the LMK is less eager to kill us mid-generation. -->
@@ -34,6 +44,12 @@
         android:largeHeap="true"
         android:allowBackup="false"
         android:usesCleartextTraffic="false">
+        <!-- A dataSync FGS exists only while a user-started GGUF transfer is
+             active. This is the Play-policy user-initiated data-transfer case. -->
+        <service
+            android:name=".ModelDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

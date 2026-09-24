@@ -21,14 +21,11 @@ void main() {
   });
 
   group('seeding', () {
-    test('the nine subject tags are created on first open', () async {
-      final tags = await db.allSubjectTags();
-      expect(tags, hasLength(9));
-      expect(
-        tags.map((t) => t.name),
-        containsAll(['Maths', 'Physics', 'CS Theory', 'Programming', 'General']),
-      );
-      expect(tags.every((t) => t.isBuiltIn), isTrue);
+    test('retired subject tags are not seeded on first open', () async {
+      final row = await db
+          .customSelect('SELECT COUNT(*) AS count FROM subject_tags')
+          .getSingle();
+      expect(row.read<int>('count'), 0);
     });
 
     test('the six study personas are created on first open', () async {
@@ -58,18 +55,16 @@ void main() {
   });
 
   group('conversations and messages', () {
-    test('a conversation can be created with its metadata', () async {
-      final tagId = (await db.allSubjectTags()).first.id;
+    test('new conversations have no subject assignment', () async {
       final id = await db.createConversation(
         title: 'Deadlocks',
-        subjectTagId: tagId,
         modelId: 'qwythos-9b-v2',
       );
 
       final conversation = await db.conversationById(id);
       expect(conversation, isNotNull);
       expect(conversation!.title, 'Deadlocks');
-      expect(conversation.subjectTagId, tagId);
+      expect(conversation.subjectTagId, isNull);
       expect(conversation.modelId, 'qwythos-9b-v2');
     });
 
@@ -165,35 +160,21 @@ void main() {
       expect(rows.last.id, second);
     });
 
-    test('clearing a tag and a persona works', () async {
-      final tagId = (await db.allSubjectTags()).first.id;
+    test('clearing a persona works', () async {
       final personaId = (await db.allPersonas()).first.id;
       final id = await db.createConversation(
         title: 'Clearing',
-        subjectTagId: tagId,
         personaId: personaId,
       );
 
-      await db.updateConversationMeta(id: id, clearSubjectTag: true);
-      var conversation = (await db.conversationById(id))!;
-      expect(conversation.subjectTagId, isNull);
-      expect(conversation.personaId, personaId);
-
       await db.updateConversationMeta(id: id, clearPersona: true);
-      conversation = (await db.conversationById(id))!;
+      final conversation = (await db.conversationById(id))!;
+      expect(conversation.subjectTagId, isNull);
       expect(conversation.personaId, isNull);
     });
   });
 
-  group('subject tags and personas', () {
-    test('a custom tag can be added and deleted', () async {
-      final id = await db.insertSubjectTag('Chemistry', 0xFF00FF00);
-      expect((await db.tagById(id))!.name, 'Chemistry');
-
-      await db.deleteSubjectTag(id);
-      expect(await db.tagById(id), isNull);
-    });
-
+  group('personas', () {
     test('a custom persona round-trips through insert and update', () async {
       final id = await db.insertPersona(
         name: 'Lab Coach',
@@ -385,7 +366,8 @@ void main() {
         gpuLayers: 10,
         autoUpdateCheckEnabled: false,
         defaultModelId: 'mimo-v2.6-9b',
-        defaultSubjectTagId: 3,
+        modelStorageTreeUri: 'content://com.android.externalstorage.documents/tree/primary%3ADocuments',
+        modelStorageFolderName: 'Documents',
       );
 
       for (final entry in original.toMap().entries) {
@@ -394,6 +376,14 @@ void main() {
 
       final restored = AppSettings.fromMap(await db.allSettings());
       expect(restored, original);
+
+      final cleared = restored.copyWith(clearModelStorageLocation: true);
+      expect(cleared.modelStorageTreeUri, isNull);
+      expect(cleared.modelStorageFolderName, isNull);
+      expect(
+        cleared.toMap().containsKey(SettingKeys.modelStorageTreeUri),
+        isFalse,
+      );
     });
   });
 

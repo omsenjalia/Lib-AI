@@ -100,8 +100,9 @@ class MessageContent extends StatelessWidget {
 
     final body = base ??
         TextStyle(
-          fontSize: 14,
-          height: 1.55,
+          fontFamily: 'Newsreader',
+          fontSize: 15.5,
+          height: 1.6,
           color: scheme.onSurface,
         );
 
@@ -124,14 +125,14 @@ class MessageContent extends StatelessWidget {
             : AppColors.surfaceHigh.withValues(alpha: 0.5),
         border: Border(
           left: BorderSide(
-            color: AppColors.accent.withValues(alpha: 0.6),
+            color: scheme.primary.withValues(alpha: 0.6),
             width: 3,
           ),
         ),
       ),
       blockquotePadding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
       code: TextStyle(
-        fontFamily: 'monospace',
+        fontFamily: 'SourceCodePro',
         fontSize: 12.5,
         backgroundColor: codeBackground,
         color: scheme.onSurface,
@@ -140,12 +141,28 @@ class MessageContent extends StatelessWidget {
         color: codeBackground,
         borderRadius: BorderRadius.circular(6),
       ),
-      h1: body.copyWith(fontSize: 19, fontWeight: FontWeight.w700),
-      h2: body.copyWith(fontSize: 17, fontWeight: FontWeight.w700),
-      h3: body.copyWith(fontSize: 15.5, fontWeight: FontWeight.w600),
-      h4: body.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600),
+      h1: body.copyWith(
+        fontFamily: 'Inter',
+        fontSize: 19,
+        fontWeight: FontWeight.w700,
+      ),
+      h2: body.copyWith(
+        fontFamily: 'Inter',
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+      ),
+      h3: body.copyWith(
+        fontFamily: 'Inter',
+        fontSize: 15.5,
+        fontWeight: FontWeight.w600,
+      ),
+      h4: body.copyWith(
+        fontFamily: 'Inter',
+        fontSize: 14.5,
+        fontWeight: FontWeight.w600,
+      ),
       a: body.copyWith(
-        color: AppColors.accent,
+        color: scheme.primary,
         decoration: TextDecoration.underline,
       ),
       em: body.copyWith(fontStyle: FontStyle.italic, color: secondary),
@@ -273,19 +290,20 @@ class _MathError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final errorColor = Theme.of(context).colorScheme.error;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.12),
+        color: errorColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+        border: Border.all(color: errorColor.withValues(alpha: 0.4)),
       ),
       child: Text(
         latex,
-        style: const TextStyle(
-          fontFamily: 'monospace',
+        style: TextStyle(
+          fontFamily: 'SourceCodePro',
           fontSize: 12.5,
-          color: AppColors.error,
+          color: errorColor,
         ),
       ),
     );
@@ -418,7 +436,7 @@ class CodeBlockView extends StatelessWidget {
               theme: isLight ? githubTheme : atomOneDarkTheme,
               padding: const EdgeInsets.all(12),
               textStyle: const TextStyle(
-                fontFamily: 'monospace',
+                fontFamily: 'SourceCodePro',
                 fontSize: 12.5,
                 height: 1.45,
               ),

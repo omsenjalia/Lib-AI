@@ -352,7 +352,8 @@ class _AttachButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
+    final scheme = Theme.of(context).colorScheme;
+    final secondary = scheme.brightness == Brightness.dark
         ? AppColors.textSecondary
         : AppColors.lightTextSecondary;
 
@@ -362,7 +363,7 @@ class _AttachButton extends StatelessWidget {
           ? 'Take a photo (OCR mode)'
           : 'This model cannot see images',
       iconSize: 20,
-      color: enabled ? AppColors.accent : secondary.withValues(alpha: 0.6),
+      color: enabled ? scheme.primary : secondary.withValues(alpha: 0.6),
       icon: busy
           ? const SizedBox(
               width: 18,
@@ -389,19 +390,20 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (isGenerating) {
       return Tooltip(
         message: 'Stop generating',
         child: Material(
-          color: AppColors.error.withValues(alpha: 0.9),
+          color: scheme.error,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onStop,
-            child: const SizedBox(
+            child: SizedBox(
               width: 40,
               height: 40,
-              child: Icon(Icons.stop_rounded, size: 20, color: Colors.white),
+              child: Icon(Icons.stop_rounded, size: 20, color: scheme.onError),
             ),
           ),
         ),
@@ -410,8 +412,8 @@ class _SendButton extends StatelessWidget {
 
     return Material(
       color: enabled
-          ? AppColors.accent
-          : AppColors.accent.withValues(alpha: 0.25),
+          ? scheme.primary
+          : scheme.primary.withValues(alpha: 0.25),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -422,7 +424,7 @@ class _SendButton extends StatelessWidget {
           child: Icon(
             Icons.arrow_upward_rounded,
             size: 20,
-            color: enabled ? const Color(0xFF1A1A2E) : Colors.black38,
+            color: enabled ? scheme.onPrimary : scheme.onSurfaceVariant,
           ),
         ),
       ),

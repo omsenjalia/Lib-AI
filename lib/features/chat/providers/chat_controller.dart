@@ -216,7 +216,6 @@ class ChatController extends ChangeNotifier {
 
     final newId = await db.createConversation(
       title: '${conversation.title} (copy)',
-      subjectTagId: conversation.subjectTagId,
       modelId: conversation.modelId,
       personaId: conversation.personaId,
     );
@@ -235,16 +234,6 @@ class ChatController extends ChangeNotifier {
   }
 
   // --------------------------------------------------------------- parameters
-
-  Future<void> setSubjectTag(int? tagId) async {
-    final id = _conversationId;
-    if (id == null) return;
-    await _ref.read(databaseProvider).updateConversationMeta(
-          id: id,
-          subjectTagId: tagId,
-          clearSubjectTag: tagId == null,
-        );
-  }
 
   Future<void> setPersona(int? personaId) async {
     final id = _conversationId;
@@ -283,7 +272,6 @@ class ChatController extends ChangeNotifier {
     if (trimmed.isEmpty && imagePath == null) return;
     if (_isGenerating) return;
 
-    final settings = _ref.read(currentSettingsProvider);
     final db = _ref.read(databaseProvider);
 
     // 1. Resolve the destination thread, creating one on the first message.
@@ -291,7 +279,6 @@ class ChatController extends ChangeNotifier {
     if (conversationId == null) {
       conversationId = await db.createConversation(
         title: autoTitleFromMessage(trimmed.isEmpty ? 'Image question' : trimmed),
-        subjectTagId: settings.defaultSubjectTagId,
         modelId: _ref.read(activeModelIdProvider),
       );
       _conversationId = conversationId;
@@ -488,7 +475,6 @@ class ChatController extends ChangeNotifier {
       topP: settings.topP,
       repeatPenalty: _repeatPenalty(),
       contextLengthOverride: contextLength,
-      gpuLayers: settings.gpuLayers,
       onToken: (delta) {
         _streamingText += delta;
         notifyListeners();

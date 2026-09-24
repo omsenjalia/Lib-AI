@@ -174,12 +174,14 @@ out of that commit:
 **It does not expose `topK`.** That is decision **D2**, and the reason the
 Settings screen labels the top-k slider as not applied by the current engine.
 
-### 1.7 The download-notification layer
+### 1.7 The Phase 1 download-notification API check
 
-`flutter_local_notifications` was chosen over a foreground service: one
-notification updated in place, versus a second process, a second download manager
-and a wakelock. Its API was read from pub.dev rather than assumed, because the
-whole feature is one plugin call away from a compile error:
+This subsection records the **Phase 1 baseline** API investigation; it is not a
+claim that the Phase 2 notification implementation has been built or device-
+verified. Phase 2 retains `flutter_local_notifications` for notification
+rendering and adds a small Android `dataSync` foreground service that owns no
+HTTP transfer and no second download manager. The plugin API was read from pub.dev
+rather than assumed, because the feature is one call away from a compile error:
 
 - **Version ceiling.** 22.3.1 is the newest release that resolves here: it
   declares `sdk: ^3.10.0` and `flutter: >=3.38.1`, both satisfied, where master is

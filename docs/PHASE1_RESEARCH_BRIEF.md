@@ -360,12 +360,16 @@ Two consequences worth noting up front:
 ### GPU / NPU acceleration — honest position
 
 The brief asks to enable the Snapdragon 8 Elite **Hexagon NPU** "if the binding
-exposes llama.cpp's Qualcomm QNN backend." **fllama does not.** It exposes
-`numGpuLayers` (OpenCL/Adreno on Android) and nothing QNN-specific. The app will
-expose a GPU-layers control and default it sensibly, but **claiming Hexagon NPU
-acceleration would be false.** The binding that *does* ship a Hexagon NPU
-artifact is `sapjax/llama_cpp_dart` v0.9.x (`llama-cpp-dart-hexagon.aar` —
-"CPU + OpenCL + Hexagon NPU + mtmd"), which is also multimodal-aware. See §5.
+exposes llama.cpp's Qualcomm QNN backend." **fllama does not.** Although its
+Dart API accepts `numGpuLayers`, source inspection of the pinned Android build
+(`hook/build.dart` and `src/CMakeLists.txt`) shows no Android OpenCL or Vulkan
+backend is enabled; its Android path is CPU-only. The app now probes
+`fllamaGpuMemoryInfoGetAll()`, hides the GPU-layer control when no backend is
+reported, forces `n_gpu_layers` to zero, and retries CPU if a future GPU warm-up
+fails. Therefore this build does **not** accelerate on the S25 Adreno GPU or
+Hexagon NPU. The separate `sapjax/llama_cpp_dart` v0.9.x project ships OpenCL
+and Hexagon NPU artifacts (`llama-cpp-dart-hexagon.aar`), but it is a different
+native dependency, not a capability of the currently pinned engine.
 
 ## 4. WeatherGPT patterns to replicate
 

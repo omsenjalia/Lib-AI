@@ -83,7 +83,7 @@ class PersonaPickerSheet extends ConsumerWidget {
                       dense: true,
                       selected: isSelected,
                       selectedTileColor:
-                          AppColors.accent.withValues(alpha: 0.08),
+                          scheme.primary.withValues(alpha: 0.08),
                       leading: Text(
                         persona.emoji,
                         style: const TextStyle(fontSize: 18),

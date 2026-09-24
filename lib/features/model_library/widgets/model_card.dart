@@ -531,7 +531,7 @@ class _ModelCardState extends State<ModelCard> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: const Size(0, 30),
               ),
-              child: const Text('Cancel'),
+              child: const Text('Pause'),
             ),
           ],
         ),
@@ -563,6 +563,13 @@ class _ModelCardState extends State<ModelCard> {
 
   Widget _actions(BuildContext context, Color secondary) {
     final hasUpdate = widget.update?.updateAvailable ?? false;
+    final task = widget.task;
+    final interrupted = task != null &&
+        (task.phase == DownloadPhase.failed ||
+            task.phase == DownloadPhase.cancelled);
+    final canResume = !_isInstalled &&
+        interrupted &&
+        task.receivedBytes > 0;
 
     if (_isInstalled) {
       return Wrap(
@@ -614,7 +621,11 @@ class _ModelCardState extends State<ModelCard> {
         FilledButton.icon(
           onPressed: widget.onDownload,
           icon: const Icon(Icons.download_rounded, size: 17),
-          label: Text('Download ${formatBytes(_totalBytes)}'),
+          label: Text(
+            canResume
+                ? 'Resume download'
+                : 'Download ${formatBytes(_totalBytes)}',
+          ),
           style: FilledButton.styleFrom(
             // A model that cannot load still gets a working button - the brief
             // requires the hard block to be about mobile data, not about
@@ -624,6 +635,24 @@ class _ModelCardState extends State<ModelCard> {
                 blocked ? Colors.white : const Color(0xFF1A1A2E),
           ),
         ),
+        if (canResume) ...[
+          const SizedBox(height: 5),
+          Text(
+            'Saved ${formatBytes(task.receivedBytes)}; the checksum is checked '
+            'before the download resumes.',
+            style: TextStyle(fontSize: 10, height: 1.4, color: secondary),
+          ),
+        ] else if (interrupted && task.error != null) ...[
+          const SizedBox(height: 5),
+          Text(
+            task.error!,
+            style: const TextStyle(
+              fontSize: 10.5,
+              height: 1.4,
+              color: AppColors.error,
+            ),
+          ),
+        ],
         if (_model.wifiOnly) ...[
           const SizedBox(height: 5),
           Row(

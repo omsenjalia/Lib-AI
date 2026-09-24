@@ -53,7 +53,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
             builder: (context, _) => CustomPaint(
               painter: _DotsPainter(
                 progress: _controller.value,
-                color: AppColors.accent,
+                color: scheme.primary,
               ),
             ),
           ),

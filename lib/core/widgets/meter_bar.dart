@@ -91,7 +91,7 @@ class MeterBar extends StatelessWidget {
       return isLight ? AppColors.lightError : AppColors.meterCritical;
     }
     if (warningThreshold != null && fraction >= warningThreshold!) {
-      return AppColors.meterWarning;
+      return isLight ? AppColors.lightMeterWarning : AppColors.meterWarning;
     }
     return isLight ? AppColors.lightAccent : AppColors.accent;
   }
@@ -143,8 +143,12 @@ class ContextMeter extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10.5,
                   color: nearLimit
-                      ? AppColors.meterWarning
-                      : AppColors.textSecondary,
+                      ? (scheme.brightness == Brightness.light
+                          ? AppColors.lightMeterWarning
+                          : AppColors.meterWarning)
+                      : (scheme.brightness == Brightness.light
+                          ? AppColors.lightTextSecondary
+                          : AppColors.textSecondary),
                   fontWeight: nearLimit ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),

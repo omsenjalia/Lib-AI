@@ -1,72 +1,63 @@
 import 'package:flutter/material.dart';
 
-/// Library AI's palette.
+/// Library AI's own reading-room palette.
 ///
-/// Dark-mode-first, built around a library/study aesthetic: deep charcoal,
-/// candlelight amber, and near-white text on a night reading surface.
-/// Deliberately unrelated to WeatherGPT's colour scheme.
-///
-/// The base colour is mirrored in `android/app/src/main/res/values/colors.xml`
-/// so the Android window behind the Flutter surface matches exactly and cold
-/// start never flashes a foreign colour.
+/// Warm paper and dark graphite are paired with a restrained clay accent and
+/// quiet olive confirmations. The design takes broad inspiration from calm
+/// editorial reading surfaces without reusing another product's identity,
+/// colors, marks, or copy.
 abstract final class AppColors {
   // ---------------------------------------------------------------- dark mode
-  /// App background. Deep charcoal.
-  static const Color base = Color(0xFF1A1A2E);
+  /// Warm graphite app background.
+  static const Color base = Color(0xFF171918);
 
-  /// Raised surface: cards, sheets, bubbles, the sidebar.
-  static const Color surface = Color(0xFF16213E);
+  /// Raised surface for cards, sheets, bubbles, and the sidebar.
+  static const Color surface = Color(0xFF202321);
 
-  /// A step above [surface], for nested/raised elements like menus.
-  static const Color surfaceHigh = Color(0xFF1F2B4D);
+  /// A step above [surface], for nested or raised elements.
+  static const Color surfaceHigh = Color(0xFF2B302D);
 
   /// Hairline borders and dividers.
-  static const Color outline = Color(0xFF2E3A5C);
+  static const Color outline = Color(0xFF3B413D);
 
-  /// Candlelight amber. The single accent, used sparingly so it keeps meaning.
-  static const Color accent = Color(0xFFE8A838);
+  /// Soft clay accent, bright enough to remain clear on dark surfaces.
+  static const Color accent = Color(0xFFE6A58E);
+  static const Color accentMuted = Color(0xFF3D2E29);
 
-  /// Amber at low opacity, for tinted fills behind the accent.
-  static const Color accentMuted = Color(0xFF3A2F1C);
+  /// Warm near-white reading text.
+  static const Color textPrimary = Color(0xFFF1EEE7);
 
-  /// Near-white body text.
-  static const Color textPrimary = Color(0xFFE8E8E8);
+  /// Muted metadata; intentionally remains above 4.5:1 on the dark surface.
+  static const Color textSecondary = Color(0xFFADB2AA);
 
-  /// Muted grey for metadata, timestamps, helper text.
-  static const Color textSecondary = Color(0xFF8A8A9A);
-
-  /// Soft red. Errors that need attention but should not shout.
-  static const Color error = Color(0xFFD96C6C);
-
-  /// Muted green. Confirmations that should not celebrate.
-  static const Color success = Color(0xFF7FB069);
+  static const Color error = Color(0xFFF2988B);
+  static const Color success = Color(0xFF9BC28D);
 
   /// Context meter states.
   static const Color meterNormal = accent;
-  static const Color meterWarning = Color(0xFFD99A38);
-  static const Color meterCritical = Color(0xFFD96C6C);
+  static const Color meterWarning = Color(0xFFE8B86B);
+  static const Color lightMeterWarning = Color(0xFF8C570D);
+  static const Color meterCritical = error;
 
   // --------------------------------------------------------------- light mode
-  /// Light mode is warm paper, not clinical white - it reads as a study desk.
-  static const Color lightBase = Color(0xFFFAF7F2);
-  static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceHigh = Color(0xFFF2EDE4);
-  static const Color lightOutline = Color(0xFFDDD5C8);
+  /// Warm paper canvas rather than clinical white.
+  static const Color lightBase = Color(0xFFF7F5EF);
+  static const Color lightSurface = Color(0xFFFFFEFB);
+  static const Color lightSurfaceHigh = Color(0xFFEFECE5);
+  static const Color lightOutline = Color(0xFFD6D2C9);
 
-  /// Amber needs to darken considerably to hold contrast on a light surface.
-  static const Color lightAccent = Color(0xFF9C6210);
-  static const Color lightAccentMuted = Color(0xFFF6E8CE);
+  /// Burnt-clay accent selected for strong contrast on light surfaces.
+  static const Color lightAccent = Color(0xFFA34832);
+  static const Color lightAccentMuted = Color(0xFFF4E0D8);
 
-  static const Color lightTextPrimary = Color(0xFF1A1A2E);
-  static const Color lightTextSecondary = Color(0xFF5F5F70);
-  static const Color lightError = Color(0xFFB04A4A);
-  static const Color lightSuccess = Color(0xFF4F7A3C);
+  static const Color lightTextPrimary = Color(0xFF242724);
+  static const Color lightTextSecondary = Color(0xFF5D635C);
+  static const Color lightError = Color(0xFFAC3730);
+  static const Color lightSuccess = Color(0xFF496C4C);
 
-  /// Message bubble fill for user messages (right-aligned, filled).
-  static const Color userBubbleDark = Color(0xFF243254);
-  static const Color userBubbleLight = Color(0xFFEDE4D3);
-
-  /// Code block background, distinct from the surrounding surface.
-  static const Color codeBackgroundDark = Color(0xFF10182C);
-  static const Color codeBackgroundLight = Color(0xFFF4F1EA);
+  /// Message treatments and code areas.
+  static const Color userBubbleDark = Color(0xFF303632);
+  static const Color userBubbleLight = Color(0xFFEFE7DB);
+  static const Color codeBackgroundDark = Color(0xFF131614);
+  static const Color codeBackgroundLight = Color(0xFFF2EFE8);
 }

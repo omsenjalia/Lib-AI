@@ -72,21 +72,21 @@ class ModelSwitcherSheet extends ConsumerWidget {
               ),
               data: (rows) {
                 if (rows.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'No models are installed yet.',
                           style: TextStyle(fontSize: 13),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Open Model Library to download one.',
                           style: TextStyle(
                             fontSize: 11.5,
-                            color: AppColors.accent,
+                            color: scheme.primary,
                           ),
                         ),
                       ],
@@ -118,7 +118,7 @@ class ModelSwitcherSheet extends ConsumerWidget {
                           Icon(
                             Icons.memory_rounded,
                             size: 14,
-                            color: AppColors.accent.withValues(alpha: 0.8),
+                            color: scheme.primary.withValues(alpha: 0.8),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
@@ -174,7 +174,7 @@ class _ModelTile extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: isActive
-            ? AppColors.accent.withValues(alpha: 0.10)
+            ? scheme.primary.withValues(alpha: 0.10)
             : (scheme.brightness == Brightness.dark
                 ? AppColors.surfaceHigh.withValues(alpha: 0.4)
                 : AppColors.lightSurfaceHigh),
@@ -187,7 +187,7 @@ class _ModelTile extends ConsumerWidget {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: isActive
-                    ? AppColors.accent.withValues(alpha: 0.6)
+                    ? scheme.primary.withValues(alpha: 0.6)
                     : Colors.transparent,
               ),
             ),
@@ -207,8 +207,8 @@ class _ModelTile extends ConsumerWidget {
                       ),
                     ),
                     if (isActive)
-                      const Icon(Icons.check_circle_rounded,
-                          size: 16, color: AppColors.accent)
+                      Icon(Icons.check_circle_rounded,
+                          size: 16, color: scheme.primary)
                     else if (isDefault)
                       const StatusBadge(
                         label: 'Default',
@@ -266,7 +266,7 @@ class _ModelTile extends ConsumerWidget {
                         icon: const Icon(Icons.star_border_rounded, size: 15),
                         label: const Text('Use by default'),
                         style: TextButton.styleFrom(
-                          foregroundColor: AppColors.accent,
+                          foregroundColor: scheme.primary,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           minimumSize: const Size(0, 30),
                         ),

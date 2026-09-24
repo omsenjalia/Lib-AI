@@ -1,3 +1,4 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:library_ai/core/models/transfer_state.dart';
 import 'package:library_ai/core/services/download_notification_service.dart';
@@ -9,6 +10,29 @@ import 'package:library_ai/core/services/download_notification_service.dart';
 /// Only the pure mapping is tested. Posting the notification needs a platform
 /// channel, and there is nothing in the decision logic that needs one.
 void main() {
+  group('notification diagnostics', () {
+    test('only show a shade hint after permission is unavailable', () {
+      expect(
+        const DownloadNotificationDiagnostics().shouldShowPermissionHint,
+        isFalse,
+      );
+      for (final result in ['denied', 'unavailable', 'error']) {
+        expect(
+          const DownloadNotificationDiagnostics()
+              .copyWith(permissionResult: result)
+              .shouldShowPermissionHint,
+          isTrue,
+        );
+      }
+      expect(
+        const DownloadNotificationDiagnostics()
+            .copyWith(permissionResult: 'granted')
+            .shouldShowPermissionHint,
+        isFalse,
+      );
+    });
+  });
+
   DownloadTask task({
     DownloadPhase phase = DownloadPhase.downloading,
     int totalBytes = 2491874688,
@@ -79,7 +103,7 @@ void main() {
       expect(content.isOngoing, isTrue);
       expect(content.isIndeterminate, isFalse);
       expect(content.hasProgressBar, isTrue);
-      expect(content.hasCancelAction, isTrue);
+      expect(content.hasPauseAction, isTrue);
       // Progress updates must not buzz on every few hundred kilobytes.
       expect(content.alertsOnce, isTrue);
     });
@@ -146,7 +170,7 @@ void main() {
       expect(content.body, contains('SHA-256'));
       expect(content.isOngoing, isTrue);
       expect(content.isIndeterminate, isTrue);
-      expect(content.hasCancelAction, isTrue);
+      expect(content.hasPauseAction, isTrue);
     });
   });
 
@@ -162,7 +186,7 @@ void main() {
       expect(content.body, contains('Model Library'));
       expect(content.percent, 100);
       expect(content.isOngoing, isFalse);
-      expect(content.hasCancelAction, isFalse);
+      expect(content.hasPauseAction, isFalse);
       // A completion is worth a fresh alert, unlike a progress update.
       expect(content.alertsOnce, isFalse);
     });
@@ -179,7 +203,7 @@ void main() {
       expect(content.kind, DownloadNotificationKind.failed);
       expect(content.title, 'Phi-4-mini-instruct could not be downloaded');
       expect(content.body, 'Downloaded file failed its integrity check.');
-      expect(content.hasCancelAction, isFalse);
+      expect(content.hasPauseAction, isFalse);
       expect(content.isOngoing, isFalse);
     });
 
@@ -193,7 +217,7 @@ void main() {
       expect(content.body, isNot(contains('null')));
     });
 
-    test('a cancellation dismisses the notification', () {
+    test('a paused transfer dismisses the notification', () {
       final content = downloadNotificationFor(
         task(phase: DownloadPhase.cancelled),
         modelName: 'Phi-4-mini-instruct',
@@ -224,19 +248,49 @@ void main() {
     });
   });
 
-  group('the channel is quiet by design', () {
-    test('a progress notification wants no sound, no heads-up', () {
-      // These are the values handed to AndroidNotificationDetails, asserted here
-      // so that "the channel is low importance" is a checked claim rather than
-      // a comment nobody verifies.
+  group('notification channels', () {
+    test('progress and verification use the silent default channel', () {
+      for (final kind in [
+        DownloadNotificationKind.progress,
+        DownloadNotificationKind.verifying,
+      ]) {
+        expect(
+          downloadNotificationChannelFor(kind),
+          kDownloadProgressChannelId,
+        );
+        expect(
+          downloadNotificationImportanceFor(kind),
+          Importance.defaultImportance,
+        );
+        expect(
+          downloadNotificationPriorityFor(kind),
+          Priority.defaultPriority,
+        );
+        expect(downloadNotificationPlaysSoundFor(kind), isFalse);
+        expect(downloadNotificationVibratesFor(kind), isFalse);
+      }
       final content = downloadNotificationFor(
         task(),
         modelName: 'Phi-4-mini-instruct',
       )!;
-
-      expect(content.isOngoing, isTrue);
       expect(content.alertsOnce, isTrue);
-      expect(content.hasCancelAction, isTrue);
+      expect(content.hasPauseAction, isTrue);
+    });
+
+    test('complete and failed use their own alerting channel', () {
+      for (final kind in [
+        DownloadNotificationKind.complete,
+        DownloadNotificationKind.failed,
+      ]) {
+        expect(
+          downloadNotificationChannelFor(kind),
+          kDownloadTerminalChannelId,
+        );
+        expect(downloadNotificationImportanceFor(kind), Importance.high);
+        expect(downloadNotificationPriorityFor(kind), Priority.high);
+        expect(downloadNotificationPlaysSoundFor(kind), isTrue);
+        expect(downloadNotificationVibratesFor(kind), isTrue);
+      }
     });
   });
 }

@@ -105,12 +105,11 @@ abstract final class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      // The whole app is designed around this stack; leaving the platform
-      // default would reintroduce a font the rest of the UI is not measured for.
-      fontFamily: null,
+      // Bundled locally; the app works identically in airplane mode.
+      fontFamily: 'Inter',
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
-      textTheme: _textTheme(textColor, mutedColor),
+      textTheme: _textTheme(textColor, mutedColor).apply(fontFamily: 'Inter'),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,

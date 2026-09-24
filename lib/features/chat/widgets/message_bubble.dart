@@ -133,7 +133,7 @@ class MessageBubble extends StatelessWidget {
           style: TextStyle(
             fontSize: 11.5,
             fontStyle: FontStyle.italic,
-            color: AppColors.error.withValues(alpha: 0.9),
+            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.9),
           ),
         ),
       );
@@ -175,27 +175,30 @@ class MessageBubble extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: isLight ? 0.07 : 0.12),
+                color: scheme.error.withValues(alpha: isLight ? 0.07 : 0.12),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: AppColors.error.withValues(alpha: 0.35),
+                  color: scheme.error.withValues(alpha: 0.35),
                 ),
               ),
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.error_outline_rounded,
-                          size: 15, color: AppColors.error),
-                      SizedBox(width: 6),
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 15,
+                        color: scheme.error,
+                      ),
+                      const SizedBox(width: 6),
                       Text(
                         'Could not answer',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.error,
+                          color: scheme.error,
                         ),
                       ),
                     ],
@@ -216,7 +219,7 @@ class MessageBubble extends StatelessWidget {
                       icon: const Icon(Icons.refresh_rounded, size: 15),
                       label: const Text('Try again'),
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.accent,
+                        foregroundColor: scheme.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         minimumSize: const Size(0, 32),
                       ),
@@ -243,11 +246,11 @@ class MessageBubble extends StatelessWidget {
                 children: [
                   Text(
                     modelName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.2,
-                      color: AppColors.accent,
+                      color: scheme.primary,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -283,23 +286,20 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _assistantGutter(BuildContext context, {bool isError = false}) {
+    final scheme = Theme.of(context).colorScheme;
+    final tone = isError ? scheme.error : scheme.primary;
     return Container(
       width: 26,
       height: 26,
       decoration: BoxDecoration(
-        color: isError
-            ? AppColors.error.withValues(alpha: 0.15)
-            : AppColors.accent.withValues(alpha: 0.14),
+        color: tone.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(
-          color: (isError ? AppColors.error : AppColors.accent)
-              .withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: tone.withValues(alpha: 0.35)),
       ),
       child: Icon(
         isError ? Icons.priority_high_rounded : Icons.auto_stories_rounded,
         size: 14,
-        color: isError ? AppColors.error : AppColors.accent,
+        color: tone,
       ),
     );
   }
@@ -334,7 +334,9 @@ class MessageBubble extends StatelessWidget {
                 ? 'Showing undelimited LaTeX as maths'
                 : 'Render undelimited LaTeX in this message as maths',
             onPressed: onToggleRenderMath,
-            color: message.renderMath ? AppColors.accent : secondary,
+            color: message.renderMath
+                ? Theme.of(context).colorScheme.primary
+                : secondary,
           ),
         if (showRegenerate && onRegenerate != null)
           _ActionButton(

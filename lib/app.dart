@@ -17,9 +17,9 @@ import 'features/model_library/screens/model_library_screen.dart';
 /// looking at the app would both slow the start and risk an out-of-memory kill
 /// before they have done anything.
 ///
-/// The two background jobs that *are* started here are non-blocking and both
-/// tolerate being offline: the update scheduler (which silently no-ops without
-/// a connection) and the partial-download sweep (which is local file cleanup).
+/// The notification binder and update scheduler are non-blocking. The
+/// scheduler silently no-ops without a connection, and partial model downloads
+/// are preserved for an explicit user retry.
 class LibraryAiApp extends ConsumerWidget {
   const LibraryAiApp({super.key});
 
@@ -69,24 +69,15 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
   }
 
   Future<void> _start() async {
-    // 0. Notifications. This also clears anything a killed process left in the
-    //    shade - there is no background download service, so a stale progress
-    //    bar could otherwise never move again.
+    // 0. Notifications. The service is not restarted after process death, so
+    //    clear any stale per-model progress left by a transfer that cannot resume.
     unawaited(
       ref.read(downloadNotificationServiceProvider).initialize().catchError(
             (Object _) {},
           ),
     );
 
-    // 1. Clear out any `.part` files from downloads that were interrupted by a
-    //    process kill. Local, fast, and safe to run every launch.
-    unawaited(
-      ref.read(downloadManagerProvider).sweepPartialDownloads().catchError(
-            (Object _) {},
-          ),
-    );
-
-    // 2. Publish the stored update state so badges are correct immediately,
+    // 1. Publish the stored update state so badges are correct immediately,
     //    without waiting for a network round trip.
     try {
       // `.future` is the provider-level await: it completes when the catalogue
@@ -98,7 +89,7 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
       // not stop the app from starting.
     }
 
-    // 3. Watch for connectivity changes and check for model updates when the
+    // 2. Watch for connectivity changes and check for model updates when the
     //    device comes back online. Does nothing at all while offline.
     unawaited(
       ref.read(updateSchedulerProvider).start().catchError((Object _) {}),

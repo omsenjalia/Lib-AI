@@ -1,48 +1,44 @@
-/// Google-Play-style progress notifications for model downloads.
+/// User-visible progress and terminal notifications for model downloads.
 ///
-/// A model is up to 7.3 GB. Without a notification the only progress the user
-/// has is the model card, which means they have to hold the app open for twenty
-/// minutes - and on a phone that also means the screen stays on. The
-/// notification is therefore not decoration: it is what makes a large download
-/// practical, and it is modelled on the Play Store's own download notification
-/// because that is the shape every Android user already knows:
-///
-///  * one ongoing notification per download, with a real determinate bar and a
-///    percentage, updated in place rather than posted repeatedly;
-///  * a body that answers "how much longer" - bytes done, transfer rate, ETA;
-///  * a **Cancel** action while the transfer is live;
-///  * a terminal notification that replaces the progress one: "ready" or
-///    "failed", which taps through to the Model Library.
-///
-/// Two deliberate differences from Play, both because this app is not Play:
-///
-///  * There is no download *service*. Cancelling stops the transfer; nothing
-///    resumes in the background if the process dies. What is left behind is
-///    cleaned up on the next launch, together with the `.part` file.
-///  * The channel is created at [Importance.low] with no sound. A 7 GB
-///    download that buzzes every few seconds would be worse than no
-///    notification at all. A user who wants an alert can raise the channel's
-///    importance in Android's own settings.
+/// A model can be several gigabytes, so its transfer is paired with a
+/// dataSync foreground service while bytes are moving. The service and the
+/// progress notification share an id: the plugin's richer per-model content
+/// replaces the service's bootstrap notification in place. Progress uses a
+/// silent default-importance channel; completion and failure use a separate
+/// high-importance channel so they can alert once without turning each progress
+/// update into an interruption.
 ///
 /// The mapping from [DownloadTask] to what should appear on screen is a pure
 /// function ([downloadNotificationFor]) so it can be unit tested without a
-/// platform channel; [DownloadNotificationService] is a thin wrapper that only
-/// performs the calls.
+/// platform channel. Android service lifecycle calls go through
+/// [ForegroundDownloadBridge], which is injectable in tests.
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../models/transfer_state.dart';
 import '../utils/formatters.dart';
 
-/// Channel id. Bumping this would orphan the user's per-channel settings, so
-/// it is deliberately stable and versioned by name only.
-const String kDownloadChannelId = 'model_downloads';
+/// Progress channel. A new id is used so Android does not retain the old
+/// low-importance setting and hide the notification from the shade.
+const String kDownloadProgressChannelId = 'model_download_progress';
+const String kDownloadProgressChannelName = 'Model download progress';
+const String kDownloadProgressChannelDescription =
+    'Silent, in-place progress for user-started model downloads.';
 
-const String kDownloadChannelName = 'Model downloads';
+/// Terminal channel: a completed or failed download is a one-time alert.
+const String kDownloadTerminalChannelId = 'model_download_terminal';
+const String kDownloadTerminalChannelName = 'Download results';
+const String kDownloadTerminalChannelDescription =
+    'One-time alerts when a model download is ready or has failed.';
+
+/// Kept as an alias for clients compiled against the original channel id.
+const String kDownloadChannelId = kDownloadProgressChannelId;
+const String kDownloadChannelName = kDownloadProgressChannelName;
 const String kDownloadChannelDescription =
-    'Progress for model downloads, and a note when one is ready to use.';
+    kDownloadProgressChannelDescription;
 
 /// Drawable resource name (no `@drawable/` prefix) used as the small icon.
 ///
@@ -50,13 +46,13 @@ const String kDownloadChannelDescription =
 /// a single colour, so a launcher icon here would render as a white blob.
 const String kDownloadIcon = 'ic_stat_download';
 
-/// Action id for the Cancel button. The app receives it back through
+/// Stable action id for the Pause button. The app receives it back through
 /// `onDidReceiveNotificationResponse`.
 const String kCancelDownloadAction = 'cancel_download';
 
 /// What a task should put on screen.
 enum DownloadNotificationKind {
-  /// A live transfer: determinate bar, cancel action.
+  /// A live transfer: determinate bar, pause action.
   progress,
 
   /// Bytes are down; the checksum is being computed. Indeterminate bar.
@@ -71,6 +67,35 @@ enum DownloadNotificationKind {
   /// Nothing to show - remove this model's notification if one is up.
   dismiss,
 }
+
+bool _isTerminalNotification(DownloadNotificationKind kind) =>
+    kind == DownloadNotificationKind.complete ||
+    kind == DownloadNotificationKind.failed;
+
+/// Channel policy is kept pure so the two-channel contract can be tested.
+String downloadNotificationChannelFor(DownloadNotificationKind kind) =>
+    _isTerminalNotification(kind)
+        ? kDownloadTerminalChannelId
+        : kDownloadProgressChannelId;
+
+/// Progress must remain visible without making a sound; terminal states alert.
+Importance downloadNotificationImportanceFor(
+  DownloadNotificationKind kind,
+) =>
+    _isTerminalNotification(kind)
+        ? Importance.high
+        : Importance.defaultImportance;
+
+Priority downloadNotificationPriorityFor(DownloadNotificationKind kind) =>
+    _isTerminalNotification(kind)
+        ? Priority.high
+        : Priority.defaultPriority;
+
+bool downloadNotificationPlaysSoundFor(DownloadNotificationKind kind) =>
+    _isTerminalNotification(kind);
+
+bool downloadNotificationVibratesFor(DownloadNotificationKind kind) =>
+    _isTerminalNotification(kind);
 
 /// One notification's worth of content, decided from a [DownloadTask].
 @immutable
@@ -102,8 +127,8 @@ class DownloadNotificationContent {
   /// True when the bar is meaningful at all.
   bool get hasProgressBar => kind != DownloadNotificationKind.dismiss;
 
-  /// True when a Cancel button belongs on it.
-  bool get hasCancelAction => isOngoing;
+  /// True when a Pause button belongs on it.
+  bool get hasPauseAction => isOngoing;
 
   /// True when the notification should raise a fresh alert rather than being
   /// updated silently. Progress updates are silent; terminal states are not.
@@ -226,22 +251,123 @@ String _progressBody(DownloadTask task, int percent) {
   return parts.join(' · ');
 }
 
+/// A small, release-visible snapshot of the notification path.
+///
+/// The download itself must remain independent of Android's notification
+/// permission, but a silent failure is not diagnosable from the model card.
+@immutable
+class DownloadNotificationDiagnostics {
+  const DownloadNotificationDiagnostics({
+    this.ready = false,
+    this.permissionResult = 'not requested',
+    this.lastApplyKind,
+    this.lastApplyPercent,
+    this.lastApplyAt,
+    this.lastError,
+    this.lastErrorAt,
+  });
+
+  final bool ready;
+  final String permissionResult;
+  final String? lastApplyKind;
+  final int? lastApplyPercent;
+  final DateTime? lastApplyAt;
+  final String? lastError;
+  final DateTime? lastErrorAt;
+
+  bool get shouldShowPermissionHint =>
+      permissionResult == 'denied' ||
+      permissionResult == 'unavailable' ||
+      permissionResult == 'error';
+
+  DownloadNotificationDiagnostics copyWith({
+    bool? ready,
+    String? permissionResult,
+    String? lastApplyKind,
+    int? lastApplyPercent,
+    DateTime? lastApplyAt,
+    String? lastError,
+    DateTime? lastErrorAt,
+  }) =>
+      DownloadNotificationDiagnostics(
+        ready: ready ?? this.ready,
+        permissionResult: permissionResult ?? this.permissionResult,
+        lastApplyKind: lastApplyKind ?? this.lastApplyKind,
+        lastApplyPercent: lastApplyPercent ?? this.lastApplyPercent,
+        lastApplyAt: lastApplyAt ?? this.lastApplyAt,
+        lastError: lastError ?? this.lastError,
+        lastErrorAt: lastErrorAt ?? this.lastErrorAt,
+      );
+}
+
+/// Thin platform seam for the user-initiated Android transfer service.
+///
+/// The service receives the same stable notification id as its first active
+/// model; [DownloadNotificationService.apply] then updates that notification
+/// with the full progress text and Pause action.
+class ForegroundDownloadBridge {
+  ForegroundDownloadBridge({MethodChannel? channel})
+      : _channel = channel ?? const MethodChannel('library_ai/download_service');
+
+  final MethodChannel _channel;
+
+  Future<void> start(DownloadNotificationContent content) async {
+    await _channel.invokeMethod<void>('start', <String, Object>{
+      'id': content.id,
+      'title': content.title,
+      'body': content.body,
+      'percent': content.percent,
+      'indeterminate': content.isIndeterminate,
+    });
+  }
+
+  Future<void> stop() async {
+    await _channel.invokeMethod<void>('stop');
+  }
+}
+
 /// Posts and updates the notifications described by
 /// [downloadNotificationFor].
 ///
 /// Nothing here is required for a download to work: if the user denies the
-/// notification permission, or the plugin is unavailable, every method is a
-/// silent no-op and the model card remains the source of truth.
-class DownloadNotificationService {
+/// notification permission, or the plugin is unavailable, the model card stays
+/// the source of truth. The diagnostics snapshot still records that outcome so
+/// a release build does not fail invisibly.
+class DownloadNotificationService extends ChangeNotifier {
   DownloadNotificationService({
     FlutterLocalNotificationsPlugin? plugin,
+    ForegroundDownloadBridge? foregroundBridge,
     this.onCancelRequested,
     this.onOpenRequested,
-  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+  })  : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
+        _foregroundBridge = foregroundBridge ?? ForegroundDownloadBridge();
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final ForegroundDownloadBridge _foregroundBridge;
+  int? _foregroundNotificationId;
 
-  /// Called with a model id when the user taps **Cancel** on a notification.
+  DownloadNotificationDiagnostics _diagnostics =
+      const DownloadNotificationDiagnostics();
+
+  DownloadNotificationDiagnostics get diagnostics => _diagnostics;
+
+  void _publishDiagnostics(DownloadNotificationDiagnostics next) {
+    _diagnostics = next;
+    notifyListeners();
+  }
+
+  void _recordError(String source, Object error) {
+    final now = DateTime.now();
+    _publishDiagnostics(_diagnostics.copyWith(
+      lastError: '$source: $error',
+      lastErrorAt: now,
+    ));
+    // Release breadcrumbs are intentional: otherwise the failure this row is
+    // meant to diagnose disappears in the exact build users run.
+    debugPrint('Library AI notification $source failed: $error');
+  }
+
+  /// Called with a model id when the user taps **Pause** on a notification.
   ///
   /// The action is declared with `showsUserInterface: true`, so Android brings
   /// the app forward and this runs on the main isolate with the download
@@ -265,13 +391,14 @@ class DownloadNotificationService {
 
   /// Initialises the plugin and clears anything a previous run left behind.
   ///
-  /// The cleanup matters: this app has no background download service, so if
-  /// the process is killed mid-transfer the notification would otherwise sit in
-  /// the shade forever showing a progress bar that will never move. Relaunching
-  /// means the `.part` file has been swept, so the notification must go too.
+  /// The cleanup matters: a killed process cannot resume the transfer, so a
+  /// stale progress bar must not sit in the shade showing movement that stopped.
+  /// Relaunching means the `.part` file has been swept, so the notification goes
+  /// too.
   /// Nothing else in the app posts notifications, which is what makes
   /// [FlutterLocalNotificationsPlugin.cancelAll] safe here.
   Future<void> initialize() async {
+    _publishDiagnostics(_diagnostics.copyWith(ready: false));
     const settings = InitializationSettings(
       android: AndroidInitializationSettings(kDownloadIcon),
     );
@@ -281,16 +408,17 @@ class DownloadNotificationService {
         settings: settings,
         onDidReceiveNotificationResponse: _handleResponse,
       );
+      await _createNotificationChannels();
       await _plugin.cancelAll();
       _posted.clear();
       _ready = true;
+      _publishDiagnostics(_diagnostics.copyWith(ready: true));
     } catch (error) {
       // A missing platform implementation (tests, an unsupported device) must
       // never take the download down with it.
       _ready = false;
-      if (kDebugMode) {
-        debugPrint('Download notifications unavailable: $error');
-      }
+      _publishDiagnostics(_diagnostics.copyWith(ready: false));
+      _recordError('initialize', error);
       return;
     }
 
@@ -307,19 +435,70 @@ class DownloadNotificationService {
     try {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-      if (android == null) return false;
-      return await android.requestNotificationsPermission() ?? false;
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Notification permission request failed: $error');
+      if (android == null) {
+        _publishDiagnostics(
+          _diagnostics.copyWith(permissionResult: 'unavailable'),
+        );
+        return false;
       }
+      final requested = await android.requestNotificationsPermission();
+      final enabled = await android.areNotificationsEnabled();
+      final granted = enabled ?? requested ?? false;
+      _publishDiagnostics(_diagnostics.copyWith(
+        permissionResult: granted ? 'granted' : 'denied',
+      ));
+      return granted;
+    } catch (error) {
+      _publishDiagnostics(
+        _diagnostics.copyWith(permissionResult: 'error'),
+      );
+      _recordError('permission request', error);
       return false;
+    }
+  }
+
+  /// Promotes the first live transfer to the Android foreground service.
+  ///
+  /// The bridge is deliberately isolated from [apply], leaving pure mapping
+  /// tests and unsupported platforms independent of Android service APIs.
+  Future<void> syncForegroundDownload(
+    DownloadTask? task, {
+    required String modelName,
+  }) async {
+    final canRun = task != null &&
+        (task.phase == DownloadPhase.downloading ||
+            task.phase == DownloadPhase.verifying);
+    if (!canRun) {
+      if (_foregroundNotificationId == null) return;
+      try {
+        await _foregroundBridge.stop();
+        _foregroundNotificationId = null;
+      } catch (error) {
+        _recordError('foreground service stop', error);
+      }
+      return;
+    }
+
+    final content = downloadNotificationFor(task, modelName: modelName);
+    if (content == null || _foregroundNotificationId == content.id) return;
+
+    try {
+      await _foregroundBridge.start(content);
+      _foregroundNotificationId = content.id;
+    } catch (error) {
+      _recordError('foreground service start', error);
     }
   }
 
   /// Shows, updates, or removes the notification for [task].
   Future<void> apply(DownloadTask task, {required String modelName}) async {
     final content = downloadNotificationFor(task, modelName: modelName);
+    final now = DateTime.now();
+    _publishDiagnostics(_diagnostics.copyWith(
+      lastApplyKind: content?.kind.name ?? 'none',
+      lastApplyPercent: content?.percent ?? 0,
+      lastApplyAt: now,
+    ));
     if (content == null) return;
 
     if (content.kind == DownloadNotificationKind.dismiss) {
@@ -335,7 +514,6 @@ class DownloadNotificationService {
         content.kind == DownloadNotificationKind.failed;
     if (terminal && _posted[task.modelId] == content.kind) return;
 
-    _posted[task.modelId] = content.kind;
     try {
       await _plugin.show(
         id: content.id,
@@ -346,10 +524,9 @@ class DownloadNotificationService {
         ),
         payload: task.modelId,
       );
+      _posted[task.modelId] = content.kind;
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Could not post download notification: $error');
-      }
+      _recordError('show', error);
     }
   }
 
@@ -359,23 +536,56 @@ class DownloadNotificationService {
     if (!_ready) return;
     try {
       await _plugin.cancel(id: downloadNotificationId(modelId));
-    } catch (_) {
-      // Best effort; a stale notification is cosmetic.
+    } catch (error) {
+      // Best effort; the download itself is not coupled to this cosmetic path.
+      _recordError('cancel', error);
     }
+  }
+
+  Future<void> _createNotificationChannels() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return;
+
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        kDownloadProgressChannelId,
+        kDownloadProgressChannelName,
+        description: kDownloadProgressChannelDescription,
+        importance: Importance.defaultImportance,
+        playSound: false,
+        enableVibration: false,
+        showBadge: false,
+      ),
+    );
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        kDownloadTerminalChannelId,
+        kDownloadTerminalChannelName,
+        description: kDownloadTerminalChannelDescription,
+        importance: Importance.high,
+      ),
+    );
   }
 
   AndroidNotificationDetails _androidDetails(
     DownloadNotificationContent content,
   ) {
+    final terminal = _isTerminalNotification(content.kind);
     return AndroidNotificationDetails(
-      kDownloadChannelId,
-      kDownloadChannelName,
-      channelDescription: kDownloadChannelDescription,
+      downloadNotificationChannelFor(content.kind),
+      terminal ? kDownloadTerminalChannelName : kDownloadProgressChannelName,
+      channelDescription: terminal
+          ? kDownloadTerminalChannelDescription
+          : kDownloadProgressChannelDescription,
       icon: kDownloadIcon,
-      // Low importance: no sound, no heads-up. The bar in the shade is the
-      // point, not an interruption.
-      importance: Importance.low,
-      priority: Priority.low,
+      importance: downloadNotificationImportanceFor(content.kind),
+      priority: downloadNotificationPriorityFor(content.kind),
+      // The progress channel is silent even at default importance. A terminal
+      // state gets the platform's normal alert once; subsequent progress never
+      // re-alerts because onlyAlertOnce remains true for ongoing updates.
+      playSound: downloadNotificationPlaysSoundFor(content.kind),
+      enableVibration: downloadNotificationVibratesFor(content.kind),
       category: content.kind == DownloadNotificationKind.failed
           ? AndroidNotificationCategory.error
           : AndroidNotificationCategory.progress,
@@ -386,11 +596,11 @@ class DownloadNotificationService {
       maxProgress: 100,
       progress: content.percent,
       indeterminate: content.isIndeterminate,
-      actions: content.hasCancelAction
+      actions: content.hasPauseAction
           ? <AndroidNotificationAction>[
               const AndroidNotificationAction(
                 kCancelDownloadAction,
-                'Cancel',
+                'Pause',
                 // Bring the app forward so the request is handled on the main
                 // isolate, where the download manager lives. The notification
                 // itself is left alone; the manager's own terminal state
@@ -417,9 +627,7 @@ class DownloadNotificationService {
       if (response == null) return;
       _handleResponse(response);
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Could not read notification launch details: $error');
-      }
+      _recordError('read launch details', error);
     }
   }
 
