@@ -97,9 +97,17 @@ class AppDatabase extends _$AppDatabase {
   Future<SubjectTag?> tagById(int id) =>
       (select(subjectTags)..where((t) => t.id.equals(id))).getSingleOrNull();
 
-  Future<void> deleteSubjectTag(int id) => (delete(subjectTags)
-        ..where((t) => t.id.equals(id)))
-      .go();
+  /// Conversations that used the tag keep their messages; they lose the tag.
+  ///
+  /// The reference is cleared explicitly rather than relying on
+  /// `ON DELETE SET NULL`, so the behaviour does not depend on the
+  /// `PRAGMA foreign_keys` setting having taken effect - the same reason
+  /// [deleteConversation] deletes messages by hand.
+  Future<void> deleteSubjectTag(int id) async {
+    await (update(conversations)..where((t) => t.subjectTagId.equals(id)))
+        .write(ConversationsCompanion(subjectTagId: const Value(null)));
+    await (delete(subjectTags)..where((t) => t.id.equals(id))).go();
+  }
 
   // ---------------------------------------------------------------- personas
 
@@ -142,8 +150,16 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
-  Future<void> deletePersona(int id) =>
-      (delete(personas)..where((t) => t.id.equals(id))).go();
+  /// Conversations that used the persona keep their messages; they simply stop
+  /// using the prompt, exactly as the delete dialog promises.
+  ///
+  /// Clearing the reference first is what makes the delete legal while
+  /// `PRAGMA foreign_keys` is on; see [deleteSubjectTag].
+  Future<void> deletePersona(int id) async {
+    await (update(conversations)..where((t) => t.personaId.equals(id)))
+        .write(ConversationsCompanion(personaId: const Value(null)));
+    await (delete(personas)..where((t) => t.id.equals(id))).go();
+  }
 
   // ----------------------------------------------------------- conversations
 

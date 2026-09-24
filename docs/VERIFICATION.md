@@ -22,7 +22,7 @@ for it. Nothing here is inferred from "the code looks right".
 | `sha256` values are the real file checksums | `lfs.oid` from the tree API *is* the SHA-256 of an LFS file. For the five pre-Phi models, a blob page was fetched and the published digest compared against the recorded one; Phi-4-mini's 23 values were taken from that repo's tree API and compared against the generator | 5/5 blob-page matches on the original five · 23/23 tree matches for Phi-4-mini |
 | `sizeGb` in the JSON agrees with `sizeBytes` | Recomputed in Python over the shipped asset (`abs(published - bytes/1e9) < 0.01`) | 94/94 agree |
 | Download URL shape | Recomputed every `downloadUrl` in Python and checked it is `https://huggingface.co/{ggufRepoId}/resolve/main/{fileName}` | 98/98 well-formed |
-| The 27B's smallest quant | Sorted the real quant list by size | `UD-IQ2_XXS` is the smallest; it is the recommended one |
+| The 27B's recommended quant | Sorted the real quant list by size | The two smaller files (`UD-IQ1_S`, `UD-IQ1_M`) are emergency quants with severe quality loss; `UD-IQ2_XXS` is the smallest one worth running and is the recommended one |
 | Vision claims | Cross-checked each model card + the presence of an `mmproj-*.gguf` in the repository it is downloaded from | 4 vision-capable with an mmproj in-repo, 2 text-only with no mmproj |
 
 Three of the six models have **no GGUF in their official repository**:
@@ -52,7 +52,7 @@ are the shape they claim to be.
 
 With no SDK, the only compiler available is one written for the occasion. Four
 passes were run over every `.dart` file in `lib/` and `test/` (51 + 8 files,
-14,564 + 2,125 lines):
+14,580 + 2,154 lines):
 
 | Pass | What it does | Result |
 |---|---|---|
@@ -203,6 +203,13 @@ whole feature is one plugin call away from a compile error:
 - **Small icon.** `ic_stat_download.xml` is a `drawable` (Android requires a
   drawable, not a `mipmap`, for status-bar icons), white on transparent so the
   system can tint it.
+- **Android build requirements.** The plugin's own README sets four conditions
+  that the app's Gradle files have to meet: the Android Gradle Plugin must be at
+  least 9.1.1, `compileSdk` at least 37, core library desugaring enabled with
+  `desugar_jdk_libs:2.1.4` (even though nothing here schedules a notification),
+  and - because AGP 9 compiles Kotlin itself - the app must not apply the
+  Kotlin Gradle plugin. All four are now satisfied in
+  `android/settings.gradle.kts` and `android/app/build.gradle.kts`.
 
 The mapping from `DownloadTask` to on-screen content is a pure function, so it is
 unit tested without a platform channel
@@ -268,6 +275,27 @@ files' `library;` directives moved above their imports.
 The 2 warnings (an unused field, an unused local) and the 24 infos (22
 `prefer_const_*`, 2 `use_build_context_synchronously`) are fixed as well: the
 analyze step fails on any reported issue, not only on errors.
+
+### 2.2 The second run
+
+The second run got past the analyze gate and the codegen for the first time, so
+`flutter test` ran for the first time: **187 passed, 4 failed.** Two of the four
+were the catalogue disagreeing with itself, one was a count, and one was a real
+bug that no amount of reading had caught.
+
+| Failure | What it turned out to be |
+|---|---|
+| `its recommended quant is the smallest published one` | The 27B's quant list carries `UD-IQ1_S` (6.19 GB) and `UD-IQ1_M` (6.73 GB) above the recommended `UD-IQ2_XXS`. Both are emergency quants with severe quality loss, so the recommendation is right and the assertion was too strict; it now requires every *smaller* file to be an emergency quant |
+| `no quant of it is marked as fitting this device` | The 27B's three smallest quants were still flagged `fitsTargetDevice: true` while the model, the README and the warning all say it will not load. The flags were flipped in the generator and the warning text rewritten to name the emergency quants instead of calling IQ2_XXS "the smallest available" |
+| `the 71 published quantisations are all accounted for` | Phi-4-mini's 23 quants made it 94; the count and the test name were stale |
+| `deleting a persona leaves conversations intact` | **A real bug.** `PRAGMA foreign_keys` is on, so deleting a persona that any conversation referenced threw `SqliteException(787)` - the user-visible effect being a crash in the delete flow. `deleteSubjectTag` had the same hole. Both now clear the reference inside the same call, by hand, for the same reason `deleteConversation` deletes messages by hand, and the tests assert the conversation survives with its reference cleared |
+
+The same run's signed-APK job failed at `flutter build apk`, and its log is not
+readable from here (runner logs live behind a short-lived SAS URL). Rather than
+guess, the build step now tees its output and posts the tail to the pull request
+the way the analyze and test steps already do - and the four Android conditions
+the notification plugin's README sets, none of which the previous Gradle files
+met, are corrected (see 1.7). The next run is what settles it.
 
 ---
 

@@ -80,14 +80,46 @@ jobs:
 
       # llama.cpp is compiled from the vendored source inside the fllama
       # dependency on the first build, so this step is the slow one.
+      #
+      # Runner logs sit behind a short-lived SAS URL that cannot be read back
+      # from outside, so a failure here would otherwise be invisible. The
+      # output is echoed and posted to the PR, the same way ci-test.yml reports
+      # analyze and test failures.
       - name: Build signed release APK
+        id: build
+        continue-on-error: true
         env:
           SIGNING_MODE: ${{ steps.keystore.outputs.has_keystore == 'true' && 'signed' || 'debug-keys' }}
           KEYSTORE_PATH: android/app/release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: flutter build apk --release --no-obfuscate
+        run: |
+          set +e
+          flutter build apk --release --no-obfuscate > build-output.txt 2>&1
+          code=$?
+          tail -c 60000 build-output.txt
+          exit $code
+
+      - name: Report build failures on the PR
+        if: steps.build.outcome == 'failure' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '### `flutter build apk` — ${{ github.sha }}'
+            echo '```'
+            tail -c 60000 build-output.txt
+            echo '```'
+          } > build-comment.md
+          gh pr comment "$PR_NUMBER" --body-file build-comment.md
+
+      - name: Fail on build problems
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error::flutter build apk reported failures"
+          exit 1
 
       - name: Prepare APK artifact (release.apk only)
         run: |

@@ -1,12 +1,14 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.libraryai.library_ai"
-    compileSdk = flutter.compileSdkVersion
+
+    // flutter_local_notifications requires compileSdk 37 at a minimum; the
+    // maxOf keeps following Flutter once its default catches up.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
 
     // Pinned to the NDK that fllama's build hook is verified against. Letting
     // this float produces "plugin(s) depend on a different Android NDK version"
@@ -14,6 +16,11 @@ android {
     ndkVersion = "28.2.13676358"
 
     compileOptions {
+        // flutter_local_notifications schedules through java.time, so the
+        // plugin requires core library desugaring on every app that includes
+        // it - whether or not it schedules anything. See the dependencies
+        // block at the end of this file for the library itself.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -26,6 +33,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // The plugin's Gradle setup asks for this alongside desugaring. It is
+        // a no-op at minSdk 26 (multidex is native from API 21) but keeps the
+        // app matching the documented configuration.
+        multiDexEnabled = true
 
         ndk {
             // Package arm64-v8a for the phone and x86_64 so the app can still be
@@ -94,6 +106,12 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    // The desugared java.time backport flutter_local_notifications needs.
+    // 2.1.4 is the version its README pins.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

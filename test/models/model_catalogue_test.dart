@@ -174,18 +174,23 @@ void main() {
       expect(target.warning!.toUpperCase(), contains('WILL NOT LOAD'));
     });
 
-    test('its recommended quant is the smallest published one, UD-IQ2_XXS', () {
+    test('its recommended quant is the smallest one worth running, UD-IQ2_XXS', () {
       expect(target.recommendedQuant, 'UD-IQ2_XXS');
 
       final recommended = target.recommendedQuantInfo!;
-      final smallest = target.quants
-          .map((q) => q.sizeBytes)
-          .reduce((a, b) => a < b ? a : b);
+      // Two smaller files exist (UD-IQ1_S at 6.19 GB and UD-IQ1_M at 6.73 GB)
+      // and both are emergency quants with severe quality loss, so the entry
+      // recommends the smallest one that is worth downloading at all.
+      final smaller = target.quants
+          .where((q) => q.sizeBytes < recommended.sizeBytes)
+          .toList();
+      expect(smaller, isNotEmpty);
       expect(
-        recommended.sizeBytes,
-        smallest,
-        reason: 'the recommended quant must be the smallest available, since '
-            'this model will not fit regardless',
+        smaller.every((q) => q.qualityNote.toLowerCase().contains('emergency')),
+        isTrue,
+        reason: 'anything smaller than the recommended quant has to be an '
+            'emergency quant, or the recommendation is not the smallest '
+            'sensible download',
       );
     });
 
@@ -359,12 +364,12 @@ void main() {
     }
   });
 
-  test('the 71 published quantisations are all accounted for', () {
+  test('the 94 published quantisations are all accounted for', () {
     final total = catalogue.models.fold<int>(
       0,
       (sum, model) => sum + model.quants.length,
     );
-    expect(total, 71);
+    expect(total, 94);
   });
 
   test('a malformed entry fails loudly instead of half-loading', () {

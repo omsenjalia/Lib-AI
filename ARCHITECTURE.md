@@ -306,6 +306,11 @@ Design points that are deliberate rather than incidental:
   `DownloadManager` lives. `cancelNotification: false` leaves the removal to the
   manager's own terminal state, so a cancel racing with completion still shows
   the truth.
+- **The plugin's Android requirements shape the build.** Its README sets a floor
+  of AGP 9.1.1 and `compileSdk` 37, requires core library desugaring
+  (`desugar_jdk_libs:2.1.4`) even for an app that never schedules anything, and
+  - because AGP 9 compiles Kotlin itself - has to be used without the separate
+  Kotlin Gradle plugin. Those are the constraints the Gradle files now meet.
 - **The notification layer never navigates.** It lives in `core/`, which must not
   import a feature screen; it raises `openModelLibraryRequestProvider` and the
   app root pushes the route. That is also why the whole feature is optional: if

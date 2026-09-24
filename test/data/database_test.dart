@@ -230,7 +230,31 @@ void main() {
 
       await db.deletePersona(personaId);
 
+      expect(await db.personaById(personaId), isNull);
       expect(await db.messageCount(conversationId), 1);
+      final conversation = (await db.conversationById(conversationId))!;
+      expect(conversation.personaId, isNull);
+      expect(conversation.title, 'Keeps its messages');
+    });
+
+    test('deleting a tag leaves conversations intact', () async {
+      final tagId = await db.insertSubjectTag('Geology', 0xFF884400);
+      final conversationId = await db.createConversation(
+        title: 'Keeps its messages too',
+        subjectTagId: tagId,
+      );
+      await db.addMessage(
+        conversationId: conversationId,
+        role: 'user',
+        content: 'still here',
+      );
+
+      await db.deleteSubjectTag(tagId);
+
+      expect(await db.tagById(tagId), isNull);
+      expect(await db.messageCount(conversationId), 1);
+      final conversation = (await db.conversationById(conversationId))!;
+      expect(conversation.subjectTagId, isNull);
     });
   });
 
