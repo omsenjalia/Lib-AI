@@ -78,6 +78,46 @@ Two consequences the app does not hide:
   the releasing. `estimatedReleaseAt` (last activity + 150 s) is surfaced so the
   model switcher can be specific about when switching is safe again.
 
+The 120 s / 30 s figures come from the pinned source, not from guesswork:
+`fllama_inference_queue.cpp` sets `MODEL_INACTIVITY_TIMEOUT_SEC = 120` and
+`CLEANUP_INTERVAL_SEC = 30`, and a context is only destroyed when its
+`active_users` count reaches zero.
+
+### 3.1.1 Four slots, one conversation
+
+fllama runs every context with `params.n_parallel = ServerManager::DEFAULT_N_PARALLEL`,
+which `fllama_inference_queue.h` defines as **4**, and the request's own
+`nParallel` field is documented as a web-only override - the native side ignores
+it. llama.cpp then divides the requested context between those sequences:
+`n_ctx_seq = n_ctx / n_seq_max` in `llama-context.cpp`, taken whenever the KV
+cache is not unified, which is fllama's case because it leaves `kv_unified` at
+its `false` default.
+
+The practical consequences are easy to get wrong, so they are all funnelled
+through `AppConstants.perChatContextLength`:
+
+- A request for 8192 tokens gives **each conversation 2048**, not 8192. Anything
+  that budgets prompt tokens, or reports how full the window is, has to use the
+  per-chat figure. Budgeting against the requested total is how a long thread
+  goes past the slot limit, at which point llama.cpp context-shifts and discards
+  the oldest tokens without telling anyone - and because nothing sets `n_keep`,
+  the system prompt is the first thing to go.
+- Memory is charged for the **total**, not the quarter: the KV cache is still
+  allocated for the whole `n_ctx`. The load preflight therefore keeps using
+  `contextLength` as requested.
+- The split is a property of the pinned build, not of llama.cpp. Setting
+  `DEFAULT_N_PARALLEL = 1` in fllama would give one conversation the whole
+  window at the same memory cost (a single stream of `n_ctx` tokens instead of
+  four of `n_ctx / 4`). That needs a one-line patch plus a pin update - the Dart
+  side cannot reach it - and note that `n_parallel` is *not* part of the
+  `ServerResources` cache key (`n_ctx`, `n_gpu_layers`, mmproj and draft paths
+  are), so a patched engine must be used for every request in the process.
+- There is no Android GPU backend in this build either: fllama's
+  `src/CMakeLists.txt` enables Vulkan only when the host is Windows, so
+  `gpuOffloadAvailable` is false on Android and every layer runs on the CPU. The
+  Advanced section of Settings says so in-line instead of offering a switch that
+  cannot do anything.
+
 ### 3.2 Request path
 
 ```

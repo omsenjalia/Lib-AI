@@ -66,6 +66,10 @@ abstract final class AppConstants {
   /// and fllama leaves `kv_unified` at its `false` default. A request for 8192
   /// tokens therefore gives each conversation 2048, while the KV cache is still
   /// allocated for the whole 8192.
+  ///
+  /// If the engine is ever patched to a single slot - one line in fllama, see
+  /// `docs/FLLAMA_FORK.md` - this is the only line that has to change here, and
+  /// every prompt budget, preflight and meter follows from it.
   static const int parallelSlots = 4;
 
   /// The window one conversation actually gets from a requested total.
