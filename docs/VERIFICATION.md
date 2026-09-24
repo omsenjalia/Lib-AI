@@ -52,7 +52,7 @@ are the shape they claim to be.
 
 With no SDK, the only compiler available is one written for the occasion. Four
 passes were run over every `.dart` file in `lib/` and `test/` (51 + 8 files,
-14,581 + 2,132 lines):
+14,530 + 2,124 lines):
 
 | Pass | What it does | Result |
 |---|---|---|
@@ -91,6 +91,30 @@ or compilation - but it is what caught two real bugs in this round:
   `dfrac`, `tfrac`, `cfrac` and `binom` are now listed, and both the escape case
   and the fraction case are locked down in `test/utils/latex_splitter_test.dart`
   and `test/utils/latex_to_text_test.dart`.
+
+**What the closing audit changed.** Reading the tree against the same figures this
+document quotes turned up four things, all fixed:
+
+- `ARCHITECTURE.md` said `go_router` was skipped because of "six screens"; there
+  are five. The conclusion is unchanged, the count was not.
+- `ci-build-signed.yml` was the only workflow with no `permissions:` block. It now
+  states `contents: read`, so all five run with the least privilege they can.
+- `ci-test.yml` checked that `lib/core/data/database.g.dart` was up to date by
+  running `git diff` on it - a file that is not in the repository, so the step
+  could only ever pass vacuously. It now fails when `build_runner` does not
+  produce the file at all, which is what actually happens when the schema stops
+  compiling, and `.gitignore` now ignores `*.g.dart` so the generated file shows
+  up as generated rather than as an unexplained dirty file.
+- The line counts above were wrong by exactly the file counts beside them
+  (14,581 + 2,132 for 51 + 8 files). Both were re-measured on the committed tree
+  and on the working tree, which agree; the totals are in the paragraph above.
+
+Deliberate rather than missing, for anyone comparing this against `flutter
+create`: there is no `.metadata` (nothing here relies on the migration
+bookkeeping), no `CHANGELOG.md` and no `LICENSE` (README states the licence), no
+`l10n.yaml` (English only), and no Gradle wrapper - `flutter build` regenerates
+`gradlew`, `gradlew.bat` and `gradle-wrapper.jar` from its own template, which is
+why `android/.gitignore` ignores them.
 
 ### 1.4 The catalogue and generator
 

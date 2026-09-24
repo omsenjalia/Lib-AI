@@ -18,7 +18,7 @@ layer that knows the internet exists.
 | **flutter_math_fork + pdf** | TeX rendering that runs offline in pure Dart, and a PDF writer whose built-in fonts need no download. Chapter 5 explains the font constraint this creates. |
 | **flutter_local_notifications** | Progress for a multi-gigabyte download has to survive the user leaving the app. The alternative — a foreground service — would mean a second process, a second `DownloadManager`, and a wakelock; a notification updated in place gets the same result for a fraction of the risk. It is the only dependency added purely for download UX. |
 
-Deliberately **not** used: `go_router` (six screens, `Navigator` is enough),
+Deliberately **not** used: `go_router` (five screens, `Navigator` is enough),
 `flutter_dotenv` (no backend, no secrets), `share_plus` (the PDF export shares
 through the printing plugin, so a second sharing library would be redundant).
 

@@ -10,6 +10,14 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# Reading the repository is all this needs: it uploads an artifact and, on a
+# tag, attaches to a release - both of which go through the token's default
+# artifact/release APIs rather than needing write access to contents. Stated
+# explicitly so the workflow runs with the least privilege it can, the same way
+# the other four do.
+permissions:
+  contents: read
+
 jobs:
   signed-apk:
     runs-on: ubuntu-latest

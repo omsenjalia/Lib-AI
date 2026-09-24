@@ -26,6 +26,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            // Package arm64-v8a for the phone and x86_64 so the app can still be
+            // run on a desktop emulator. The two 32-bit ABIs are dropped: nothing
+            // here targets a 32-bit device, and a 32-bit llama.cpp is slow and
+            // memory-limited anyway. `flutter build apk` still compiles every
+            // ABI's native code; this decides which ones land in the APK.
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     // Release keystore supplied via CI secrets or a local environment.
@@ -70,11 +79,12 @@ android {
         }
     }
 
-    // Ship only the ABI the target device uses. Cutting armeabi-v7a and x86
-    // roughly halves APK size and avoids bundling a 32-bit llama.cpp that the
-    // S25 will never load.
     packaging {
         jniLibs {
+            // Store .so files uncompressed and page-aligned instead of the
+            // legacy "compress and extract at install" behaviour. This is the
+            // modern default for minSdk 26 and it keeps startup from waiting on
+            // an unpack of a large native library.
             useLegacyPackaging = false
         }
     }

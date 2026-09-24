@@ -57,11 +57,17 @@ jobs:
       - name: Generate drift code
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Verify generated code is current
+      # The generated file is gitignored, so `git diff` could not tell us
+      # anything about it. What matters is that build_runner produced it at all:
+      # if generation is skipped, analyze fails later with a bare "Target of URI
+      # doesn't exist", which says nothing about the cause.
+      - name: Verify drift code was generated
         run: |
-          if ! git diff --quiet -- lib/core/data/database.g.dart; then
-            echo "::warning::database.g.dart was regenerated with differences — commit the generated file or check the schema for unintended changes."
+          if [ ! -f lib/core/data/database.g.dart ]; then
+            echo "::error::build_runner did not produce lib/core/data/database.g.dart — check the schema in lib/core/data/tables.dart"
+            exit 1
           fi
+          echo "database.g.dart generated: $(wc -l < lib/core/data/database.g.dart) lines"
 
       - name: Analyze
         id: analyze

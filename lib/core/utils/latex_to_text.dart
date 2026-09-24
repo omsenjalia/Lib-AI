@@ -196,7 +196,7 @@ const Set<String> _structuralCommands = {
   'hat', 'widehat', 'tilde', 'widetilde', 'bar', 'overline', 'underline',
   'vec', 'dot', 'ddot', 'acute', 'grave', 'breve', 'check', 'mathring',
   // Font and alphabet switches
-  'mathbb', 'mathcal', 'mathfrak', 'mathsf', 'mathtt', 'boldsymbol', 'bm',
+  'mathbb', 'mathcal', 'mathfrak', 'mathsf', 'mathtt', 'bm',
   // Relations and arrows that need a name rather than a single character
   'xrightarrow', 'xleftarrow', 'mathrel', 'mathbin', 'mathop', 'prec',
   'succ', 'preceq', 'succeq', 'subsetneq', 'supseteq', 'nmid', 'cong',

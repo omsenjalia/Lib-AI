@@ -36,6 +36,11 @@ test-comment.md
 *.gguf
 /models/
 
+# Generated code. drift's database.g.dart is produced by build_runner, which
+# every workflow runs before analyze/test; leaving it untracked-but-not-ignored
+# made it show up as a dirty file after any local build.
+*.g.dart
+
 # Python bytecode from tooling (the catalogue generator is run in place)
 __pycache__/
 *.pyc
