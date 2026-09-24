@@ -21,10 +21,7 @@ class NotesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final count = ref.watch(documentCountProvider);
-    final scheme = Theme.of(context).colorScheme;
-    final secondary = scheme.brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     return Scaffold(
       appBar: AppBar(

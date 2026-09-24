@@ -1139,9 +1139,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _aboutSection(BuildContext context) {
     final tokens = context.tokens;
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     return _Section(
       title: 'About',
@@ -1297,10 +1295,9 @@ class _Note extends StatelessWidget {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
-    final base = isDark ? tokens.muted : tokens.muted;
+    final base = tokens.muted;
 
     final (color, background, border) = switch (tone) {
-      final tokens = context.tokens;
       _NoteTone.normal => (base, Colors.transparent, Colors.transparent),
       _NoteTone.honest => (
           base,
@@ -1489,9 +1486,7 @@ class _StorageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),

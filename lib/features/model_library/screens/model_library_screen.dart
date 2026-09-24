@@ -155,9 +155,7 @@ class _ModelLibraryScreenState extends ConsumerState<ModelLibraryScreen> {
     final tokens = context.tokens;
     final device = catalogue.targetDevice;
     final scheme = Theme.of(context).colorScheme;
-    final secondary = scheme.brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -202,9 +200,7 @@ class _ModelLibraryScreenState extends ConsumerState<ModelLibraryScreen> {
   Widget _storageSummary(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final bytes = ref.watch(totalModelBytesProvider);
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     return Padding(
       padding: const EdgeInsets.only(top: 6),

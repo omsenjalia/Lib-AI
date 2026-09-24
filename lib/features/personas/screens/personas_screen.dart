@@ -76,9 +76,7 @@ class PersonasScreen extends ConsumerWidget {
 
   Widget _sectionLabel(BuildContext context, String label) {
     final tokens = context.tokens;
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
@@ -164,9 +162,7 @@ class PersonasScreen extends ConsumerWidget {
 
   Widget _explainer(BuildContext context) {
     final tokens = context.tokens;
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -387,9 +383,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                 style: TextStyle(
                   fontSize: 10.5,
                   height: 1.45,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? tokens.muted
-                      : tokens.muted,
+                  color: tokens.muted,
                 ),
               ),
             ),

@@ -259,7 +259,7 @@ class ChatController extends ChangeNotifier {
   /// generation is writing into would leave the engine appending to a row that
   /// no longer exists.
   Future<void> deleteMessage(Message message) async {
-    if (_streamingMessageId == message.id) await stop();
+    if (_streamingMessageId == message.id) stop();
     await _ref.read(databaseProvider).deleteMessage(message.id);
   }
 

@@ -68,6 +68,7 @@ class ConfirmDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final accent = destructive ? tokens.errorText : tokens.primaryActive;
+    final secondary = tokens.muted;
 
     return AlertDialog(
       icon: icon == null

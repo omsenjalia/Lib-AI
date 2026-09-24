@@ -296,9 +296,9 @@ class _ModelCardState extends State<ModelCard> {
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),
-                        if (option.quant == _model.recommendt)
+                        if (option.quant == _model.recommendedQuant)
                           Padding(
-                            padding: EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.only(left: 6),
                             child: Icon(
                               Icons.star_rounded,
                               size: 13,
@@ -307,7 +307,7 @@ class _ModelCardState extends State<ModelCard> {
                           ),
                         if (!option.fitsTargetDevice)
                           Padding(
-                            padding: EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.only(left: 6),
                             child: Icon(
                               Icons.warning_amber_rounded,
                               size: 13,
@@ -473,7 +473,7 @@ class _ModelCardState extends State<ModelCard> {
             children: [
               Icon(Icons.system_update_alt_rounded,
                   size: 14, color: tokens.primary),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Text(
                 'Update available',
                 style: TextStyle(
@@ -500,9 +500,7 @@ class _ModelCardState extends State<ModelCard> {
 
   Widget _progress(BuildContext context, DownloadTask task) {
     final tokens = context.tokens;
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? tokens.muted
-        : tokens.muted;
+    final secondary = tokens.muted;
 
     final isVerifying = task.phase == DownloadPhase.verifying;
     final detail = isVerifying

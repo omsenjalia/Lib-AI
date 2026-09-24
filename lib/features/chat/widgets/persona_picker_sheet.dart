@@ -48,9 +48,7 @@ class PersonaPickerSheet extends ConsumerWidget {
               'Sets the system prompt for this conversation.',
               style: TextStyle(
                 fontSize: 11.5,
-                color: scheme.brightness == Brightness.dark
-                    ? tokens.muted
-                    : tokens.muted,
+                color: tokens.muted,
               ),
             ),
             const SizedBox(height: 12),

@@ -159,7 +159,7 @@ class MessageContent extends StatelessWidget {
         vertical: 5,
       ),
       blockquoteDecoration: BoxDecoration(
-        color: tokens.isDark ? tokens.surfaceCard : tokens.surfaceCard,
+        color: tokens.surfaceCard,
         border: Border(
           left: BorderSide(color: tokens.primary, width: 3),
         ),

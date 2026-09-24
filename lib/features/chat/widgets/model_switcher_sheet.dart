@@ -25,7 +25,10 @@ import '../../model_library/screens/model_library_screen.dart';
 ///    path in a sheet would mean a second place to get storage permissions and
 ///    progress notifications wrong.
 class ModelSwitcherSheet extends ConsumerWidget {
-  const ModelSwitcherSheet({super.key});
+  /// Private: the sheet is only ever built inside [show], which is what supplies
+  /// the scroll controller the draggable sheet hands down. A public constructor
+  /// would invite a second entry point with no controller to give it.
+  const ModelSwitcherSheet._({required this.scrollController});
 
   /// Opens the sheet. Returns the model id the user chose, if any.
   static Future<String?> show(BuildContext context) {
@@ -53,8 +56,6 @@ class ModelSwitcherSheet extends ConsumerWidget {
       ),
     );
   }
-
-  const ModelSwitcherSheet._({required this.scrollController});
 
   final ScrollController scrollController;
 
@@ -140,7 +141,7 @@ class ModelSwitcherSheet extends ConsumerWidget {
                       ),
                     if (activeId != null) const _MemoryNote(),
                     if (downloadable.isNotEmpty)
-                      ClaudeSectionHeader(
+                      const ClaudeSectionHeader(
                         title: 'Available to download',
                         padding: const EdgeInsets.fromLTRB(
                           ClaudeSpacing.md,
