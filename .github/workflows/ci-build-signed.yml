@@ -10,13 +10,15 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
-# Reading the repository is all this needs: it uploads an artifact and, on a
-# tag, attaches to a release - both of which go through the token's default
-# artifact/release APIs rather than needing write access to contents. Stated
-# explicitly so the workflow runs with the least privilege it can, the same way
-# the other four do.
+# Reading the repository, plus writing comments: it uploads an artifact, and on
+# a tag attaches to a release - both of which go through the token's default
+# artifact/release APIs rather than needing write access to contents. The
+# comment scope is what lets a failed build report its own output on the pull
+# request, the same way ci-test.yml reports analyze and test failures; without
+# it `gh pr comment` returns 403 and the reporter itself breaks the job.
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   signed-apk:
@@ -101,8 +103,11 @@ jobs:
           tail -c 60000 build-output.txt
           exit $code
 
+      # Never let the reporter itself fail the job: the failing step below is
+      # what marks the build red.
       - name: Report build failures on the PR
         if: steps.build.outcome == 'failure' && github.event_name == 'pull_request'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
