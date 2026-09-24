@@ -18,7 +18,7 @@ Elite, 8 GB/12 GB RAM).
 | Screen | What is there |
 |---|---|
 | **Chat** | Conversation sidebar (search, swipe-delete with undo, grouped by subject), Claude-style message layout, tappable model switcher, live context-window meter, subject and persona chips |
-| **Model Library** | Five catalogued models, quantisation dropdown with real sizes and checksums, download progress with speed and ETA, update badges, per-model storage |
+| **Model Library** | Six catalogued models, quantisation dropdown with real sizes and checksums, download progress with speed and ETA, a Play-Store-style download notification with a cancel action, update badges, per-model storage |
 | **Study Personas** | Six built-in prompts (tutor, code reviewer, maths tutor, exam coach, paper explainer, essay editor) plus your own |
 | **Settings** | Theme, default model and subject, context-length slider, sampling parameters, per-model storage, ZIP export, update policy |
 | **My Notes** | Placeholder. Import and retrieval are Phase 2; the schema is already in place. |
@@ -27,6 +27,13 @@ Study features: markdown rendering, syntax-highlighted code blocks with a copy
 button, inline `$...$` and display `$$...$$` LaTeX, a per-message "Render math"
 toggle for models that emit bare LaTeX, OCR mode (camera → multimodal image
 input, refused for text-only models), PDF export, and nine subject tags.
+
+A download of the 5-7 GB models takes long enough that the app cannot be the only
+place progress exists, so a transfer also posts a notification: a determinate
+progress bar with speed and ETA, a **Cancel** action, then a "ready" notification
+that opens the Model Library. `POST_NOTIFICATIONS` is requested at the moment a
+download starts — after the confirmation dialog — and declining it removes
+nothing but the notification.
 
 ---
 
@@ -139,6 +146,20 @@ the app usable on a device that has never been online.
    download URLs inside the model's own repository, vision claims against
    recorded evidence, and the 27B's Wi-Fi-only and High-RAM flags.
 
+### What is in the catalogue
+
+| Model | Class | Recommended quant | RAM needed | Notes |
+|---|---|---|---|---|
+| `phi-4-mini-3.8b` | 3.8B | Q4_K_M · 2.49 GB | ~3.4 GB | 128K window, text-only, MIT. Every one of its 23 quants fits an 8 GB phone |
+| `qwen3.5-9b-opus-4.6-distill` | 9B | Q4_K_M · 5.63 GB | ~5.8 GB | Text-only, 4K window |
+| `qwythos-9b-mythos-5-1m` | 9B | Q4_K_M · 5.63 GB | ~7.0 GB | Vision-capable, 1M-token YaRN window |
+| `qwythos-9b-v2` | 9B | Q4_K_M · 5.74 GB | ~7.1 GB | Vision-capable, 1M-token YaRN window |
+| `mimo-v2.6-9b` | 9B | Q4_K_M · 5.84 GB | ~7.2 GB | Vision-capable, agentic/code distil |
+| `qwen3.8-27b` | 27B | UD-IQ2_XXS · 7.27 GB | ~9.2 GB | **Will not load on an S25.** Wi-Fi only, High RAM, every quant flagged as not fitting |
+
+Sizes and checksums are generated from HuggingFace's file tree by
+`tool/generate_models_catalogue.py`; nothing in the table is an estimate.
+
 ### Why one model is deliberately awkward
 
 `Qwen3.8-27B` is in the catalogue with a **High RAM** badge, a **hard Wi-Fi-only
@@ -190,7 +211,7 @@ lib/
     errors/       typed AppExceptions that carry user-facing recovery advice
     models/       catalogue, settings and transfer value objects
     providers/    the Riverpod graph that wires the services together
-    services/     inference engine, download manager, update checker, export
+    services/     inference engine, downloads, notifications, update, export
     theme/        Material 3 themes, dark-mode-first
     utils/        LaTeX splitting, markdown blocks, PDF text, formatters
     widgets/      shared UI (badges, tags, meters, dialogs, banners)
@@ -219,7 +240,7 @@ LaTeX, code highlighting, PDF export, OCR, tags and personas.
 
 It does, because nothing outside model management touches the network. That
 claim is enforced, not just asserted: `.github/workflows/pr-check.yml` fails any
-pull request that imports a networking package outside the five model-management
+pull request that imports a networking package outside the six model-management
 services.
 
 The network is used for exactly three things, all of them yours to trigger or

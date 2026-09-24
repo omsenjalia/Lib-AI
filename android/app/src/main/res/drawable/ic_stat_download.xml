@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Notification small icon: a downward arrow into a baseline, the same glyph the
+  Play Store uses for a download.
+
+  Android composites notification icons as a single-colour mask, so this is
+  drawn in flat white with no gradients, and it is 24dp on a 24x24 viewport
+  (the size the system expects). Keeping it a vector means the repo carries no
+  binary icon assets.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+
+    <!-- Shaft -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,3 L13,3 L13,13 L17,13 L12,19 L7,13 L11,13 Z" />
+
+    <!-- Baseline the arrow lands on -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5,20 L19,20 L19,22 L5,22 Z" />
+</vector>

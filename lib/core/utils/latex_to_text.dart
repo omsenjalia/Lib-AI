@@ -170,6 +170,56 @@ const Set<String> _transparentCommands = {
   r'\it',
 };
 
+/// Commands that are real LaTeX but carry no symbol of their own.
+///
+/// They are not in [_symbols] because converting one takes context - an accent
+/// applies to whatever follows it, `\sin` is a word rather than a character -
+/// so the text converter handles them positionally.
+///
+/// They are listed here so that [isKnownLatexCommand] can answer the question
+/// the splitter has to ask: is this backslash the start of a command, or prose
+/// that merely looks like one? `\nis` is a newline escape followed by the word
+/// "is"; `\sin` is a command.
+const Set<String> _structuralCommands = {
+  // Fractions and binomials, which the converter rewrites to `(a)/(b)` rather
+  // than substituting a character for
+  'frac', 'dfrac', 'tfrac', 'cfrac', 'binom',
+  // Structure
+  'begin', 'end', 'left', 'right', 'limits', 'displaystyle', 'textstyle',
+  'overbrace', 'underbrace', 'stackrel', 'overset', 'underset', 'boxed',
+  'cancel', 'color', 'nonumber', 'pmod', 'mod', 'choose', 'sideset',
+  // Function names, which the renderer sets upright
+  'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'arcsin', 'arccos', 'arctan',
+  'sinh', 'cosh', 'tanh', 'log', 'ln', 'exp', 'lim', 'max', 'min', 'gcd',
+  'sup', 'inf', 'det', 'dim', 'ker', 'deg', 'arg', 'hom', 'Pr',
+  // Accents - each one applies to the expression that follows
+  'hat', 'widehat', 'tilde', 'widetilde', 'bar', 'overline', 'underline',
+  'vec', 'dot', 'ddot', 'acute', 'grave', 'breve', 'check', 'mathring',
+  // Font and alphabet switches
+  'mathbb', 'mathcal', 'mathfrak', 'mathsf', 'mathtt', 'boldsymbol', 'bm',
+  // Relations and arrows that need a name rather than a single character
+  'xrightarrow', 'xleftarrow', 'mathrel', 'mathbin', 'mathop', 'prec',
+  'succ', 'preceq', 'succeq', 'subsetneq', 'supseteq', 'nmid', 'cong',
+  'asymp', 'doteq', 'triangle', 'angle', 'prime', 'mid', 'parallel', 'perp',
+  'backslash', 'vert', 'Vert', 'lvert', 'rvert', 'lVert', 'rVert',
+};
+
+/// Every command name this module recognises, with the backslash stripped.
+final Set<String> _knownCommandNames = {
+  for (final command in _symbols.keys) command.substring(1),
+  for (final command in _transparentCommands) command.substring(1),
+  ..._structuralCommands,
+};
+
+/// True when [name] - without the leading backslash - is a LaTeX command this
+/// app recognises.
+///
+/// Used to separate a bare `\frac{a}{b}` from prose such as `\nis`, where the
+/// backslash is an escape and the letters are just letters. The two are
+/// indistinguishable from the shape of the text alone, so the vocabulary is the
+/// test: a word that no LaTeX command is called cannot be one.
+bool isKnownLatexCommand(String name) => _knownCommandNames.contains(name);
+
 /// Environments that are structural rather than symbolic.
 const List<String> _environmentNames = [
   'matrix',

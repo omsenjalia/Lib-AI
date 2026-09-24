@@ -8,6 +8,7 @@ import '../models/transfer_state.dart';
 import '../services/catalogue_repository.dart';
 import '../services/connectivity_service.dart';
 import '../services/download_manager.dart';
+import '../services/download_notification_service.dart';
 import '../services/huggingface_client.dart';
 import '../services/inference_engine.dart';
 import '../services/settings_service.dart';
@@ -169,6 +170,71 @@ final downloadManagerProvider = Provider<DownloadManager>((ref) {
 final downloadTasksProvider = StreamProvider<Map<String, DownloadTask>>(
   (ref) => ref.watch(downloadManagerProvider).tasksStream,
 );
+
+// -------------------------------------------------- download notifications
+
+/// Incremented when the user taps a download notification.
+///
+/// The notification plumbing lives in core and must not import a feature
+/// screen, so it does not navigate. It raises this counter instead, and the app
+/// root - which is allowed to know about screens - does the pushing.
+final openModelLibraryRequestProvider = StateProvider<int>((ref) => 0);
+
+/// Posts the Play-Store-style progress notification for each download, and
+/// routes its Cancel action back to [DownloadManager].
+final downloadNotificationServiceProvider =
+    Provider<DownloadNotificationService>((ref) {
+  return DownloadNotificationService(
+    onCancelRequested: (modelId) =>
+        ref.read(downloadManagerProvider).cancel(modelId),
+    onOpenRequested: (_) =>
+        ref.read(openModelLibraryRequestProvider.notifier).state++,
+  );
+});
+
+/// Subscribes the notification service to the download stream.
+///
+/// This is a provider rather than a background job so that it starts with the
+/// app and stops with it, and so that the dependency stays visible: nothing
+/// else in the graph knows about notifications, and the download manager
+/// itself has no idea they exist.
+///
+/// Watching it in the app root is what keeps it alive.
+final downloadNotificationBinderProvider = Provider<void>((ref) {
+  final service = ref.watch(downloadNotificationServiceProvider);
+  final catalogue = ref.watch(catalogueProvider);
+
+  // Names come from the catalogue, so a notification reads
+  // `Phi-4-mini-instruct` rather than `phi-4-mini-3.8b`. The first task can
+  // arrive before the asset has finished loading, so this waits rather than
+  // falling back to the raw id.
+  var names = const <String, String>{};
+  Future<String> nameFor(String modelId) async {
+    if (names.isEmpty) {
+      try {
+        final value = await catalogue.future;
+        names = {for (final model in value.models) model.id: model.displayName};
+      } catch (_) {
+        // A malformed catalogue is reported by the Model Library, not here.
+      }
+    }
+    return names[modelId] ?? modelId;
+  }
+
+  final subscription = ref
+      .watch(downloadManagerProvider)
+      .tasksStream
+      .listen((tasks) async {
+    for (final task in tasks.values) {
+      await service.apply(
+        task,
+        modelName: await nameFor(task.modelId),
+      );
+    }
+  });
+
+  ref.onDispose(subscription.cancel);
+});
 
 final updateCheckerProvider = Provider<UpdateChecker>((ref) {
   final checker = UpdateChecker(

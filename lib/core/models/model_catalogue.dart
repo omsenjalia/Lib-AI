@@ -125,7 +125,7 @@ class CatalogueModel {
   final String sizeClass;
   final String blurb;
 
-  /// The upstream model repo. For two of the five this is *not* where the GGUF
+  /// The upstream model repo. For three of the six this is *not* where the GGUF
   /// lives; see [ggufRepoId].
   final String hfModelId;
   final String? hfModelSha;

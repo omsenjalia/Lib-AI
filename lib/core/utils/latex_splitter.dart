@@ -25,6 +25,8 @@
 /// raw LaTeX such as `\frac{a}{b}` with nothing wrapping it.
 library;
 
+import 'latex_to_text.dart' show isKnownLatexCommand;
+
 /// What a segment of an assistant message should be rendered as.
 enum SegmentKind {
   /// Ordinary prose, bullet lists, tables, code - render as markdown.
@@ -331,14 +333,19 @@ int _findInlineDollarClose(String input, int start) {
 
 /// True when the backslash at [index] starts a LaTeX command rather than an
 /// ordinary prose escape.
+///
+/// The letters are matched against the command vocabulary rather than against a
+/// list of escapes, because the escape list cannot be applied to a whole letter
+/// run: `\nis` reads as the command `nis`, which is not one, while `\sin` reads
+/// as a command that is. An unknown name is treated as prose - the failure is
+/// visible rather than silent - because leaving raw LaTeX on screen is a
+/// smaller problem than rendering `\nis` as a broken formula inside a sentence.
 bool _looksLikeCommand(String input, int index) {
   final rest = input.substring(index + 1);
   if (rest.isEmpty) return false;
   final match = RegExp(r'^[a-zA-Z]+').firstMatch(rest);
   if (match == null) return false;
-  // \n, \t and friends are escapes in prose, never commands here.
-  const escapes = {'n', 't', 'r', 's', 'd', 'w', 'b'};
-  return !escapes.contains(match.group(0));
+  return isKnownLatexCommand(match.group(0)!);
 }
 
 /// Extent of a bare LaTeX command sequence, e.g. `\frac{a}{b} + \sqrt{x}`.

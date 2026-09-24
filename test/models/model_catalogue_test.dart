@@ -28,8 +28,8 @@ void main() {
     expect(catalogue.targetDevice.usableRamGb, greaterThan(0));
   });
 
-  test('all five approved models are present, with their approved repos', () {
-    expect(catalogue.models, hasLength(5));
+  test('all six approved models are present, with their approved repos', () {
+    expect(catalogue.models, hasLength(6));
 
     final byId = {for (final model in catalogue.models) model.id: model};
 
@@ -39,6 +39,7 @@ void main() {
       'qwythos-9b-v2',
       'qwythos-9b-mythos-5-1m',
       'qwen3.5-9b-opus-4.6-distill',
+      'phi-4-mini-3.8b',
     ]));
 
     // D3: third-party GGUFs where no official GGUF exists.
@@ -48,6 +49,13 @@ void main() {
       'bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF',
       reason: 'MiMo must not come from ggml-org: its only quant there is Q8_0, '
           'which is too large for this device',
+    );
+    expect(
+      byId['phi-4-mini-3.8b']!.ggufRepoId,
+      'bartowski/microsoft_Phi-4-mini-instruct-GGUF',
+      reason: 'bartowski prefixes the upstream org with an underscore. '
+          '`bartowski/Phi-4-mini-instruct-GGUF` returns 404, so a typo here '
+          'would make every download fail at the first request.',
     );
   });
 
@@ -220,10 +228,74 @@ void main() {
       }
     });
 
-    test('the Opus-4.6 distill is the confirmed text-only model', () {
+    test('the two text-only models are recorded as such', () {
       final model = catalogue.byId('qwen3.5-9b-opus-4.6-distill')!;
       expect(model.visionSupported, isFalse);
       expect(model.mmproj, isNull);
+    });
+
+    test('Phi-4-mini is text-only, and the entry says why', () {
+      // The base repo is pipeline_tag=text-generation with no vision tag, no
+      // preprocessor_config.json, and no mmproj in the GGUF repo. OCR mode has
+      // to refuse this model, so the absence is asserted rather than assumed.
+      final model = catalogue.byId('phi-4-mini-3.8b')!;
+      expect(model.visionSupported, isFalse);
+      expect(model.mmproj, isNull);
+      expect(model.visionEvidence, isNull);
+      expect(model.visionAbsenceNote, isNotNull);
+      expect(model.visionAbsenceNote!.toLowerCase(), contains('text-only'));
+    });
+
+    test('exactly two of the six models are text-only', () {
+      final textOnly = catalogue.models.where((m) => !m.visionSupported);
+      expect(
+        textOnly.map((m) => m.id).toList(),
+        ['qwen3.5-9b-opus-4.6-distill', 'phi-4-mini-3.8b'],
+      );
+    });
+  });
+
+  group('the Phi-4-mini entry is the small, unconstrained one', () {
+    late CatalogueModel target;
+
+    setUp(() {
+      target = catalogue.byId('phi-4-mini-3.8b')!;
+    });
+
+    test('it is not Wi-Fi only and not High RAM', () {
+      expect(target.wifiOnly, isFalse);
+      expect(target.highRam, isFalse);
+      expect(target.hasWarning, isFalse);
+    });
+
+    test('every quant of it fits this device', () {
+      // The only model in the catalogue for which that is true, which is the
+      // whole reason it is here: an 8 GB phone can run it at any quant.
+      expect(target.quants, hasLength(23));
+      expect(target.quants.every((q) => q.fitsTargetDevice), isTrue);
+      expect(
+        target.quants.map((q) => q.sizeBytes).reduce((a, b) => a > b ? a : b),
+        lessThan(5 * 1000 * 1000 * 1000),
+      );
+    });
+
+    test('it is a quarter of the RAM of the next smallest model', () {
+      final others = catalogue.models
+          .where((m) => m.id != 'phi-4-mini-3.8b')
+          .map((m) => m.ramRequirementGb);
+      expect(target.ramRequirementGb, lessThan(others.reduce((a, b) => a < b ? a : b)));
+    });
+
+    test('its 128K window comes from the GGUF itself', () {
+      expect(target.maxContextLength, 131072);
+      expect(target.recommendedContextLength, 8192);
+      expect(target.maxContextLength, greaterThan(target.recommendedContextLength));
+    });
+
+    test('the base repo is recorded, with its own revision', () {
+      expect(target.hfModelId, 'microsoft/Phi-4-mini-instruct');
+      expect(target.hfModelHasGguf, isFalse);
+      expect(target.hfModelFileNote, contains('microsoft_Phi-4-mini-instruct'));
     });
   });
 

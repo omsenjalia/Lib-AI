@@ -16,6 +16,7 @@ layer that knows the internet exists.
 | **fllama (pinned git ref)** | The only maintained llama.cpp binding with a multimodal (`mmprojPath`) API and streaming callbacks. It is not on pub.dev — the pub.dev package with that name is an unrelated fork — so it is pinned by commit. See the disclaimer in `pubspec.yaml`. Chapter 3 covers its lifecycle in detail. |
 | **flutter_markdown + flutter_highlight** | Markdown is a solved problem; the code-block case is not, which is why highlighting is a separate renderer fed by a block splitter (`lib/core/utils/markdown_blocks.dart`) rather than a markdown plugin. `flutter_markdown` was chosen because the brief specifies it; it has since been discontinued upstream in favour of `flutter_markdown_plus`, which is API-compatible — that swap is a one-line change if it ever becomes necessary. |
 | **flutter_math_fork + pdf** | TeX rendering that runs offline in pure Dart, and a PDF writer whose built-in fonts need no download. Chapter 5 explains the font constraint this creates. |
+| **flutter_local_notifications** | Progress for a multi-gigabyte download has to survive the user leaving the app. The alternative — a foreground service — would mean a second process, a second `DownloadManager`, and a wakelock; a notification updated in place gets the same result for a fraction of the risk. It is the only dependency added purely for download UX. |
 
 Deliberately **not** used: `go_router` (six screens, `Navigator` is enough),
 `flutter_dotenv` (no backend, no secrets), `share_plus` (the PDF export shares
@@ -27,10 +28,10 @@ through the printing plugin, so a second sharing library would be redundant).
 
 ```
 lib/main.dart                 ProviderScope -> LibraryAiApp
-lib/app.dart                  theme, bootstrap (sweep, hydrate, scheduler)
+lib/app.dart                  theme, bootstrap (notifications, sweep, hydrate, scheduler)
 lib/features/<feature>/       screens and widgets; read services through providers
 lib/core/providers/           the graph: services, plus the app-wide ChatController
-lib/core/services/            inference, downloads, updates, export, storage
+lib/core/services/            inference, downloads, notifications, updates, export
 lib/core/data/                drift tables, AppDatabase, DAOs
 lib/core/models/              immutable value objects (catalogue, settings, transfer)
 lib/core/utils/               pure Dart: LaTeX, markdown blocks, PDF text, formatting
@@ -198,6 +199,12 @@ Design points that matter:
 - **"Render math" exists for real models.** Some emit `\frac{a}{b}` with no
   delimiters at all; `splitLatex(forceMath: true)` wraps bare commands in `$...$`
   on the fly, and the toggle is per message and persisted.
+- **A bare backslash is only maths if the name after it is a command.** The shape
+  of the text cannot tell `\sin` from `\nis` - a newline escape followed by the
+  word "is" - so the splitter checks the name against the same vocabulary the
+  export converter uses (`isKnownLatexCommand`, 207 names). An unrecognised name
+  is left as prose: raw LaTeX on screen is a smaller failure than a sentence with a
+  broken formula inside it.
 - **Broken TeX shows its source.** A formula that fails to parse renders the raw
   LaTeX in a red chip, because a model emitting broken TeX should look like that
   rather than like an app that lost the answer.
@@ -262,7 +269,53 @@ Progress is reported per file, with file *n* of *m* when a projector is included
 because a second transfer starting from zero otherwise looks like a restart.
 Interrupted `.part` files are swept on every launch.
 
-### 6.3 Auto-update, and the thing it must never do
+### 6.3 The download notification
+
+A model is up to 7.3 GB, so progress cannot live only in a screen the user has to
+hold open. `DownloadNotificationService` mirrors the shape Android users already
+know from the Play Store:
+
+```
+phase          what is shown                                  actions
+─────────────  ─────────────────────────────────────────────  ─────────────
+downloading    "42% · 1.05 GB of 2.49 GB · 12.3 MB/s · 3m      Cancel
+               20s left", determinate bar, in place
+verifying      "Verifying <model>", indeterminate bar          Cancel
+complete       "<model> is ready · Tap to open the Model       tap → library
+               Library", dismissible
+failed         "<model> could not be downloaded · <reason>"
+cancelled      removed
+```
+
+Design points that are deliberate rather than incidental:
+
+- **One notification per model, updated in place**, keyed by a stable FNV-1a
+  hash of the model id. `String.hashCode` is not stable across processes, and the
+  id has to survive a restart so a relaunched app can cancel what a killed one
+  left behind.
+- **The channel is `Importance.low` with no sound.** A progress notification that
+  buzzes every few seconds for twenty minutes is worse than none.
+- **Nothing else in the app posts notifications**, which is what makes the
+  `cancelAll()` at startup safe: it clears a progress bar that a killed process
+  can never move again, because there is no background download service to
+  resume it.
+- **The permission is requested when a download starts**, after the confirmation
+  dialog, and a refusal costs nothing but the notification.
+- **Cancel is a notification action with `showsUserInterface: true`.** That
+  brings the app forward so the request is handled on the main isolate, where the
+  `DownloadManager` lives. `cancelNotification: false` leaves the removal to the
+  manager's own terminal state, so a cancel racing with completion still shows
+  the truth.
+- **The notification layer never navigates.** It lives in `core/`, which must not
+  import a feature screen; it raises `openModelLibraryRequestProvider` and the
+  app root pushes the route. That is also why the whole feature is optional: if
+  the plugin is unavailable or the permission is denied, every call is a no-op
+  and the model card remains the source of truth.
+
+The mapping from `DownloadTask` to on-screen content is a pure function
+(`downloadNotificationFor`), unit-tested without a platform channel.
+
+### 6.4 Auto-update, and the thing it must never do
 
 ```
 connectivity regained ──► UpdateScheduler

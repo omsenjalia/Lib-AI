@@ -163,8 +163,62 @@ void main() {
     });
 
     test('prose escapes such as \\n are not treated as commands', () {
+      // The letter run after the backslash is `nis` - a newline escape followed
+      // by the word "is" - which is not a command, so the sentence stays prose.
       final segments = splitLatex('A newline\nis not maths.', forceMath: true);
       expect(segments.every((s) => !s.isMath), isTrue);
+      expect(segments.single.text, 'A newline\nis not maths.');
+    });
+
+    test('every single-letter prose escape stays prose', () {
+      for (final escape in ['n', 't', 'r', 's', 'd', 'w', 'b']) {
+        final source = 'A ${escape}is escaped.';
+        final segments = splitLatex(source, forceMath: true);
+        expect(
+          segments.every((s) => !s.isMath),
+          isTrue,
+          reason: '\\$escape was treated as a command',
+        );
+      }
+    });
+
+    test('an unknown command name is left as prose', () {
+      // A made-up command renders as an error inside a sentence, which is worse
+      // than leaving the raw text visible. So an unrecognised name is prose.
+      final segments = splitLatex(
+        r'The \notacommand{x} here.',
+        forceMath: true,
+      );
+      expect(segments.every((s) => !s.isMath), isTrue);
+    });
+
+    test('commands whose names start with an escape letter are still maths',
+        () {
+      // The vocabulary, not the first letter, is what decides: `\\theta` and
+      // `\\sin` begin with letters that also begin prose escapes.
+      for (final source in [r'\theta = 2', r'\sin x', r'\times 3', r'\to 1']) {
+        final segments = splitLatex(source, forceMath: true);
+        final maths = segments.where((s) => s.isMath).toList();
+        expect(maths, isNotEmpty, reason: source);
+        expect(maths.first.text, startsWith(source.split(' ').first));
+      }
+    });
+
+    test('a fraction is maths even though it has no symbol of its own', () {
+      // `\\frac` is rewritten to `(a)/(b)` by the text converter rather than
+      // substituted for a character, so it is easy to leave out of a command
+      // list. This is the regression guard for exactly that.
+      for (final command in ['frac', 'dfrac', 'tfrac', 'binom']) {
+        final segments = splitLatex(
+          'Compute \\$command{a}{b} now.',
+          forceMath: true,
+        );
+        expect(
+          segments.any((s) => s.isMath),
+          isTrue,
+          reason: '\\$command was not treated as maths',
+        );
+      }
     });
 
     test('with extractInline false, forced maths is wrapped in dollars', () {

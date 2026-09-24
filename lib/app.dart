@@ -7,6 +7,7 @@ import 'core/constants/app_constants.dart';
 import 'core/providers/app_providers.dart';
 import 'core/theme/app_theme.dart';
 import 'features/chat/screens/chat_screen.dart';
+import 'features/model_library/screens/model_library_screen.dart';
 
 /// The application root.
 ///
@@ -56,6 +57,10 @@ class _Bootstrap extends ConsumerStatefulWidget {
 }
 
 class _BootstrapState extends ConsumerState<_Bootstrap> {
+  /// Guards against stacking two Model Library routes when a notification is
+  /// tapped while the screen is already open.
+  bool _libraryOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +69,15 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
   }
 
   Future<void> _start() async {
+    // 0. Notifications. This also clears anything a killed process left in the
+    //    shade - there is no background download service, so a stale progress
+    //    bar could otherwise never move again.
+    unawaited(
+      ref.read(downloadNotificationServiceProvider).initialize().catchError(
+            (Object _) {},
+          ),
+    );
+
     // 1. Clear out any `.part` files from downloads that were interrupted by a
     //    process kill. Local, fast, and safe to run every launch.
     unawaited(
@@ -90,6 +104,32 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
     );
   }
 
+  /// Opens the Model Library in response to a notification tap.
+  Future<void> _openModelLibrary() async {
+    if (_libraryOpen) return;
+    _libraryOpen = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const ModelLibraryScreen()),
+      );
+    } finally {
+      _libraryOpen = false;
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => const ChatScreen();
+  Widget build(BuildContext context) {
+    // Keeps the download-notification binder subscribed for the app's lifetime.
+    ref.watch(downloadNotificationBinderProvider);
+
+    // The notification layer raises a counter instead of navigating, because it
+    // lives in `core/` and must not import a screen. This is where that becomes
+    // a route.
+    ref.listen<int>(openModelLibraryRequestProvider, (previous, next) {
+      if (previous == next) return;
+      _openModelLibrary();
+    });
+
+    return const ChatScreen();
+  }
 }

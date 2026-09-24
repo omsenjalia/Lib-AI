@@ -10,7 +10,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../widgets/model_card.dart';
 
-/// The model library: five catalogued models, their quantisations, and the
+/// The model library: six catalogued models, their quantisations, and the
 /// controls to download, update or delete them.
 ///
 /// This is the only screen in the app allowed to talk to the network, and every
@@ -145,9 +145,13 @@ class ModelLibraryScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Sizes and fit ratings are computed against ${device.usableRamGb} GB '
-            'of usable RAM on this device. Downloads are verified against the '
-            'published SHA-256 before a model is marked as ready.',
+            // The figure is the 12 GB variant's usable RAM, not "this" device's:
+            // claiming otherwise would overstate the headroom on an 8 GB phone.
+            'Sizes and fit ratings assume the ${device.ramOptionsGb.last} GB '
+            'Galaxy S25 (${device.usableRamGb} GB usable); an '
+            '${device.ramOptionsGb.first} GB device has less headroom. '
+            'Downloads are verified against the published SHA-256 before a '
+            'model is marked as ready.',
             style: TextStyle(fontSize: 10.5, height: 1.4, color: secondary),
           ),
         ],
@@ -190,6 +194,10 @@ class ModelLibraryScreen extends ConsumerWidget {
   ///     way through is to connect to Wi-Fi.
   ///  2. Confirmation - a dialog spelling out the size and the RAM risk, so a
   ///     multi-gigabyte transfer is never accidental.
+  ///
+  /// The notification permission is requested last, after the user has
+  /// committed: that is when a progress notification is useful, and asking
+  /// before they have decided anything is how apps get declined.
   Future<void> _download(
     BuildContext context,
     WidgetRef ref,
@@ -258,6 +266,11 @@ class ModelLibraryScreen extends ConsumerWidget {
       details: details,
     );
     if (!confirmed) return;
+
+    // Ask for the notification permission here, at the moment it becomes
+    // useful, rather than at startup. A refusal is not fatal: the download runs
+    // exactly the same and progress stays on this screen.
+    await ref.read(downloadNotificationServiceProvider).ensurePermission();
 
     try {
       await ref.read(downloadManagerProvider).start(

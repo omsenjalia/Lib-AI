@@ -1020,6 +1020,286 @@
         "fitsTargetDevice": true,
         "downloadUrl": "https://huggingface.co/empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF/resolve/main/Qwen3.5-9B-Claude-Opus-4.6-Distill-Q4_K_M.gguf"
       }
+    },
+    {
+      "id": "phi-4-mini-3.8b",
+      "displayName": "Phi-4-mini-instruct",
+      "family": "Microsoft Phi",
+      "parameterCount": "3.8B",
+      "sizeClass": "3.8B",
+      "blurb": "Compact 3.8B instruction model with a 128K window. The lightest entry in the catalogue - even its largest quant loads comfortably on an 8 GB device.",
+      "hfModelId": "microsoft/Phi-4-mini-instruct",
+      "hfModelSha": "cfbefacb99257ffa30c83adab238a50856ac3083",
+      "hfModelLastModified": "2025-12-10T20:24:40.000Z",
+      "hfModelHasGguf": false,
+      "hfModelFileNote": "The official repo ships safetensors only (2 shards, 3,836,021,760 parameters). The GGUF listed here is bartowski's imatrix conversion. Note the repository id: bartowski publishes it as bartowski/microsoft_Phi-4-mini-instruct-GGUF, prefixing the upstream org with an underscore. `bartowski/Phi-4-mini-instruct-GGUF` does not exist and returns 404.",
+      "visionSupported": false,
+      "visionEvidence": null,
+      "visionAbsenceNote": "Confirmed text-only. pipeline_tag is text-generation and the repo carries no vision, image-to-text or multimodal tag; there is no preprocessor_config.json and the GGUF repository ships no mmproj-*.gguf. OCR mode must refuse this model.",
+      "recommendedContextLength": 8192,
+      "maxContextLength": 131072,
+      "contextNote": "131,072 tokens (128K), taken from the GGUF's own metadata (architecture phi3, context_length 131072) - that is the value the loader will honour. 8192 recommended on-device.",
+      "wifiOnly": false,
+      "highRam": false,
+      "fitsTargetDevice": true,
+      "ramRequirementGb": 3.4,
+      "warning": null,
+      "recommendedQuant": "Q4_K_M",
+      "samplingDefaults": {
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 20
+      },
+      "notes": "The upstream card samples greedily in its own examples (do_sample=False, temperature 0.0) and neither it nor generation_config.json documents a sampler, so the values here are this app's house defaults - chosen so answers do not degenerate into repetition, and adjustable in Settings. Every one of the 23 published quants fits this device. The card cautions that a 3.8B model cannot hold much factual knowledge and suggests retrieval augmentation for fact-heavy questions.",
+      "ggufRepoId": "bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+      "ggufRepoSha": "7ff82c2aaa4dde30121698a973765f39be5288c0",
+      "ggufRepoLastModified": "2025-02-28T15:56:14.000Z",
+      "ggufRepoUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+      "downloadUrlPattern": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/{fileName}",
+      "quants": [
+        {
+          "quant": "IQ2_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ2_M.gguf",
+          "sizeBytes": 1507424640,
+          "sizeGb": 1.51,
+          "sha256": "33c12b44229a85d88a3bedfe849e138643bbde5478925d191faeb409bc2ea3ec",
+          "qualityNote": "Smallest. Relatively low quality, but usable.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ2_M.gguf"
+        },
+        {
+          "quant": "IQ3_XXS",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ3_XXS.gguf",
+          "sizeBytes": 1678866816,
+          "sizeGb": 1.68,
+          "sha256": "80c87df8ba98f4e02f5e3bb8b71cab541dafb601ef071a195a4df38c56e213d7",
+          "qualityNote": "Comparable to the Q3 quants.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ3_XXS.gguf"
+        },
+        {
+          "quant": "Q2_K",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q2_K.gguf",
+          "sizeBytes": 1682636160,
+          "sizeGb": 1.68,
+          "sha256": "85134b59572e8726252f02bae6476ed6cf8c3109f5dc05da363965430157608d",
+          "qualityNote": "Very low quality but surprisingly usable.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q2_K.gguf"
+        },
+        {
+          "quant": "Q2_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q2_K_L.gguf",
+          "sizeBytes": 1831483776,
+          "sizeGb": 1.83,
+          "sha256": "b233015a8c8fbd13f080cbebc9a8dc496c2ce52faed06d17fb0963192e0378b5",
+          "qualityNote": "Q8_0 embeddings and output. Very low quality.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q2_K_L.gguf"
+        },
+        {
+          "quant": "IQ3_XS",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ3_XS.gguf",
+          "sizeBytes": 1840708992,
+          "sizeGb": 1.84,
+          "sha256": "a94bcca75234c1775025a319a1765e3c61c5b18298d0314633f7f7524356ec2e",
+          "qualityNote": "Slightly better than Q3_K_S.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ3_XS.gguf"
+        },
+        {
+          "quant": "Q3_K_S",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_S.gguf",
+          "sizeBytes": 1897332096,
+          "sizeGb": 1.9,
+          "sha256": "a1dd4dc181bd94e896a947dbf413f04d9cce2b962a22fe363812a28b5ac34826",
+          "qualityNote": "Low quality, not recommended by the author.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_S.gguf"
+        },
+        {
+          "quant": "IQ3_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ3_M.gguf",
+          "sizeBytes": 2017656192,
+          "sizeGb": 2.02,
+          "sha256": "0d6a07d53a3ebd474a8ca9abc9415af39e88f041cfbfe388e3bf632b84e7b232",
+          "qualityNote": "Medium-low quality; comparable to Q3_K_M.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ3_M.gguf"
+        },
+        {
+          "quant": "Q3_K_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_M.gguf",
+          "sizeBytes": 2117533056,
+          "sizeGb": 2.12,
+          "sha256": "514a111e3b847b1698b253bf8e8ada7c1bb81dc10dc4bccab590edaff5aec06c",
+          "qualityNote": "Low quality.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_M.gguf"
+        },
+        {
+          "quant": "IQ4_XS",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ4_XS.gguf",
+          "sizeBytes": 2224487808,
+          "sizeGb": 2.22,
+          "sha256": "88f5f428d64ea04332eaf3dc19d05ad4df3e04847ad9d2b0e3c947233f361a56",
+          "qualityNote": "Good quality/size balance.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ4_XS.gguf"
+        },
+        {
+          "quant": "Q3_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_L.gguf",
+          "sizeBytes": 2249653632,
+          "sizeGb": 2.25,
+          "sha256": "d04c6c4014f24f56dc3341aa69e198815f2931a8769aeb630ced541f792889b4",
+          "qualityNote": "Lower quality but usable where RAM is tight.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_L.gguf"
+        },
+        {
+          "quant": "IQ4_NL",
+          "fileName": "microsoft_Phi-4-mini-instruct-IQ4_NL.gguf",
+          "sizeBytes": 2325151104,
+          "sizeGb": 2.33,
+          "sha256": "c75b97730ea19e533d5a5fcbb695984bfd6278e170bf49e1251ea4f5e85b7763",
+          "qualityNote": "Slightly larger than IQ4_XS, repacks on ARM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-IQ4_NL.gguf"
+        },
+        {
+          "quant": "Q4_0",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_0.gguf",
+          "sizeBytes": 2331442560,
+          "sizeGb": 2.33,
+          "sha256": "2124412a2d3410dd05c5d01796457283812210633165a2a86c909f815971518e",
+          "qualityNote": "Legacy 4-bit. Repacks online on ARM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_0.gguf"
+        },
+        {
+          "quant": "Q4_K_S",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_S.gguf",
+          "sizeBytes": 2337734016,
+          "sizeGb": 2.34,
+          "sha256": "d75c4e4a4a4f9c775ca5fec8802e7a65bbbe9241034f5b39e6a8d092f3805880",
+          "qualityNote": "Good quality/size balance.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_S.gguf"
+        },
+        {
+          "quant": "Q3_K_XL",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q3_K_XL.gguf",
+          "sizeBytes": 2398501248,
+          "sizeGb": 2.4,
+          "sha256": "d95f8462d750d574db0c60ed5e83c551a42d94da99b4a5f85d54b5bbbf0c14e0",
+          "qualityNote": "Q8_0 embeddings; lower quality, low RAM.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q3_K_XL.gguf"
+        },
+        {
+          "quant": "Q4_K_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+          "sizeBytes": 2491874688,
+          "sizeGb": 2.49,
+          "sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2",
+          "qualityNote": "RECOMMENDED. Author's stated default size for most use cases.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+        },
+        {
+          "quant": "Q4_1",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_1.gguf",
+          "sizeBytes": 2526477696,
+          "sizeGb": 2.53,
+          "sha256": "788a028447e152719d2673930fdfb0df5f73cc134b666915565492e32fe93f26",
+          "qualityNote": "Legacy format, similar to Q4_K_S.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_1.gguf"
+        },
+        {
+          "quant": "Q4_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_L.gguf",
+          "sizeBytes": 2640722304,
+          "sizeGb": 2.64,
+          "sha256": "ea4e670db872d1cf505e02bf8f85745ce98a564c1429fc3609cc9462089da13e",
+          "qualityNote": "Q8_0 embeddings; a little better than Q4_K_M.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_L.gguf"
+        },
+        {
+          "quant": "Q5_K_S",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q5_K_S.gguf",
+          "sizeBytes": 2727804288,
+          "sizeGb": 2.73,
+          "sha256": "b027246d847c6d6c5419a14885256061e911cc864001820b16e037868d43d090",
+          "qualityNote": "High quality, small enough for an 8 GB device.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q5_K_S.gguf"
+        },
+        {
+          "quant": "Q5_K_M",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q5_K_M.gguf",
+          "sizeBytes": 2848128384,
+          "sizeGb": 2.85,
+          "sha256": "840ad85cff01e41701e2b2a3826016916f8e51242c8f25d62e59fa7eb93acbc5",
+          "qualityNote": "High quality. Comfortable here, unlike on the 9B models.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q5_K_M.gguf"
+        },
+        {
+          "quant": "Q5_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q5_K_L.gguf",
+          "sizeBytes": 2996976000,
+          "sizeGb": 3.0,
+          "sha256": "9e2c332c023f50ae7ed5fd51c8ca3ed846e364ad8a98471da99603082509734b",
+          "qualityNote": "Q8_0 embeddings; high quality.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q5_K_L.gguf"
+        },
+        {
+          "quant": "Q6_K",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q6_K.gguf",
+          "sizeBytes": 3155623296,
+          "sizeGb": 3.16,
+          "sha256": "59dba927b98f39c26859aab7fb27d5f577666f8a5db38f0eccf3f207902ba23b",
+          "qualityNote": "Near-perfect quality and still fits an 8 GB device.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q6_K.gguf"
+        },
+        {
+          "quant": "Q6_K_L",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q6_K_L.gguf",
+          "sizeBytes": 3304470912,
+          "sizeGb": 3.3,
+          "sha256": "ad6e8f3dbaca28a7d8c269058bd6ba543b7d0932be06927f847f24c9bb0d8408",
+          "qualityNote": "Near-perfect quality, Q8_0 embeddings.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q6_K_L.gguf"
+        },
+        {
+          "quant": "Q8_0",
+          "fileName": "microsoft_Phi-4-mini-instruct-Q8_0.gguf",
+          "sizeBytes": 4084611456,
+          "sizeGb": 4.08,
+          "sha256": "a12f242c4ee379b9da91673e5d78b30bfacfe4fd86a0b2259d2ecad5d93cb6c7",
+          "qualityNote": "Near-lossless. The largest quant here, and it still fits.",
+          "fitsTargetDevice": true,
+          "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q8_0.gguf"
+        }
+      ],
+      "mmproj": null,
+      "extraFiles": [],
+      "recommendedQuantInfo": {
+        "quant": "Q4_K_M",
+        "fileName": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+        "sizeBytes": 2491874688,
+        "sizeGb": 2.49,
+        "sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2",
+        "qualityNote": "RECOMMENDED. Author's stated default size for most use cases.",
+        "fitsTargetDevice": true,
+        "downloadUrl": "https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"
+      }
     }
   ]
 }

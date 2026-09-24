@@ -93,6 +93,43 @@ void main() {
     });
   });
 
+  group('isKnownLatexCommand', () {
+    // This is the vocabulary the splitter uses to decide whether a backslash
+    // starts a command or is prose that looks like one. It shares the converter's
+    // tables on purpose: the splitter should not call something maths that the
+    // exporter cannot then convert.
+    test('recognises symbols the converter has a glyph for', () {
+      for (final name in ['alpha', 'pi', 'sum', 'infty', 'frac']) {
+        expect(isKnownLatexCommand(name), isTrue, reason: name);
+      }
+    });
+
+    test('recognises commands the converter handles positionally', () {
+      for (final name in ['sin', 'cos', 'log', 'lim', 'hat', 'vec', 'begin',
+        'mathbb', 'sqrt']) {
+        expect(isKnownLatexCommand(name), isTrue, reason: name);
+      }
+    });
+
+    test('the name is given without the backslash', () {
+      expect(isKnownLatexCommand('theta'), isTrue);
+      expect(isKnownLatexCommand(r'\theta'), isFalse);
+    });
+
+    test('rejects the words that prose escapes accidentally form', () {
+      // `\nis` is a newline escape followed by "is"; `\n` is not a command at
+      // all. Neither may be mistaken for LaTeX.
+      for (final name in ['n', 't', 'r', 's', 'd', 'w', 'b', 'nis', 'tis',
+        'notacommand', 'Users']) {
+        expect(isKnownLatexCommand(name), isFalse, reason: name);
+      }
+    });
+
+    test('rejects an empty name', () {
+      expect(isKnownLatexCommand(''), isFalse);
+    });
+  });
+
   group('containsLatexEnvironment', () {
     test('detects a known environment', () {
       expect(containsLatexEnvironment(r'\begin{align} x \end{align}'), isTrue);

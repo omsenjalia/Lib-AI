@@ -5,7 +5,9 @@ version: 1.0.0+1
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
-  flutter: '>=3.38.0'
+  # 3.38.1 rather than 3.38.0 because flutter_local_notifications (added for the
+  # download notification) refuses to resolve below it.
+  flutter: '>=3.38.1'
 
 dependencies:
   flutter:
@@ -46,6 +48,12 @@ dependencies:
 
   # Version string on the About card.
   package_info_plus: ^8.1.0
+
+  # Download notifications. A 7.3 GB download is not something a user can watch
+  # in-app for twenty minutes, so progress goes to the notification shade in the
+  # shape the Play Store uses: an ongoing determinate bar, speed and ETA, a
+  # Cancel action, and a terminal "ready" notification.
+  flutter_local_notifications: ^22.3.1
 
   # Animations are hand-rolled (one AnimationController in the loading
   # indicator), so no animation package is depended on.

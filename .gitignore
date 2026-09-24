@@ -35,3 +35,7 @@ test-comment.md
 # Downloaded GGUF models must never enter git.
 *.gguf
 /models/
+
+# Python bytecode from tooling (the catalogue generator is run in place)
+__pycache__/
+*.pyc

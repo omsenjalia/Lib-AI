@@ -137,8 +137,9 @@ jobs:
             echo '### Catalogue check'
             echo
             echo '`test/models/model_catalogue_test.dart` validated:'
-            echo '- five models, 71 quant entries, all with real SHA-256 values'
+            echo '- six models, 94 quant entries, all with real SHA-256 values'
             echo '- every download URL resolves inside its own repository'
             echo '- the 27B is the only Wi-Fi-only, High-RAM model'
+            echo '- Phi-4-mini is the only model whose every quant fits the device'
             echo '- vision support is only claimed where the model card records it'
           } >> "$GITHUB_STEP_SUMMARY"

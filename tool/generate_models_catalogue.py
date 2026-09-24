@@ -48,6 +48,17 @@ REPOS = {
         likes=0,
         downloads=0,
     ),
+    # The user-supplied id `bartowski/Phi-4-mini-instruct-GGUF` does not exist
+    # (404). bartowski's convention is to prefix the upstream org with an
+    # underscore, so the real repository is the one below - confirmed against
+    # the HF API, which returns this id and not the other.
+    "phi-4-mini-3.8b": dict(
+        repo="bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+        sha="7ff82c2aaa4dde30121698a973765f39be5288c0",
+        last_modified="2025-02-28T15:56:14.000Z",
+        likes=46,
+        downloads=48878,
+    ),
     "qwen3.5-9b-opus-4.6-distill": dict(
         repo="empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF",
         sha="892a4362ba5896d67d566a316973fefb70f5135f",
@@ -130,6 +141,31 @@ QUANTS = {
         ("Qwythos-9B-Claude-Mythos-5-1M-MTP-Q6_K.gguf", "Q6_K (MTP)", 7617818208, "MTP variant.", False),
         ("Qwythos-9B-Claude-Mythos-5-1M-MTP-Q8_0.gguf", "Q8_0 (MTP)", 9786060384, "MTP variant.", False),
         ("Qwythos-9B-Claude-Mythos-5-1M-MTP-BF16.gguf", "BF16 (MTP)", 18407321184, "MTP full precision.", False),
+    ],
+    "phi-4-mini-3.8b": [
+        ("microsoft_Phi-4-mini-instruct-IQ2_M.gguf", "IQ2_M", 1507424640, "Smallest. Relatively low quality, but usable.", True),
+        ("microsoft_Phi-4-mini-instruct-IQ3_XXS.gguf", "IQ3_XXS", 1678866816, "Comparable to the Q3 quants.", True),
+        ("microsoft_Phi-4-mini-instruct-Q2_K.gguf", "Q2_K", 1682636160, "Very low quality but surprisingly usable.", True),
+        ("microsoft_Phi-4-mini-instruct-Q2_K_L.gguf", "Q2_K_L", 1831483776, "Q8_0 embeddings and output. Very low quality.", True),
+        ("microsoft_Phi-4-mini-instruct-IQ3_XS.gguf", "IQ3_XS", 1840708992, "Slightly better than Q3_K_S.", True),
+        ("microsoft_Phi-4-mini-instruct-Q3_K_S.gguf", "Q3_K_S", 1897332096, "Low quality, not recommended by the author.", True),
+        ("microsoft_Phi-4-mini-instruct-IQ3_M.gguf", "IQ3_M", 2017656192, "Medium-low quality; comparable to Q3_K_M.", True),
+        ("microsoft_Phi-4-mini-instruct-Q3_K_M.gguf", "Q3_K_M", 2117533056, "Low quality.", True),
+        ("microsoft_Phi-4-mini-instruct-IQ4_XS.gguf", "IQ4_XS", 2224487808, "Good quality/size balance.", True),
+        ("microsoft_Phi-4-mini-instruct-Q3_K_L.gguf", "Q3_K_L", 2249653632, "Lower quality but usable where RAM is tight.", True),
+        ("microsoft_Phi-4-mini-instruct-IQ4_NL.gguf", "IQ4_NL", 2325151104, "Slightly larger than IQ4_XS, repacks on ARM.", True),
+        ("microsoft_Phi-4-mini-instruct-Q4_0.gguf", "Q4_0", 2331442560, "Legacy 4-bit. Repacks online on ARM.", True),
+        ("microsoft_Phi-4-mini-instruct-Q4_K_S.gguf", "Q4_K_S", 2337734016, "Good quality/size balance.", True),
+        ("microsoft_Phi-4-mini-instruct-Q3_K_XL.gguf", "Q3_K_XL", 2398501248, "Q8_0 embeddings; lower quality, low RAM.", True),
+        ("microsoft_Phi-4-mini-instruct-Q4_K_M.gguf", "Q4_K_M", 2491874688, "RECOMMENDED. Author's stated default size for most use cases.", True),
+        ("microsoft_Phi-4-mini-instruct-Q4_1.gguf", "Q4_1", 2526477696, "Legacy format, similar to Q4_K_S.", True),
+        ("microsoft_Phi-4-mini-instruct-Q4_K_L.gguf", "Q4_K_L", 2640722304, "Q8_0 embeddings; a little better than Q4_K_M.", True),
+        ("microsoft_Phi-4-mini-instruct-Q5_K_S.gguf", "Q5_K_S", 2727804288, "High quality, small enough for an 8 GB device.", True),
+        ("microsoft_Phi-4-mini-instruct-Q5_K_M.gguf", "Q5_K_M", 2848128384, "High quality. Comfortable here, unlike on the 9B models.", True),
+        ("microsoft_Phi-4-mini-instruct-Q5_K_L.gguf", "Q5_K_L", 2996976000, "Q8_0 embeddings; high quality.", True),
+        ("microsoft_Phi-4-mini-instruct-Q6_K.gguf", "Q6_K", 3155623296, "Near-perfect quality and still fits an 8 GB device.", True),
+        ("microsoft_Phi-4-mini-instruct-Q6_K_L.gguf", "Q6_K_L", 3304470912, "Near-perfect quality, Q8_0 embeddings.", True),
+        ("microsoft_Phi-4-mini-instruct-Q8_0.gguf", "Q8_0", 4084611456, "Near-lossless. The largest quant here, and it still fits.", True),
     ],
     "qwen3.5-9b-opus-4.6-distill": [
         ("Qwen3.5-9B-Claude-Opus-4.6-Distill-Q2_K.gguf", "Q2_K", 3827261760, "Smallest. Noticeable quality loss.", True),
@@ -236,6 +272,30 @@ SHA256 = {
     "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q6_K.gguf": "bb44c32d77a3f7846afa523a20306efc5d7cb68781e187f87cf93a3e5994cbc9",
     "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q8_0.gguf": "9ff5de17a0c98581c828c259e0beea9c9dca881b0371f61c974f59c125b08b27",
     "Qwen3.5-9B-Claude-Opus-4.6-Distill-f16.gguf": "37a8dc8761689e17ab46787274a3b5827c1e63e9767d494c015c954dbedab66b",
+    # bartowski/microsoft_Phi-4-mini-instruct-GGUF
+    "microsoft_Phi-4-mini-instruct-IQ2_M.gguf": "33c12b44229a85d88a3bedfe849e138643bbde5478925d191faeb409bc2ea3ec",
+    "microsoft_Phi-4-mini-instruct-IQ3_M.gguf": "0d6a07d53a3ebd474a8ca9abc9415af39e88f041cfbfe388e3bf632b84e7b232",
+    "microsoft_Phi-4-mini-instruct-IQ3_XS.gguf": "a94bcca75234c1775025a319a1765e3c61c5b18298d0314633f7f7524356ec2e",
+    "microsoft_Phi-4-mini-instruct-IQ3_XXS.gguf": "80c87df8ba98f4e02f5e3bb8b71cab541dafb601ef071a195a4df38c56e213d7",
+    "microsoft_Phi-4-mini-instruct-IQ4_NL.gguf": "c75b97730ea19e533d5a5fcbb695984bfd6278e170bf49e1251ea4f5e85b7763",
+    "microsoft_Phi-4-mini-instruct-IQ4_XS.gguf": "88f5f428d64ea04332eaf3dc19d05ad4df3e04847ad9d2b0e3c947233f361a56",
+    "microsoft_Phi-4-mini-instruct-Q2_K.gguf": "85134b59572e8726252f02bae6476ed6cf8c3109f5dc05da363965430157608d",
+    "microsoft_Phi-4-mini-instruct-Q2_K_L.gguf": "b233015a8c8fbd13f080cbebc9a8dc496c2ce52faed06d17fb0963192e0378b5",
+    "microsoft_Phi-4-mini-instruct-Q3_K_L.gguf": "d04c6c4014f24f56dc3341aa69e198815f2931a8769aeb630ced541f792889b4",
+    "microsoft_Phi-4-mini-instruct-Q3_K_M.gguf": "514a111e3b847b1698b253bf8e8ada7c1bb81dc10dc4bccab590edaff5aec06c",
+    "microsoft_Phi-4-mini-instruct-Q3_K_S.gguf": "a1dd4dc181bd94e896a947dbf413f04d9cce2b962a22fe363812a28b5ac34826",
+    "microsoft_Phi-4-mini-instruct-Q3_K_XL.gguf": "d95f8462d750d574db0c60ed5e83c551a42d94da99b4a5f85d54b5bbbf0c14e0",
+    "microsoft_Phi-4-mini-instruct-Q4_0.gguf": "2124412a2d3410dd05c5d01796457283812210633165a2a86c909f815971518e",
+    "microsoft_Phi-4-mini-instruct-Q4_1.gguf": "788a028447e152719d2673930fdfb0df5f73cc134b666915565492e32fe93f26",
+    "microsoft_Phi-4-mini-instruct-Q4_K_L.gguf": "ea4e670db872d1cf505e02bf8f85745ce98a564c1429fc3609cc9462089da13e",
+    "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2",
+    "microsoft_Phi-4-mini-instruct-Q4_K_S.gguf": "d75c4e4a4a4f9c775ca5fec8802e7a65bbbe9241034f5b39e6a8d092f3805880",
+    "microsoft_Phi-4-mini-instruct-Q5_K_L.gguf": "9e2c332c023f50ae7ed5fd51c8ca3ed846e364ad8a98471da99603082509734b",
+    "microsoft_Phi-4-mini-instruct-Q5_K_M.gguf": "840ad85cff01e41701e2b2a3826016916f8e51242c8f25d62e59fa7eb93acbc5",
+    "microsoft_Phi-4-mini-instruct-Q5_K_S.gguf": "b027246d847c6d6c5419a14885256061e911cc864001820b16e037868d43d090",
+    "microsoft_Phi-4-mini-instruct-Q6_K.gguf": "59dba927b98f39c26859aab7fb27d5f577666f8a5db38f0eccf3f207902ba23b",
+    "microsoft_Phi-4-mini-instruct-Q6_K_L.gguf": "ad6e8f3dbaca28a7d8c269058bd6ba543b7d0932be06927f847f24c9bb0d8408",
+    "microsoft_Phi-4-mini-instruct-Q8_0.gguf": "a12f242c4ee379b9da91673e5d78b30bfacfe4fd86a0b2259d2ecad5d93cb6c7",
 }
 
 MMPROJ = {
@@ -244,6 +304,7 @@ MMPROJ = {
     "qwythos-9b-v2": ("mmproj-Qwythos-9B-v2-BF16.gguf", 921704512),
     "qwythos-9b-mythos-5-1m": ("mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf", 918165472),
     # qwen3.5-9b-opus-4.6-distill deliberately absent: no mmproj exists in that repo.
+    # phi-4-mini-3.8b likewise absent: Phi-4-mini-instruct is text-only.
 }
 
 EXTRA_FILES = {
@@ -391,6 +452,34 @@ def build():
         "recommendedQuant": "Q4_K_M",
         "samplingDefaults": {"temperature": 0.7, "topP": 0.95, "topK": 20},
         "notes": "Emits reasoning inside <think>...</think> tags. The repo README documents lowercase filenames that do not match the real files; the filenames here are the actual repository paths.",
+    })
+
+    models.append({
+        "id": "phi-4-mini-3.8b",
+        "displayName": "Phi-4-mini-instruct",
+        "family": "Microsoft Phi",
+        "parameterCount": "3.8B",
+        "sizeClass": "3.8B",
+        "blurb": "Compact 3.8B instruction model with a 128K window. The lightest entry in the catalogue - even its largest quant loads comfortably on an 8 GB device.",
+        "hfModelId": "microsoft/Phi-4-mini-instruct",
+        "hfModelSha": "cfbefacb99257ffa30c83adab238a50856ac3083",
+        "hfModelLastModified": "2025-12-10T20:24:40.000Z",
+        "hfModelHasGguf": False,
+        "hfModelFileNote": "The official repo ships safetensors only (2 shards, 3,836,021,760 parameters). The GGUF listed here is bartowski's imatrix conversion. Note the repository id: bartowski publishes it as bartowski/microsoft_Phi-4-mini-instruct-GGUF, prefixing the upstream org with an underscore. `bartowski/Phi-4-mini-instruct-GGUF` does not exist and returns 404.",
+        "visionSupported": False,
+        "visionEvidence": None,
+        "visionAbsenceNote": "Confirmed text-only. pipeline_tag is text-generation and the repo carries no vision, image-to-text or multimodal tag; there is no preprocessor_config.json and the GGUF repository ships no mmproj-*.gguf. OCR mode must refuse this model.",
+        "recommendedContextLength": 8192,
+        "maxContextLength": 131072,
+        "contextNote": "131,072 tokens (128K), taken from the GGUF's own metadata (architecture phi3, context_length 131072) - that is the value the loader will honour. 8192 recommended on-device.",
+        "wifiOnly": False,
+        "highRam": False,
+        "fitsTargetDevice": True,
+        "ramRequirementGb": 3.4,
+        "warning": None,
+        "recommendedQuant": "Q4_K_M",
+        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20},
+        "notes": "The upstream card samples greedily in its own examples (do_sample=False, temperature 0.0) and neither it nor generation_config.json documents a sampler, so the values here are this app's house defaults - chosen so answers do not degenerate into repetition, and adjustable in Settings. Every one of the 23 published quants fits this device. The card cautions that a 3.8B model cannot hold much factual knowledge and suggests retrieval augmentation for fact-heavy questions.",
     })
 
     for m in models:
