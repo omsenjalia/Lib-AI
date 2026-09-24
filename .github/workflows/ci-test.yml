@@ -10,6 +10,14 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# One run per ref at a time: a new push cancels the build for the older
+# commit, which for a 15-minute native compile is the difference between
+# a queue and a pile-up.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
 jobs:
   test:
     runs-on: ubuntu-latest

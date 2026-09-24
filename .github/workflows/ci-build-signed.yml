@@ -6,9 +6,25 @@ name: CI Build Signed APK
 # published daily by nightly-release.yml.)
 on:
   pull_request:
+    # Doc-only edits cannot change an APK; do not spend a 15-minute native
+    # compile on them.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   push:
     branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
+
+# One run per ref at a time: a new push cancels the build for the older
+# commit, which for a 15-minute native compile is the difference between
+# a queue and a pile-up.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 
 # Reading the repository is all this needs for the build and the artifact, and
 # on a tag the release attachment goes through the token's default artifact/
@@ -93,7 +109,12 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set +e
-          flutter build apk --release --no-obfuscate > apk-build.log 2>&1
+          # arm64 only for this per-commit build: the fllama hook compiles
+          # llama.cpp once per target ABI, so the default all-ABI build pays
+          # the native compile three times. The judge device is arm64, and
+          # nightly-release.yml still ships the full split.
+          flutter build apk --release --no-obfuscate \
+            --target-platform android-arm64 > apk-build.log 2>&1
           code=$?
           tail -c 30000 apk-build.log
           exit $code
