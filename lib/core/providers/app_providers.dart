@@ -227,6 +227,20 @@ final downloadNotificationBinderProvider = Provider<void>((ref) {
       .watch(downloadManagerProvider)
       .tasksStream
       .listen((tasks) async {
+    final activeTransfers = tasks.values
+        .where((task) =>
+            task.phase == DownloadPhase.downloading ||
+            task.phase == DownloadPhase.verifying)
+        .toList(growable: false);
+    final foregroundTask =
+        activeTransfers.isEmpty ? null : activeTransfers.first;
+    await service.syncForegroundDownload(
+      foregroundTask,
+      modelName: foregroundTask == null
+          ? ''
+          : await nameFor(foregroundTask.modelId),
+    );
+
     for (final task in tasks.values) {
       await service.apply(
         task,

@@ -16,7 +16,7 @@ layer that knows the internet exists.
 | **fllama (pinned git ref)** | The only maintained llama.cpp binding with a multimodal (`mmprojPath`) API and streaming callbacks. It is not on pub.dev — the pub.dev package with that name is an unrelated fork — so it is pinned by commit. See the disclaimer in `pubspec.yaml`. Chapter 3 covers its lifecycle in detail. |
 | **flutter_markdown + flutter_highlight** | Markdown is a solved problem; the code-block case is not, which is why highlighting is a separate renderer fed by a block splitter (`lib/core/utils/markdown_blocks.dart`) rather than a markdown plugin. `flutter_markdown` was chosen because the brief specifies it; it has since been discontinued upstream in favour of `flutter_markdown_plus`, which is API-compatible — that swap is a one-line change if it ever becomes necessary. |
 | **flutter_math_fork + pdf** | TeX rendering that runs offline in pure Dart, and a PDF writer whose built-in fonts need no download. Chapter 5 explains the font constraint this creates. |
-| **flutter_local_notifications** | Progress for a multi-gigabyte download has to survive the user leaving the app. The alternative — a foreground service — would mean a second process, a second `DownloadManager`, and a wakelock; a notification updated in place gets the same result for a fraction of the risk. It is the only dependency added purely for download UX. |
+| **flutter_local_notifications + a small Android foreground service** | A user-started multi-gigabyte transfer needs both an in-place notification and an OS-visible `dataSync` lifetime while the screen is off. The service does not own HTTP or create a second `DownloadManager`; Flutter continues to own the transfer, and the plugin updates the service notification by stable id. |
 
 Deliberately **not** used: `go_router` (five screens, `Navigator` is enough),
 `flutter_dotenv` (no backend, no secrets), `share_plus` (the PDF export shares
@@ -287,33 +287,50 @@ failed         "<model> could not be downloaded · <reason>"
 cancelled      removed
 ```
 
-Design points that are deliberate rather than incidental:
+The progress channel is **default importance, silent, and vibration-free**. That
+keeps it visible in the shade without buzzing on every update. Completion and
+failure use a separate **high-importance** channel, and each terminal state is
+posted only once. Separate channel ids are intentional: Android remembers the
+importance chosen when a channel is first created, so reusing the old low-
+importance id would preserve the symptom this change fixes.
 
-- **One notification per model, updated in place**, keyed by a stable FNV-1a
-  hash of the model id. `String.hashCode` is not stable across processes, and the
-  id has to survive a restart so a relaunched app can cancel what a killed one
-  left behind.
-- **The channel is `Importance.low` with no sound.** A progress notification that
-  buzzes every few seconds for twenty minutes is worse than none.
-- **Nothing else in the app posts notifications**, which is what makes the
-  `cancelAll()` at startup safe: it clears a progress bar that a killed process
-  can never move again, because there is no background download service to
-  resume it.
+A user-started transfer also starts the app-owned Android `dataSync` foreground
+service. It begins only when the first file is actively downloading or being
+verified, and stops when the active-task map becomes empty. The service takes a
+partial wake lock and Wi-Fi lock for that interval so Doze does not suspend a
+large transfer when the screen turns off. It does not own the Dio stream or
+resume work after the process dies; `.part` files are still swept at next launch.
+The service's initial notification uses the same stable id and progress channel
+as the first active model, then `flutter_local_notifications` replaces it with
+the complete per-model text and Cancel action. The manifest declares the
+`FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_DATA_SYNC` and lock permissions only
+for this user-initiated transfer path; no storage permission is added. This is
+the Play-policy user-initiated data-transfer case, not background polling.
+
+Other design points:
+
+- **One notification per model**, keyed by a stable FNV-1a hash. `String.hashCode`
+  is not stable across processes, and the id has to survive a restart so the app
+  can cancel what a killed run left in the shade.
 - **The permission is requested when a download starts**, after the confirmation
-  dialog, and a refusal costs nothing but the notification.
-- **Cancel is a notification action with `showsUserInterface: true`.** That
-  brings the app forward so the request is handled on the main isolate, where the
-  `DownloadManager` lives. `cancelNotification: false` leaves the removal to the
-  manager's own terminal state, so a cancel racing with completion still shows
-  the truth.
-- **The notification layer never navigates.** It lives in `core/`, which must not
-  import a feature screen; it raises `openModelLibraryRequestProvider` and the
-  app root pushes the route. That is also why the whole feature is optional: if
-  the plugin is unavailable or the permission is denied, every call is a no-op
-  and the model card remains the source of truth.
+  dialog. The result is checked with Android's notification-enabled state. A
+  refusal never stops the download; Model Library shows a one-line hint instead.
+- **Errors stay non-fatal but visible.** The Settings diagnostics row shows
+  `_ready`, the last permission result, the last apply kind/percent/time and the
+  last notification error. `show()` errors are logged in release builds too;
+  collect them with `adb logcat -s flutter LibraryAI.DownloadService`.
+- **Cancel brings the app forward.** The notification action is handled on the
+  main isolate, where `DownloadManager` lives. `cancelNotification: false`
+  leaves removal to the manager's terminal state, so a cancel racing with
+  completion still shows the truth.
+- **The notification layer never navigates.** It raises
+  `openModelLibraryRequestProvider` and the app root pushes the route. That keeps
+  `core/` independent of feature screens.
 
 The mapping from `DownloadTask` to on-screen content is a pure function
-(`downloadNotificationFor`), unit-tested without a platform channel.
+(`downloadNotificationFor`), with its progress/terminal channel, importance and
+priority policy unit-tested without a platform channel. The foreground-service
+calls sit behind `ForegroundDownloadBridge`, so those tests remain platform-free.
 
 ### 6.4 Auto-update, and the thing it must never do
 

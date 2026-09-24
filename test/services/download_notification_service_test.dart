@@ -247,19 +247,49 @@ void main() {
     });
   });
 
-  group('the channel is quiet by design', () {
-    test('a progress notification wants no sound, no heads-up', () {
-      // These are the values handed to AndroidNotificationDetails, asserted here
-      // so that "the channel is low importance" is a checked claim rather than
-      // a comment nobody verifies.
+  group('notification channels', () {
+    test('progress and verification use the silent default channel', () {
+      for (final kind in [
+        DownloadNotificationKind.progress,
+        DownloadNotificationKind.verifying,
+      ]) {
+        expect(
+          downloadNotificationChannelFor(kind),
+          kDownloadProgressChannelId,
+        );
+        expect(
+          downloadNotificationImportanceFor(kind),
+          Importance.defaultImportance,
+        );
+        expect(
+          downloadNotificationPriorityFor(kind),
+          Priority.defaultPriority,
+        );
+        expect(downloadNotificationPlaysSoundFor(kind), isFalse);
+        expect(downloadNotificationVibratesFor(kind), isFalse);
+      }
       final content = downloadNotificationFor(
         task(),
         modelName: 'Phi-4-mini-instruct',
       )!;
-
-      expect(content.isOngoing, isTrue);
       expect(content.alertsOnce, isTrue);
       expect(content.hasCancelAction, isTrue);
+    });
+
+    test('complete and failed use their own alerting channel', () {
+      for (final kind in [
+        DownloadNotificationKind.complete,
+        DownloadNotificationKind.failed,
+      ]) {
+        expect(
+          downloadNotificationChannelFor(kind),
+          kDownloadTerminalChannelId,
+        );
+        expect(downloadNotificationImportanceFor(kind), Importance.high);
+        expect(downloadNotificationPriorityFor(kind), Priority.high);
+        expect(downloadNotificationPlaysSoundFor(kind), isTrue);
+        expect(downloadNotificationVibratesFor(kind), isTrue);
+      }
     });
   });
 }

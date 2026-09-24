@@ -69,9 +69,8 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
   }
 
   Future<void> _start() async {
-    // 0. Notifications. This also clears anything a killed process left in the
-    //    shade - there is no background download service, so a stale progress
-    //    bar could otherwise never move again.
+    // 0. Notifications. The service is not restarted after process death, so
+    //    clear any stale per-model progress left by a transfer that cannot resume.
     unawaited(
       ref.read(downloadNotificationServiceProvider).initialize().catchError(
             (Object _) {},
