@@ -226,13 +226,63 @@ String _progressBody(DownloadTask task, int percent) {
   return parts.join(' · ');
 }
 
+/// A small, release-visible snapshot of the notification path.
+///
+/// The download itself must remain independent of Android's notification
+/// permission, but a silent failure is not diagnosable from the model card.
+@immutable
+class DownloadNotificationDiagnostics {
+  const DownloadNotificationDiagnostics({
+    this.ready = false,
+    this.permissionResult = 'not requested',
+    this.lastApplyKind,
+    this.lastApplyPercent,
+    this.lastApplyAt,
+    this.lastError,
+    this.lastErrorAt,
+  });
+
+  final bool ready;
+  final String permissionResult;
+  final String? lastApplyKind;
+  final int? lastApplyPercent;
+  final DateTime? lastApplyAt;
+  final String? lastError;
+  final DateTime? lastErrorAt;
+
+  bool get shouldShowPermissionHint =>
+      permissionResult == 'denied' ||
+      permissionResult == 'unavailable' ||
+      permissionResult == 'error';
+
+  DownloadNotificationDiagnostics copyWith({
+    bool? ready,
+    String? permissionResult,
+    String? lastApplyKind,
+    int? lastApplyPercent,
+    DateTime? lastApplyAt,
+    String? lastError,
+    DateTime? lastErrorAt,
+  }) =>
+      DownloadNotificationDiagnostics(
+        ready: ready ?? this.ready,
+        permissionResult: permissionResult ?? this.permissionResult,
+        lastApplyKind: lastApplyKind ?? this.lastApplyKind,
+        lastApplyPercent: lastApplyPercent ?? this.lastApplyPercent,
+        lastApplyAt: lastApplyAt ?? this.lastApplyAt,
+        lastError: lastError ?? this.lastError,
+        lastErrorAt: lastErrorAt ?? this.lastErrorAt,
+      );
+}
+
 /// Posts and updates the notifications described by
 /// [downloadNotificationFor].
 ///
 /// Nothing here is required for a download to work: if the user denies the
-/// notification permission, or the plugin is unavailable, every method is a
-/// silent no-op and the model card remains the source of truth.
-class DownloadNotificationService {
+/// notification permission, or the plugin is unavailable, the model card stays
+/// the source of truth. The diagnostics snapshot still records that outcome so
+/// a release build does not fail invisibly.
+class DownloadNotificationService extends ChangeNotifier {
   DownloadNotificationService({
     FlutterLocalNotificationsPlugin? plugin,
     this.onCancelRequested,
@@ -240,6 +290,27 @@ class DownloadNotificationService {
   }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
+
+  DownloadNotificationDiagnostics _diagnostics =
+      const DownloadNotificationDiagnostics();
+
+  DownloadNotificationDiagnostics get diagnostics => _diagnostics;
+
+  void _publishDiagnostics(DownloadNotificationDiagnostics next) {
+    _diagnostics = next;
+    notifyListeners();
+  }
+
+  void _recordError(String source, Object error) {
+    final now = DateTime.now();
+    _publishDiagnostics(_diagnostics.copyWith(
+      lastError: '$source: $error',
+      lastErrorAt: now,
+    ));
+    // Release breadcrumbs are intentional: otherwise the failure this row is
+    // meant to diagnose disappears in the exact build users run.
+    debugPrint('Library AI notification $source failed: $error');
+  }
 
   /// Called with a model id when the user taps **Cancel** on a notification.
   ///
@@ -272,6 +343,7 @@ class DownloadNotificationService {
   /// Nothing else in the app posts notifications, which is what makes
   /// [FlutterLocalNotificationsPlugin.cancelAll] safe here.
   Future<void> initialize() async {
+    _publishDiagnostics(_diagnostics.copyWith(ready: false));
     const settings = InitializationSettings(
       android: AndroidInitializationSettings(kDownloadIcon),
     );
@@ -284,13 +356,13 @@ class DownloadNotificationService {
       await _plugin.cancelAll();
       _posted.clear();
       _ready = true;
+      _publishDiagnostics(_diagnostics.copyWith(ready: true));
     } catch (error) {
       // A missing platform implementation (tests, an unsupported device) must
       // never take the download down with it.
       _ready = false;
-      if (kDebugMode) {
-        debugPrint('Download notifications unavailable: $error');
-      }
+      _publishDiagnostics(_diagnostics.copyWith(ready: false));
+      _recordError('initialize', error);
       return;
     }
 
@@ -307,12 +379,22 @@ class DownloadNotificationService {
     try {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-      if (android == null) return false;
-      return await android.requestNotificationsPermission() ?? false;
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Notification permission request failed: $error');
+      if (android == null) {
+        _publishDiagnostics(
+          _diagnostics.copyWith(permissionResult: 'unavailable'),
+        );
+        return false;
       }
+      final granted = await android.requestNotificationsPermission() ?? false;
+      _publishDiagnostics(_diagnostics.copyWith(
+        permissionResult: granted ? 'granted' : 'denied',
+      ));
+      return granted;
+    } catch (error) {
+      _publishDiagnostics(
+        _diagnostics.copyWith(permissionResult: 'error'),
+      );
+      _recordError('permission request', error);
       return false;
     }
   }
@@ -320,6 +402,12 @@ class DownloadNotificationService {
   /// Shows, updates, or removes the notification for [task].
   Future<void> apply(DownloadTask task, {required String modelName}) async {
     final content = downloadNotificationFor(task, modelName: modelName);
+    final now = DateTime.now();
+    _publishDiagnostics(_diagnostics.copyWith(
+      lastApplyKind: content?.kind.name ?? 'none',
+      lastApplyPercent: content?.percent ?? 0,
+      lastApplyAt: now,
+    ));
     if (content == null) return;
 
     if (content.kind == DownloadNotificationKind.dismiss) {
@@ -335,7 +423,6 @@ class DownloadNotificationService {
         content.kind == DownloadNotificationKind.failed;
     if (terminal && _posted[task.modelId] == content.kind) return;
 
-    _posted[task.modelId] = content.kind;
     try {
       await _plugin.show(
         id: content.id,
@@ -346,10 +433,9 @@ class DownloadNotificationService {
         ),
         payload: task.modelId,
       );
+      _posted[task.modelId] = content.kind;
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Could not post download notification: $error');
-      }
+      _recordError('show', error);
     }
   }
 
@@ -359,8 +445,9 @@ class DownloadNotificationService {
     if (!_ready) return;
     try {
       await _plugin.cancel(id: downloadNotificationId(modelId));
-    } catch (_) {
-      // Best effort; a stale notification is cosmetic.
+    } catch (error) {
+      // Best effort; the download itself is not coupled to this cosmetic path.
+      _recordError('cancel', error);
     }
   }
 
@@ -417,9 +504,7 @@ class DownloadNotificationService {
       if (response == null) return;
       _handleResponse(response);
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Could not read notification launch details: $error');
-      }
+      _recordError('read launch details', error);
     }
   }
 

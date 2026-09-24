@@ -9,6 +9,29 @@ import 'package:library_ai/core/services/download_notification_service.dart';
 /// Only the pure mapping is tested. Posting the notification needs a platform
 /// channel, and there is nothing in the decision logic that needs one.
 void main() {
+  group('notification diagnostics', () {
+    test('only show a shade hint after permission is unavailable', () {
+      expect(
+        const DownloadNotificationDiagnostics().shouldShowPermissionHint,
+        isFalse,
+      );
+      for (final result in ['denied', 'unavailable', 'error']) {
+        expect(
+          const DownloadNotificationDiagnostics()
+              .copyWith(permissionResult: result)
+              .shouldShowPermissionHint,
+          isTrue,
+        );
+      }
+      expect(
+        const DownloadNotificationDiagnostics()
+            .copyWith(permissionResult: 'granted')
+            .shouldShowPermissionHint,
+        isFalse,
+      );
+    });
+  });
+
   DownloadTask task({
     DownloadPhase phase = DownloadPhase.downloading,
     int totalBytes = 2491874688,

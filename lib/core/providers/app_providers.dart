@@ -183,7 +183,7 @@ final openModelLibraryRequestProvider = StateProvider<int>((ref) => 0);
 /// Posts the Play-Store-style progress notification for each download, and
 /// routes its Cancel action back to [DownloadManager].
 final downloadNotificationServiceProvider =
-    Provider<DownloadNotificationService>((ref) {
+    ChangeNotifierProvider<DownloadNotificationService>((ref) {
   return DownloadNotificationService(
     onCancelRequested: (modelId) =>
         ref.read(downloadManagerProvider).cancel(modelId),
@@ -201,7 +201,7 @@ final downloadNotificationServiceProvider =
 ///
 /// Watching it in the app root is what keeps it alive.
 final downloadNotificationBinderProvider = Provider<void>((ref) {
-  final service = ref.watch(downloadNotificationServiceProvider);
+  final service = ref.read(downloadNotificationServiceProvider);
   // Watching `.future` keeps the subscription to the catalogue alive and hands
   // back the awaitable directly - `AsyncValue` itself has no `future` getter.
   final catalogueFuture = ref.watch(catalogueProvider.future);

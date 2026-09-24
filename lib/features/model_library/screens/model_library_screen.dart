@@ -10,6 +10,24 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../widgets/model_card.dart';
 
+class _NotificationPermissionHint extends StatelessWidget {
+  const _NotificationPermissionHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(top: 9),
+      child: Text(
+        "Notifications off — downloads won't show progress in the shade.",
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 11, color: secondary),
+      ),
+    );
+  }
+}
+
 /// The model library: six catalogued models, their quantisations, and the
 /// controls to download, update or delete them.
 ///
@@ -26,6 +44,8 @@ class ModelLibraryScreen extends ConsumerWidget {
     final tasks = ref.watch(downloadTasksProvider).valueOrNull ?? const {};
     final updates = ref.watch(updateStateProvider).valueOrNull ?? const {};
     final defaultModelId = ref.watch(currentSettingsProvider).defaultModelId;
+    final notificationDiagnostics =
+        ref.watch(downloadNotificationServiceProvider).diagnostics;
 
     return Scaffold(
       appBar: AppBar(
@@ -55,6 +75,8 @@ class ModelLibraryScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
             children: [
               _targetDeviceNote(context, data),
+              if (notificationDiagnostics.shouldShowPermissionHint)
+                const _NotificationPermissionHint(),
               const SizedBox(height: 12),
               for (final model in data.models)
                 Padding(

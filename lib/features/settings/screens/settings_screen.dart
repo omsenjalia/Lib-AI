@@ -81,6 +81,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _advancedSection(context, value, controller),
             _updatesSection(context, value, controller),
             _storageSection(context, installs, catalogue),
+            _notificationDiagnosticsSection(),
             _aboutSection(context),
           ],
         ),
@@ -651,6 +652,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return null;
   }
 
+  // ------------------------------------------------------ notification status
+
+  Widget _notificationDiagnosticsSection() {
+    final diagnostics =
+        ref.watch(downloadNotificationServiceProvider).diagnostics;
+    final lastApply = diagnostics.lastApplyAt == null
+        ? 'No apply call yet'
+        : '${diagnostics.lastApplyKind ?? 'unknown'} · '
+            '${diagnostics.lastApplyPercent ?? 0}% · '
+            '${diagnostics.lastApplyAt!.toLocal().toIso8601String()}';
+
+    return _Section(
+      title: 'Notification diagnostics',
+      initiallyExpanded: false,
+      children: [
+        _DiagnosticRow('Service ready', diagnostics.ready ? 'Yes' : 'No'),
+        _DiagnosticRow('Permission result', diagnostics.permissionResult),
+        _DiagnosticRow('Last apply', lastApply),
+        _DiagnosticRow(
+          'Last error',
+          diagnostics.lastError == null
+              ? 'None recorded'
+              : '${diagnostics.lastError} · '
+                  '${diagnostics.lastErrorAt?.toLocal().toIso8601String() ?? ''}',
+        ),
+        const _Note(
+          'For device logs, run: adb logcat -s flutter. Notification setup '
+          'and show failures are logged in release builds too.',
+          tone: _NoteTone.honest,
+        ),
+      ],
+    );
+  }
+
   // ------------------------------------------------------------------- about
 
   Widget _aboutSection(BuildContext context) {
@@ -762,6 +797,39 @@ class _Section extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DiagnosticRow extends StatelessWidget {
+  const _DiagnosticRow(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 11, color: secondary),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(fontSize: 11, height: 1.35),
+            ),
+          ),
+        ],
       ),
     );
   }
