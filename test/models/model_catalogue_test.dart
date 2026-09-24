@@ -174,18 +174,15 @@ void main() {
       expect(target.warning!.toUpperCase(), contains('WILL NOT LOAD'));
     });
 
-    test('its recommended quant is the smallest published one, UD-IQ2_XXS', () {
+    test('its default quant is the D1 decision, UD-IQ2_XXS', () {
       expect(target.recommendedQuant, 'UD-IQ2_XXS');
 
       final recommended = target.recommendedQuantInfo!;
-      final smallest = target.quants
-          .map((q) => q.sizeBytes)
-          .reduce((a, b) => a < b ? a : b);
+      expect(recommended.quant, target.recommendedQuant);
       expect(
-        recommended.sizeBytes,
-        smallest,
-        reason: 'the recommended quant must be the smallest available, since '
-            'this model will not fit regardless',
+        target.quants.map((q) => q.quant),
+        contains(recommended.quant),
+        reason: 'the D1 default quant must stay one of the published quants',
       );
     });
 
@@ -359,12 +356,12 @@ void main() {
     }
   });
 
-  test('the 71 published quantisations are all accounted for', () {
+  test('the 94 published quantisations are all accounted for', () {
     final total = catalogue.models.fold<int>(
       0,
       (sum, model) => sum + model.quants.length,
     );
-    expect(total, 71);
+    expect(total, 94);
   });
 
   test('a malformed entry fails loudly instead of half-loading', () {

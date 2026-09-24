@@ -82,6 +82,21 @@ class WifiRequiredException extends AppException {
       : super(recovery: 'Connect to Wi-Fi and try again.');
 }
 
+/// Thrown when an installation exists for a model the catalogue no longer
+/// describes - normally because the app was updated and a model was retired.
+///
+/// Lives here rather than next to [ChatController] because [AppException] is
+/// sealed: every subclass must stay inside this library.
+class ModelMissingFromCatalogueException extends AppException {
+  ModelMissingFromCatalogueException(String modelId)
+      : super(
+          'This model is no longer in the catalogue.',
+          detail: 'No catalogue entry for $modelId',
+          recovery:
+              'Delete it from Model Library, then download a supported model.',
+        );
+}
+
 /// Anything else, wrapped so the UI still gets a friendly string.
 class UnknownAppException extends AppException {
   const UnknownAppException(super.message, {super.detail});

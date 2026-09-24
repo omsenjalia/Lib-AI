@@ -16,6 +16,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications needs java.time on pre-API-26 devices,
+        // which only exists when core library desugaring is on. Without this
+        // the release build fails at :app:checkReleaseAarMetadata.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -42,12 +46,15 @@ android {
     val keystorePath = System.getenv("KEYSTORE_PATH")
     val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
     val keyAliasEnv = System.getenv("KEY_ALIAS")
-    val keyPassword = System.getenv("KEY_PASSWORD")
+    // Named ...Env so it cannot collide with the signing-config property
+    // inside the create("release") block - a bare `keyPassword = keyPassword`
+    // there compiles as an illegal reassignment of this script-level val.
+    val keyPasswordEnv = System.getenv("KEY_PASSWORD")
     val hasReleaseKeystore =
         !keystorePath.isNullOrBlank() &&
             !keystorePassword.isNullOrBlank() &&
             !keyAliasEnv.isNullOrBlank() &&
-            !keyPassword.isNullOrBlank() &&
+            !keyPasswordEnv.isNullOrBlank() &&
             file(keystorePath).exists()
 
     signingConfigs {
@@ -56,7 +63,7 @@ android {
                 storeFile = file(keystorePath!!)
                 storePassword = keystorePassword
                 keyAlias = keyAliasEnv
-                keyPassword = keyPassword
+                keyPassword = keyPasswordEnv
             }
         }
     }
@@ -98,4 +105,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

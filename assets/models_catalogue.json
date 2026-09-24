@@ -41,7 +41,7 @@
       "highRam": true,
       "fitsTargetDevice": false,
       "ramRequirementGb": 9.2,
-      "warning": "WILL NOT LOAD on a Samsung Galaxy S25. Even the smallest available quant (UD-IQ2_XXS, 7.27 GB) exceeds usable RAM once the KV cache and the 0.93 GB vision projector are counted. Every quant above IQ2_XXS is 9.8 GB or larger. Downloading this model will consume storage and is expected to fail at load time.",
+      "warning": "WILL NOT LOAD on a Samsung Galaxy S25. Even the smallest available quant (UD-IQ1_S, 6.19 GB) exceeds usable RAM once the KV cache and the 0.93 GB vision projector are counted. The default quant is UD-IQ2_XXS (7.27 GB), and every quant above it is at least 8.37 GB. Downloading this model will consume storage and is expected to fail at load time.",
       "recommendedQuant": "UD-IQ2_XXS",
       "samplingDefaults": {
         "temperature": 0.7,
@@ -61,8 +61,8 @@
           "sizeBytes": 6192222208,
           "sizeGb": 6.19,
           "sha256": "3895b6eaa91e705c06ad1938d16c22e86f073c6a67df86260a1da79be3d1f887",
-          "qualityNote": "Emergency quant. Severe quality loss on a 27B.",
-          "fitsTargetDevice": true,
+          "qualityNote": "Emergency quant. Severe quality loss on a 27B, and still over budget once the KV cache is counted.",
+          "fitsTargetDevice": false,
           "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ1_S.gguf"
         },
         {
@@ -71,8 +71,8 @@
           "sizeBytes": 6729166848,
           "sizeGb": 6.73,
           "sha256": "1b5165a7149ea51e683c8eaf23372188ad9fc9d1a795386f7a1b558acf847dc6",
-          "qualityNote": "Emergency quant. Severe quality loss on a 27B.",
-          "fitsTargetDevice": true,
+          "qualityNote": "Emergency quant. Severe quality loss on a 27B, and still over budget once the KV cache is counted.",
+          "fitsTargetDevice": false,
           "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ1_M.gguf"
         },
         {
@@ -81,8 +81,8 @@
           "sizeBytes": 7266070528,
           "sizeGb": 7.27,
           "sha256": "e792d8fb3142fe6d9171876d6da0f71f05a71028718debc72dbec93ff645e67d",
-          "qualityNote": "Smallest plausible load. Quality is poor but coherent.",
-          "fitsTargetDevice": true,
+          "qualityNote": "The D1 default quant. Quality is poor but coherent, and over budget once the KV cache and projector are counted.",
+          "fitsTargetDevice": false,
           "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ2_XXS.gguf"
         },
         {
@@ -310,8 +310,8 @@
         "sizeBytes": 7266070528,
         "sizeGb": 7.27,
         "sha256": "e792d8fb3142fe6d9171876d6da0f71f05a71028718debc72dbec93ff645e67d",
-        "qualityNote": "Smallest plausible load. Quality is poor but coherent.",
-        "fitsTargetDevice": true,
+        "qualityNote": "The D1 default quant. Quality is poor but coherent, and over budget once the KV cache and projector are counted.",
+        "fitsTargetDevice": false,
         "downloadUrl": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-IQ2_XXS.gguf"
       }
     },

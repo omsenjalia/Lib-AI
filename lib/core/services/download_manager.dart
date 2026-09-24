@@ -161,7 +161,7 @@ class DownloadManager {
         // Wi-Fi halfway through should not quietly continue on mobile data.
         if (model.wifiOnly &&
             !await _connectivity.isOnUnmeteredConnection()) {
-          throw WifiRequiredException(
+          throw const WifiRequiredException(
             'Wi-Fi was lost, so the download was stopped.',
           );
         }
@@ -254,11 +254,11 @@ class DownloadManager {
         ),
       );
     } on AppException catch (error) {
-      _publishFailure(model.id, quant, error.message, error.detail);
+      _publishFailure(model.id, quant.quant, error.message, error.detail);
     } catch (error) {
       _publishFailure(
         model.id,
-        quant,
+        quant.quant,
         'Download failed.',
         '$error',
       );
@@ -308,28 +308,35 @@ class DownloadManager {
         return false;
       }
 
+      // dio 5.x exposes ResponseBody.headers as a plain
+      // Map<String, List<String>> (its `Headers` wrapper only exists on
+      // Response), so index it directly rather than calling .value().
       final declaredLength = int.tryParse(
-        body.headers.value(Headers.contentLengthHeader)?.first ?? '',
+        body.headers[Headers.contentLengthHeader]?.first ?? '',
       );
       final total = declaredLength ?? spec.expectedBytes;
 
       if (partFile.existsSync()) await partFile.delete();
-      sink = partFile.openWrite();
+      // All writes go through a non-nullable local: the catch clauses below
+      // reassign `sink`, which stops flow analysis from promoting it inside
+      // the try block.
+      final out = partFile.openWrite();
+      sink = out;
 
       final digestSink = _DigestSink();
       final hasher = sha256.startChunkedConversion(digestSink);
 
       await for (final chunk in body.stream) {
         if (_cancelRequests[modelId] == true) {
-          await sink.flush();
-          await sink.close();
+          await out.flush();
+          await out.close();
           sink = null;
           await _safeDelete(partFile);
           await _finish(modelId, DownloadPhase.cancelled);
           return false;
         }
 
-        sink.add(chunk);
+        out.add(chunk);
         hasher.add(chunk);
         received += chunk.length;
 
@@ -365,8 +372,8 @@ class DownloadManager {
       }
 
       hasher.close();
-      await sink.flush();
-      await sink.close();
+      await out.flush();
+      await out.close();
       sink = null;
 
       // --- integrity check --------------------------------------------------
