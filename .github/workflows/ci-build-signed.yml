@@ -10,13 +10,15 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
-# Reading the repository is all this needs: it uploads an artifact and, on a
-# tag, attaches to a release - both of which go through the token's default
-# artifact/release APIs rather than needing write access to contents. Stated
-# explicitly so the workflow runs with the least privilege it can, the same way
-# the other four do.
+# Reading the repository is all this needs for the build and the artifact, and
+# on a tag the release attachment goes through the token's default artifact/
+# release APIs rather than needing write access to contents. pull-requests:
+# write is needed only so a failed build can post its output on the PR, the way
+# ci-test.yml reports analyze and test failures. Stated explicitly so the
+# workflow runs with the least privilege it can, the same way the other four do.
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   signed-apk:
