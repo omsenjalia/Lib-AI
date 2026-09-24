@@ -93,6 +93,18 @@ Cached:          2548160 kB
       );
     });
 
+    test('adds the projector being loaded alongside the model', () {
+      // The catalogue's per-model figure does not say whether it counted the
+      // vision projector, so the projector's own size is added.
+      expect(
+        MemoryBudget.peakRequirementBytes(
+          requirementGb: 1.0,
+          extraBytes: 620 * 1024 * 1024,
+        ),
+        1000000000 + 620 * 1024 * 1024,
+      );
+    });
+
     test('rounds the KV allowance up rather than down', () {
       final bytes = MemoryBudget.peakRequirementBytes(
         requirementGb: 0,

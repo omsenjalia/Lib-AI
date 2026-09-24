@@ -69,13 +69,20 @@ abstract final class MemoryBudget {
 
   /// Peak bytes needed to have [requirementGb] resident alongside anything the
   /// caller passes in [alsoResidentGb].
+  ///
+  /// [extraBytes] is for the vision projector when one is being loaded: the
+  /// catalogue's `ramRequirementGb` is a per-model figure and does not say
+  /// whether it counted the projector, and a projector is hundreds of megabytes
+  /// that either fits or does not.
   static int peakRequirementBytes({
     required double requirementGb,
     double alsoResidentGb = 0,
     int contextLength = 0,
     int recommendedContextLength = 0,
+    int extraBytes = 0,
   }) {
     var bytes = ((requirementGb + alsoResidentGb) * 1000 * 1000 * 1000).round();
+    bytes += extraBytes;
     final extraTokens = contextLength - recommendedContextLength;
     if (recommendedContextLength > 0 && extraTokens > 0) {
       bytes += (extraTokens / 1024).ceil() * kvBytesPer1024Tokens;

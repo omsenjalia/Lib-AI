@@ -436,6 +436,8 @@ class ChatController extends ChangeNotifier {
     // reported "it woke the model up and just disappeared" failure. Refusing
     // here turns it into a message with a next step, and the check costs one
     // read of /proc/meminfo.
+    final includeVision =
+        model.visionSupported && installation.mmprojPath != null;
     final available = await MemoryBudget.availableBytes();
     if (available != null) {
       // llama.cpp does not release the previous model when a new one loads; it
@@ -450,6 +452,7 @@ class ChatController extends ChangeNotifier {
         alsoResidentGb: swappingFrom?.ramRequirementGb ?? 0,
         contextLength: contextLength,
         recommendedContextLength: model.recommendedContextLength,
+        extraBytes: includeVision ? model.mmproj?.sizeBytes ?? 0 : 0,
       );
 
       if (!MemoryBudget.fits(available: available, required: required)) {
@@ -476,7 +479,7 @@ class ChatController extends ChangeNotifier {
       ),
       contextLength: contextLength,
       gpuLayers: settings.gpuLayers,
-      includeMmproj: model.visionSupported && installation.mmprojPath != null,
+      includeMmproj: includeVision,
     );
   }
 
