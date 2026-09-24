@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/claude_tokens.dart';
 
 /// A three-dot pulse in the assistant's place while the model is loading or the
 /// first token is still on its way.
@@ -36,10 +36,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final secondary = scheme.brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final tokens = context.tokens;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -53,7 +50,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
             builder: (context, _) => CustomPaint(
               painter: _DotsPainter(
                 progress: _controller.value,
-                color: scheme.primary,
+                color: tokens.primary,
               ),
             ),
           ),
@@ -63,10 +60,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
           Flexible(
             child: Text(
               widget.label!,
-              style: TextStyle(
-                fontSize: widget.compact ? 11 : 12,
-                color: secondary,
-              ),
+              style: ClaudeType.caption.copyWith(color: tokens.muted),
             ),
           ),
         ],

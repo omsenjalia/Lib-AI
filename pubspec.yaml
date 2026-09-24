@@ -87,19 +87,38 @@ flutter:
   uses-material-design: true
   assets:
     - assets/models_catalogue.json
-    - assets/fonts/OFL-Inter.txt
-    - assets/fonts/OFL-Newsreader.txt
-    - assets/fonts/OFL-SourceCodePro.txt
+    # Licences for the bundled typefaces, shown by Settings > About > Open
+    # source licences. Bundled rather than fetched: the app never reaches the
+    # network for anything except model files.
+    - assets/fonts/OFL-Lato.txt
+    - assets/fonts/OFL-Lora.txt
+    - assets/fonts/OFL-JetBrainsMono.txt
+  # The three families of the interface this shell replicates, and no others:
+  # Lora stands in for the licensed Copernicus serif used for display copy,
+  # Lato for Styrene B in every control and body run, and JetBrains Mono for
+  # code. All three are OFL and ship with the app.
+  #
+  # Lora and JetBrains Mono are variable files: their `wght` axis covers the
+  # range, but the interface only ever uses their default (400) instance, so
+  # the variable axis is left alone. Lato is static, so each weight it is used
+  # at is declared explicitly.
   fonts:
-    - family: Inter
+    - family: Lora
       fonts:
-        - asset: assets/fonts/Inter-Variable.ttf
-          weight: 400
-    - family: Newsreader
+        - asset: assets/fonts/Lora-Variable.ttf
+        - asset: assets/fonts/Lora-Italic-Variable.ttf
+          style: italic
+    - family: Lato
       fonts:
-        - asset: assets/fonts/Newsreader-Variable.ttf
+        - asset: assets/fonts/Lato-Regular.ttf
           weight: 400
-    - family: SourceCodePro
+        - asset: assets/fonts/Lato-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/Lato-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Lato-Bold.ttf
+          weight: 700
+    - family: JetBrainsMono
       fonts:
-        - asset: assets/fonts/SourceCodePro-Variable.ttf
-          weight: 400
+        - asset: assets/fonts/JetBrainsMono-Variable.ttf

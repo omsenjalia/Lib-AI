@@ -4,17 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/data/database.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/formatters.dart';
+import '../../../core/theme/claude_tokens.dart';
+import '../../../core/widgets/claude_mark.dart';
+import '../../../core/widgets/claude_sheet.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import 'message_content.dart';
 
 /// One turn in the chat panel.
 ///
-/// The layout follows Claude.ai rather than a messaging app: the user's turn is
-/// a tinted block on the right, and the assistant's answer is unboxed body text
-/// on the left, so long explanations read as a document instead of as a wall of
-/// chat bubbles.
+/// The layout is the reference's, and it is the reason a two-hour explanation
+/// stays readable: the user's turn is a tinted block on the right, and the
+/// assistant's answer is unboxed text on the canvas with only a small mark in
+/// the gutter. Nothing about an answer is decorated.
 class MessageBubble extends StatelessWidget {
   const MessageBubble({
     super.key,
@@ -26,12 +27,14 @@ class MessageBubble extends StatelessWidget {
     this.onToggleRenderMath,
     this.onRegenerate,
     this.onCopy,
+    this.onDelete,
     this.showRegenerate = false,
+    this.fontFamily = ChatFontFamily.lato,
   });
 
   final Message message;
 
-  /// Display name of the model that answered, shown above assistant turns.
+  /// Display name of the model that answered, shown in the long-press sheet.
   final String modelName;
 
   /// Live text while this message is still being generated. Null when the turn
@@ -46,7 +49,11 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onToggleRenderMath;
   final VoidCallback? onRegenerate;
   final VoidCallback? onCopy;
+  final VoidCallback? onDelete;
   final bool showRegenerate;
+
+  /// Which face the transcript is set in, from the "Chat font" setting.
+  final ChatFontFamily fontFamily;
 
   bool get _isUser => message.role == 'user';
 
@@ -55,10 +62,18 @@ class MessageBubble extends StatelessWidget {
   /// the authority.
   String get _content => streamingText ?? message.content;
 
+  /// 80 % of the pane, as the tokens specify — measured from the pane rather
+  /// than the screen so the bubble does not change width with the sidebar.
+  double _maxBubbleWidth(BuildContext context) =>
+      MediaQuery.sizeOf(context).width * 0.8;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: ClaudeSpacing.md,
+        vertical: ClaudeSpacing.xs,
+      ),
       child: _isUser ? _buildUser(context) : _buildAssistant(context),
     );
   }
@@ -66,59 +81,49 @@ class MessageBubble extends StatelessWidget {
   // --------------------------------------------------------------------- user
 
   Widget _buildUser(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
+    final tokens = context.tokens;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Flexible(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isLight
-                    ? AppColors.userBubbleLight
-                    : AppColors.userBubbleDark,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(14),
-                  topRight: Radius.circular(14),
-                  bottomLeft: Radius.circular(14),
-                  bottomRight: Radius.circular(4),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (message.imagePath != null)
-                    _attachedImage(context, message.imagePath!),
-                  if (_content.isNotEmpty)
-                    SelectableText(
-                      _content,
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  Text(
-                    formatAbsoluteTime(message.createdAt),
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      color: isLight
-                          ? AppColors.lightTextSecondary
-                          : AppColors.textSecondary,
-                    ),
+            constraints: BoxConstraints(maxWidth: _maxBubbleWidth(context)),
+            child: GestureDetector(
+              onLongPress: () => _showMessageSheet(context),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: tokens.bubble,
+                  // One corner is pulled in to 4 dp. It is the only asymmetry in
+                  // the interface and it is what says "this is the user".
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(ClaudeRadius.bubble),
+                    topRight: Radius.circular(ClaudeRadius.bubble),
+                    bottomLeft: Radius.circular(ClaudeRadius.bubble),
+                    bottomRight: Radius.circular(ClaudeRadius.bubbleTail),
                   ),
-                ],
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (message.imagePath != null)
+                      _attachedImage(context, message.imagePath!),
+                    if (_content.isNotEmpty)
+                      SelectableText(
+                        _content,
+                        style: ClaudeType.chatBody(fontFamily)
+                            .copyWith(color: tokens.ink),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 4),
-        _rowActions(context, alignEnd: true),
       ],
     );
   }
@@ -130,10 +135,9 @@ class MessageBubble extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(
           'Attached image is no longer on disk.',
-          style: TextStyle(
-            fontSize: 11.5,
+          style: ClaudeType.caption.copyWith(
             fontStyle: FontStyle.italic,
-            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.9),
+            color: context.tokens.errorText,
           ),
         ),
       );
@@ -141,19 +145,21 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(ClaudeRadius.md),
         child: Image.file(
           file,
-          height: 160,
+          height: 180,
           fit: BoxFit.cover,
           // A corrupt or unreadable image should degrade to a label rather than
           // throw during layout.
           errorBuilder: (context, error, stack) => Container(
             height: 60,
             alignment: Alignment.center,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: const Text('Image could not be displayed',
-                style: TextStyle(fontSize: 11.5)),
+            color: context.tokens.surfaceCard,
+            child: Text(
+              'Image could not be displayed',
+              style: ClaudeType.caption.copyWith(color: context.tokens.muted),
+            ),
           ),
         ),
       ),
@@ -163,121 +169,102 @@ class MessageBubble extends StatelessWidget {
   // ---------------------------------------------------------------- assistant
 
   Widget _buildAssistant(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
+    final tokens = context.tokens;
 
     if (message.isError) {
-      return Row(
+      return _buildError(context);
+    }
+
+    return GestureDetector(
+      onLongPress: () => _showMessageSheet(context),
+      // No background, no border, no padding box: the answer is text on the
+      // canvas, and the mark in the gutter is the only thing that marks it as
+      // the assistant's.
+      behavior: HitTestBehavior.opaque,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _assistantGutter(context, isError: true),
-          const SizedBox(width: 8),
+          Padding(
+            // Nudges the mark onto the first line's optical centre.
+            padding: const EdgeInsets.only(top: 5),
+            child: ClaudeMark(size: 20, color: tokens.primary),
+          ),
+          const SizedBox(width: ClaudeSpacing.sm),
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: scheme.error.withValues(alpha: isLight ? 0.07 : 0.12),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: scheme.error.withValues(alpha: 0.35),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline_rounded,
-                        size: 15,
-                        color: scheme.error,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Could not answer',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.error,
-                        ),
-                      ),
-                    ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_content.isEmpty && isStreaming)
+                  LoadingIndicator(label: statusLabel ?? 'Thinking', compact: true)
+                else
+                  MessageContent(
+                    content: _content,
+                    forceMath: message.renderMath,
+                    fontFamily: fontFamily,
+                    showStreamingCursor: isStreaming,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: scheme.onSurface.withValues(alpha: 0.9),
+                // The action row only exists once the answer has stopped
+                // growing: offering "regenerate" mid-stream invites a tap that
+                // throws away work the user cannot see yet.
+                if (!isStreaming)
+                  Padding(
+                    padding: const EdgeInsets.only(top: ClaudeSpacing.xs),
+                    child: _AssistantActions(
+                      renderMath: message.renderMath,
+                      showRegenerate: showRegenerate,
+                      onCopy: onCopy ??
+                          () => _copy(context, _content, 'Message copied'),
+                      onRegenerate: onRegenerate,
+                      onToggleRenderMath: onToggleRenderMath,
+                      onMore: () => _showMessageSheet(context),
                     ),
                   ),
-                  if (showRegenerate && onRegenerate != null) ...[
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: onRegenerate,
-                      icon: const Icon(Icons.refresh_rounded, size: 15),
-                      label: const Text('Try again'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: scheme.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: const Size(0, 32),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              ],
             ),
           ),
         ],
-      );
-    }
+      ),
+    );
+  }
+
+  Widget _buildError(BuildContext context) {
+    final tokens = context.tokens;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _assistantGutter(context),
-        const SizedBox(width: 8),
+        Padding(
+          // Matches the mark's optical offset so both turn types start on the
+          // same line.
+          padding: const EdgeInsets.only(top: 5),
+          child: Icon(
+            Icons.error_outline_rounded,
+            size: 20,
+            color: tokens.errorText,
+          ),
+        ),
+        const SizedBox(width: ClaudeSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Text(
-                    modelName,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                      color: scheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    formatAbsoluteTime(message.createdAt),
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      color: isLight
-                          ? AppColors.lightTextSecondary
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              Text(
+                'Could not answer',
+                style: ClaudeType.titleSmall.copyWith(color: tokens.errorText),
               ),
-              const SizedBox(height: 6),
-              if (_content.isEmpty && isStreaming)
-                LoadingIndicator(
-                  label: statusLabel ?? 'Thinking',
-                  compact: true,
-                )
-              else
-                MessageContent(
-                  content: _content,
-                  forceMath: message.renderMath,
-                ),
               const SizedBox(height: 4),
-              _assistantActions(context),
+              Text(
+                message.content,
+                style: ClaudeType.bodySmall.copyWith(color: tokens.body),
+              ),
+              if (showRegenerate && onRegenerate != null) ...[
+                const SizedBox(height: ClaudeSpacing.xs),
+                TextButton.icon(
+                  onPressed: onRegenerate,
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Try again'),
+                ),
+              ],
             ],
           ),
         ),
@@ -285,140 +272,181 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _assistantGutter(BuildContext context, {bool isError = false}) {
-    final scheme = Theme.of(context).colorScheme;
-    final tone = isError ? scheme.error : scheme.primary;
-    return Container(
-      width: 26,
-      height: 26,
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: tone.withValues(alpha: 0.35)),
-      ),
-      child: Icon(
-        isError ? Icons.priority_high_rounded : Icons.auto_stories_rounded,
-        size: 14,
-        color: tone,
-      ),
-    );
-  }
+  /// The long-press sheet: Copy, Regenerate (assistant turns only), Delete.
+  Future<void> _showMessageSheet(BuildContext context) async {
+    final tokens = context.tokens;
 
-  /// Per-message controls.
-  ///
-  /// The "Render math" toggle is always available on assistant turns, not only
-  /// when the message looks like it contains maths: the whole reason it exists
-  /// is that the model sometimes emits LaTeX without delimiters, and the app
-  /// cannot reliably tell that apart from ordinary backslashes.
-  Widget _assistantActions(BuildContext context) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
-
-    return Row(
-      children: [
-        _ActionButton(
-          icon: Icons.content_copy_rounded,
-          label: 'Copy',
-          tooltip: 'Copy message',
-          onPressed: onCopy,
-          color: secondary,
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: tokens.sheetSurface,
+      showDragHandle: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(ClaudeRadius.sheet)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SheetHandle(),
+            const SizedBox(height: ClaudeSpacing.xs),
+            ClaudeRow(
+              label: 'Copy',
+              leading: Icon(
+                Icons.content_copy_rounded,
+                size: 18,
+                color: tokens.muted,
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _copy(context, _content, 'Message copied');
+              },
+            ),
+            if (!_isUser && onRegenerate != null)
+              ClaudeRow(
+                label: 'Regenerate',
+                leading: Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: tokens.muted,
+                ),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  onRegenerate!();
+                },
+              ),
+            if (onDelete != null)
+              ClaudeRow(
+                label: 'Delete',
+                labelColor: tokens.errorText,
+                leading: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 18,
+                  color: tokens.errorText,
+                ),
+                showDivider: false,
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  onDelete!();
+                },
+              ),
+            const SizedBox(height: ClaudeSpacing.xs),
+          ],
         ),
-        if (onToggleRenderMath != null)
-          _ActionButton(
-            icon: message.renderMath
-                ? Icons.functions_rounded
-                : Icons.functions_outlined,
-            label: message.renderMath ? 'Math on' : 'Render math',
-            tooltip: message.renderMath
-                ? 'Showing undelimited LaTeX as maths'
-                : 'Render undelimited LaTeX in this message as maths',
-            onPressed: onToggleRenderMath,
-            color: message.renderMath
-                ? Theme.of(context).colorScheme.primary
-                : secondary,
-          ),
-        if (showRegenerate && onRegenerate != null)
-          _ActionButton(
-            icon: Icons.refresh_rounded,
-            label: 'Regenerate',
-            tooltip: 'Discard this answer and ask again',
-            onPressed: onRegenerate,
-            color: secondary,
-          ),
-      ],
+      ),
     );
   }
 
-  Widget _rowActions(BuildContext context, {required bool alignEnd}) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
-
-    return _ActionButton(
-      icon: Icons.content_copy_rounded,
-      label: 'Copy',
-      tooltip: 'Copy message',
-      onPressed: onCopy ??
-          () async {
-            await Clipboard.setData(ClipboardData(text: _content));
-          },
-      color: secondary,
-      iconOnly: true,
+  static Future<void> _copy(
+    BuildContext context,
+    String text,
+    String confirmation,
+  ) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(confirmation),
+        duration: const Duration(milliseconds: 1200),
+      ),
     );
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.tooltip,
-    required this.color,
-    this.onPressed,
-    this.iconOnly = false,
+/// Copy / regenerate / maths, aligned left under the answer.
+class _AssistantActions extends StatelessWidget {
+  const _AssistantActions({
+    required this.renderMath,
+    required this.showRegenerate,
+    required this.onCopy,
+    required this.onRegenerate,
+    required this.onToggleRenderMath,
+    required this.onMore,
   });
 
-  final IconData icon;
-  final String label;
-  final String tooltip;
-  final Color color;
-  final VoidCallback? onPressed;
-  final bool iconOnly;
+  final bool renderMath;
+  final bool showRegenerate;
+  final VoidCallback onCopy;
+  final VoidCallback? onRegenerate;
+  final VoidCallback? onToggleRenderMath;
+  final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
-    if (onPressed == null) return const SizedBox.shrink();
+    final tokens = context.tokens;
 
-    if (iconOnly) {
-      return IconButton(
-        onPressed: onPressed,
-        tooltip: tooltip,
-        iconSize: 15,
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-        color: color,
-        icon: Icon(icon),
-      );
-    }
-
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 11, color: color),
+    // Fades in over the fast duration once generation has finished, per the
+    // motion tokens.
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: ClaudeMotion.fast,
+      curve: ClaudeMotion.easeOut,
+      builder: (context, value, child) =>
+          Opacity(opacity: value, child: child),
+      child: Row(
+        children: [
+          _MessageAction(
+            icon: Icons.content_copy_rounded,
+            tooltip: 'Copy message',
+            onPressed: onCopy,
+          ),
+          if (onToggleRenderMath != null)
+            _MessageAction(
+              icon: renderMath
+                  ? Icons.functions_rounded
+                  : Icons.functions_outlined,
+              tooltip: renderMath
+                  ? 'Showing undelimited LaTeX as maths'
+                  : 'Render undelimited LaTeX in this message as maths',
+              active: renderMath,
+              onPressed: onToggleRenderMath!,
             ),
-          ],
-        ),
+          if (showRegenerate && onRegenerate != null)
+            _MessageAction(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Regenerate this answer',
+              onPressed: onRegenerate!,
+            ),
+          _MessageAction(
+            icon: Icons.more_horiz_rounded,
+            tooltip: 'More actions',
+            onPressed: onMore,
+            color: tokens.mutedSoft,
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _MessageAction extends StatelessWidget {
+  const _MessageAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.active = false,
+    this.color,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool active;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      iconSize: 16,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      padding: EdgeInsets.zero,
+      color: active ? tokens.primary : (color ?? tokens.muted),
+      icon: Icon(icon),
     );
   }
 }

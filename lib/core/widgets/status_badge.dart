@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/claude_tokens.dart';
 
 /// The small pills used across the model cards and the chat header.
 ///
@@ -44,9 +44,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
-    final (foreground, background) = _colors(isLight);
+    final (foreground, background) = _colors(context);
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -67,10 +65,9 @@ class StatusBadge extends StatelessWidget {
           ],
           Text(
             label,
-            style: TextStyle(
+            style: ClaudeType.caption.copyWith(
               color: foreground,
               fontSize: dense ? 10 : 11,
-              fontWeight: FontWeight.w600,
               letterSpacing: 0.2,
             ),
           ),
@@ -79,28 +76,33 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
-  (Color, Color) _colors(bool isLight) {
+  /// Foreground and wash for each tone.
+  ///
+  /// Every wash is the tone's own hue at low alpha over the surface, which is
+  /// what keeps five badge kinds from introducing five new colours — the
+  /// single-accent rule does not allow a palette of pastels.
+  (Color, Color) _colors(BuildContext context) {
+    final tokens = context.tokens;
     switch (tone) {
       case BadgeTone.neutral:
-        return isLight
-            ? (AppColors.lightTextSecondary, AppColors.lightSurfaceHigh)
-            : (AppColors.textSecondary, AppColors.surfaceHigh);
+        return (tokens.muted, tokens.surfaceStrong);
       case BadgeTone.accent:
-        return isLight
-            ? (AppColors.lightAccent, AppColors.lightAccentMuted)
-            : (AppColors.accent, AppColors.accentMuted);
+        return (
+          tokens.primaryActive,
+          tokens.primary.withValues(alpha: 0.14),
+        );
       case BadgeTone.danger:
-        return isLight
-            ? (AppColors.lightError, const Color(0xFFF7E4E4))
-            : (AppColors.error, const Color(0xFF3A1F1F));
+        return (
+          tokens.errorText,
+          tokens.error.withValues(alpha: 0.14),
+        );
       case BadgeTone.success:
-        return isLight
-            ? (AppColors.lightSuccess, const Color(0xFFE4EEDE))
-            : (AppColors.success, const Color(0xFF1F2E1A));
+        return (
+          tokens.success,
+          tokens.success.withValues(alpha: 0.14),
+        );
       case BadgeTone.muted:
-        return isLight
-            ? (AppColors.lightTextSecondary, AppColors.lightSurfaceHigh)
-            : (AppColors.textSecondary, AppColors.surface);
+        return (tokens.muted, tokens.surfaceCard);
     }
   }
 }

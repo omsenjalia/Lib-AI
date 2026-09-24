@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/claude_tokens.dart';
 
 /// The dismissible banner that announces an available model update.
 ///
@@ -33,15 +33,16 @@ class UpdateBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final isLight = scheme.brightness == Brightness.light;
 
     // Amber-tinted, not red: an available update is an opportunity, not a fault.
     final background = isLight
-        ? AppColors.lightAccentMuted
-        : AppColors.accentMuted.withValues(alpha: 0.55);
-    final border = AppColors.accent.withValues(alpha: 0.45);
-    final foreground = isLight ? AppColors.lightAccent : AppColors.accent;
+        ? tokens.primary.withValues(alpha: 0.14)
+        : tokens.primary.withValues(alpha: 0.14).withValues(alpha: 0.55);
+    final border = tokens.primary.withValues(alpha: 0.45);
+    final foreground = tokens.primary;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),

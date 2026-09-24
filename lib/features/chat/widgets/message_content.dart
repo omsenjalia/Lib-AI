@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
-import 'package:flutter_highlight/themes/github.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:markdown/markdown.dart' as md;
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/utils/markdown_blocks.dart';
 
 /// Renders one assistant message: markdown, syntax-highlighted code blocks and
@@ -26,6 +25,15 @@ import '../../../core/utils/markdown_blocks.dart';
 /// [forceMath] is the per-message "Render math" toggle. It exists because some
 /// models emit `\frac{a}{b}` with no delimiters at all; without the toggle the
 /// user would see the raw LaTeX source.
+///
+/// ## Streaming cursor
+///
+/// While tokens are still arriving the last paragraph carries a blinking accent
+/// cursor, which is why [_cursorSentinel] exists: a single private-use
+/// character appended to the final prose block and given its own inline syntax,
+/// so the cursor sits *after the last token inside the paragraph* rather than
+/// floating below the message. Models never emit U+E000, so the sentinel cannot
+/// collide with real output.
 class MessageContent extends StatelessWidget {
   const MessageContent({
     super.key,
@@ -33,16 +41,38 @@ class MessageContent extends StatelessWidget {
     this.forceMath = false,
     this.textStyle,
     this.selectable = true,
+    this.fontFamily = ChatFontFamily.lato,
+    this.showStreamingCursor = false,
   });
 
   final String content;
   final bool forceMath;
   final TextStyle? textStyle;
   final bool selectable;
+  final ChatFontFamily fontFamily;
+
+  /// Draws the blinking accent cursor at the end of the text.
+  final bool showStreamingCursor;
+
+  static const String _cursorSentinel = '\uE000';
 
   @override
   Widget build(BuildContext context) {
-    final blocks = splitMessageBlocks(content, forceMath: forceMath);
+    var blocks = splitMessageBlocks(content, forceMath: forceMath);
+    var cursorInline = false;
+
+    if (showStreamingCursor && blocks.isNotEmpty) {
+      final last = blocks.last;
+      if (last is ProseBlock) {
+        blocks = [
+          ...blocks.take(blocks.length - 1),
+          ProseBlock('${last.text}$_cursorSentinel'),
+        ];
+        cursorInline = true;
+      }
+    }
+
+    final body = _bodyStyle(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +82,14 @@ class MessageContent extends StatelessWidget {
             padding: EdgeInsets.only(
               top: i == 0 ? 0 : _spacingBefore(blocks[i]),
             ),
-            child: _block(context, blocks[i]),
+            child: _block(context, blocks[i], body),
+          ),
+        // The cursor could not be placed inline (the stream currently ends in a
+        // code fence or a display equation), so it follows the last block.
+        if (showStreamingCursor && !cursorInline)
+          Padding(
+            padding: const EdgeInsets.only(top: ClaudeSpacing.xs),
+            child: BlinkingCursor(color: context.tokens.primary),
           ),
       ],
     );
@@ -64,110 +101,161 @@ class MessageContent extends StatelessWidget {
         ProseBlock() => 6,
       };
 
-  Widget _block(BuildContext context, MessageBlock block) {
+  Widget _block(BuildContext context, MessageBlock block, TextStyle body) {
     switch (block) {
       case ProseBlock(:final text):
-        return _prose(context, text);
+        return _prose(context, text, body);
       case CodeBlock(:final source, :final language):
         return CodeBlockView(source: source, language: language);
       case DisplayMathBlock(:final latex):
-        return DisplayMathView(latex: latex, textStyle: textStyle);
+        return DisplayMathView(latex: latex, textStyle: body);
     }
   }
 
-  Widget _prose(BuildContext context, String text) {
+  /// The transcript's body face. Honours the "Chat font" setting, so a reader
+  /// who prefers a serif for long answers gets one.
+  TextStyle _bodyStyle(BuildContext context) {
+    final tokens = context.tokens;
+    final base = textStyle ?? ClaudeType.chatBody(fontFamily);
+    return base.copyWith(color: tokens.ink);
+  }
+
+  Widget _prose(BuildContext context, String text, TextStyle body) {
     return MarkdownBody(
       data: text,
       selectable: selectable,
-      // Custom inline syntax, added to the GitHub-style extension set rather
+      // Custom inline syntaxes, added to the GitHub-style extension set rather
       // than replacing it, so tables, strikethrough and the rest still work.
-      inlineSyntaxes: [_LatexInlineSyntax(text)],
-      builders: {'latex-inline': _LatexInlineBuilder(textStyle: textStyle)},
-      styleSheet: _styleSheet(context, textStyle),
+      inlineSyntaxes: [_LatexInlineSyntax(text), _CursorSyntax()],
+      builders: {
+        'latex-inline': _LatexInlineBuilder(textStyle: body),
+        'stream-cursor': _CursorBuilder(),
+      },
+      styleSheet: _styleSheet(context, body),
     );
   }
 
-  static MarkdownStyleSheet _styleSheet(
-    BuildContext context,
-    TextStyle? base,
-  ) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
-    final secondary =
-        isLight ? AppColors.lightTextSecondary : AppColors.textSecondary;
-    final codeBackground =
-        isLight ? AppColors.codeBackgroundLight : AppColors.codeBackgroundDark;
+  static MarkdownStyleSheet _styleSheet(BuildContext context, TextStyle body) {
+    final tokens = context.tokens;
 
-    final body = base ??
-        TextStyle(
-          fontFamily: 'Newsreader',
-          fontSize: 15.5,
-          height: 1.6,
-          color: scheme.onSurface,
+    // Headings are the one place the display serif appears inside a message:
+    // the answer's own structure, set in the brand's editorial face.
+    TextStyle heading(double size) => TextStyle(
+          fontFamily: ClaudeType.display,
+          fontSize: size,
+          height: 1.3,
+          fontWeight: FontWeight.w400,
+          color: tokens.ink,
         );
 
     return MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
       p: body,
       listBullet: body,
       // Tables and blockquotes are the two constructs most likely to look like
-      // an accident if they inherit the default styling over a dark surface.
-      tableBorder: TableBorder.all(
-        color: isLight ? AppColors.lightOutline : AppColors.outline,
-        width: 0.6,
-      ),
+      // an accident if they inherit the default styling.
+      tableBorder: TableBorder.all(color: tokens.hairline, width: 0.6),
       tableCellsPadding: const EdgeInsets.symmetric(
         horizontal: 8,
         vertical: 5,
       ),
       blockquoteDecoration: BoxDecoration(
-        color: isLight
-            ? AppColors.lightSurfaceHigh
-            : AppColors.surfaceHigh.withValues(alpha: 0.5),
+        color: tokens.isDark ? tokens.surfaceCard : tokens.surfaceCard,
         border: Border(
-          left: BorderSide(
-            color: scheme.primary.withValues(alpha: 0.6),
-            width: 3,
-          ),
+          left: BorderSide(color: tokens.primary, width: 3),
         ),
       ),
-      blockquotePadding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-      code: TextStyle(
-        fontFamily: 'SourceCodePro',
-        fontSize: 12.5,
-        backgroundColor: codeBackground,
-        color: scheme.onSurface,
+      blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      // Inline code: monospace on a one-step surface, never a full code block.
+      code: ClaudeType.code.copyWith(
+        fontSize: 13,
+        color: tokens.ink,
+        backgroundColor: tokens.surfaceCard,
       ),
       codeblockDecoration: BoxDecoration(
-        color: codeBackground,
-        borderRadius: BorderRadius.circular(6),
+        color: tokens.codeSurface,
+        borderRadius: BorderRadius.circular(ClaudeRadius.lg),
       ),
-      h1: body.copyWith(
-        fontFamily: 'Inter',
-        fontSize: 19,
-        fontWeight: FontWeight.w700,
-      ),
-      h2: body.copyWith(
-        fontFamily: 'Inter',
-        fontSize: 17,
-        fontWeight: FontWeight.w700,
-      ),
-      h3: body.copyWith(
-        fontFamily: 'Inter',
-        fontSize: 15.5,
-        fontWeight: FontWeight.w600,
-      ),
-      h4: body.copyWith(
-        fontFamily: 'Inter',
-        fontSize: 14.5,
-        fontWeight: FontWeight.w600,
-      ),
+      h1: heading(21),
+      h2: heading(18),
+      h3: heading(16.5),
+      h4: heading(15.5),
       a: body.copyWith(
-        color: scheme.primary,
+        color: tokens.primaryActive,
         decoration: TextDecoration.underline,
       ),
-      em: body.copyWith(fontStyle: FontStyle.italic, color: secondary),
+      em: body.copyWith(fontStyle: FontStyle.italic),
       strong: body.copyWith(fontWeight: FontWeight.w700),
+      blockSpacing: 12,
     );
+  }
+}
+
+/// The blinking 600 ms accent cursor, used both inline (through the sentinel)
+/// and as a trailing block.
+class BlinkingCursor extends StatefulWidget {
+  const BlinkingCursor({super.key, required this.color, this.height = 17});
+
+  final Color color;
+  final double height;
+
+  @override
+  State<BlinkingCursor> createState() => _BlinkingCursorState();
+}
+
+class _BlinkingCursorState extends State<BlinkingCursor>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: ClaudeMotion.cursorBlink,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      // Never fully transparent: a cursor that vanishes reads as a lost
+      // connection rather than a live one.
+      opacity: Tween<double>(begin: 1, end: 0.15).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        width: 1.5,
+        height: widget.height,
+        margin: const EdgeInsets.only(left: 1),
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: BorderRadius.circular(1),
+        ),
+      ),
+    );
+  }
+}
+
+/// Matches the streaming sentinel character.
+class _CursorSyntax extends md.InlineSyntax {
+  _CursorSyntax() : super('\uE000');
+
+  @override
+  bool onMatch(md.InlineParser parser, Match match) {
+    parser.addNode(md.Element.text('stream-cursor', ''));
+    return true;
+  }
+}
+
+class _CursorBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfterWithContext(
+    BuildContext context,
+    md.Element element,
+    TextStyle? preferredStyle,
+    TextStyle? parentStyle,
+  ) {
+    return BlinkingCursor(color: context.tokens.primary);
   }
 }
 
@@ -223,7 +311,7 @@ class _LatexInlineBuilder extends MarkdownElementBuilder {
   }
 }
 
-/// Centred display maths.
+/// Centred display maths on a one-step surface.
 ///
 /// Horizontally scrollable, because a long derivation is wider than a phone
 /// screen and wrapping a formula is not something TeX can do gracefully.
@@ -235,17 +323,15 @@ class DisplayMathView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: scheme.brightness == Brightness.dark
-            ? AppColors.surfaceHigh.withValues(alpha: 0.35)
-            : AppColors.lightSurfaceHigh,
-        borderRadius: BorderRadius.circular(6),
+        color: tokens.surfaceCard,
+        borderRadius: BorderRadius.circular(ClaudeRadius.lg),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -255,10 +341,7 @@ class DisplayMathView extends StatelessWidget {
               child: Math.tex(
                 latex,
                 mathStyle: MathStyle.display,
-                textStyle: textStyle ?? TextStyle(
-                  fontSize: 15,
-                  color: scheme.onSurface,
-                ),
+                textStyle: textStyle ?? TextStyle(fontSize: 15, color: tokens.ink),
                 onErrorFallback: (error) => _MathError(latex: latex),
               ),
             ),
@@ -266,10 +349,9 @@ class DisplayMathView extends StatelessWidget {
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerRight,
-            child: _CopyButton(
+            child: CopyButton(
               tooltip: 'Copy LaTeX',
               payload: latex,
-              compact: true,
             ),
           ),
         ],
@@ -290,27 +372,24 @@ class _MathError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final errorColor = Theme.of(context).colorScheme.error;
+    final tokens = context.tokens;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: errorColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: errorColor.withValues(alpha: 0.4)),
+        color: tokens.error.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(ClaudeRadius.xs),
+        border: Border.all(color: tokens.error.withValues(alpha: 0.4)),
       ),
       child: Text(
         latex,
-        style: TextStyle(
-          fontFamily: 'SourceCodePro',
-          fontSize: 12.5,
-          color: errorColor,
-        ),
+        style: ClaudeType.code.copyWith(color: tokens.errorText),
       ),
     );
   }
 }
 
-/// A fenced code block with a language label and a copy button.
+/// A fenced code block: dark surface in both modes, monospace, language label
+/// and a copy control in the header.
 class CodeBlockView extends StatelessWidget {
   const CodeBlockView({
     super.key,
@@ -380,50 +459,55 @@ class CodeBlockView extends StatelessWidget {
     return _aliases[key];
   }
 
+  /// The highlighter's own theme is used for token colours, but its cool
+  /// slate background is replaced so the block lands on the token surface.
+  static Map<String, TextStyle> _theme(ClaudeTokens tokens) {
+    final theme = Map<String, TextStyle>.from(atomOneDarkTheme);
+    final root = (theme['root'] ?? const TextStyle()).copyWith(
+      backgroundColor: Colors.transparent,
+      color: tokens.onCode,
+      fontFamily: ClaudeType.mono,
+      fontSize: 12.5,
+      height: 1.55,
+    );
+    theme['root'] = root;
+    theme['code'] = root;
+    return theme;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
-    final background =
-        isLight ? AppColors.codeBackgroundLight : AppColors.codeBackgroundDark;
-    final border = isLight ? AppColors.lightOutline : AppColors.outline;
+    final tokens = context.tokens;
     final resolved = _resolveLanguage(language);
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: border, width: 0.7),
+        color: tokens.codeSurface,
+        borderRadius: BorderRadius.circular(ClaudeRadius.lg),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: border, width: 0.7)),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 4, 0),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     language.trim().isEmpty ? 'code' : language.trim(),
-                    style: TextStyle(
-                      fontSize: 10.5,
+                    style: ClaudeType.caption.copyWith(
+                      fontSize: 11,
                       letterSpacing: 0.4,
-                      fontWeight: FontWeight.w600,
-                      color: isLight
-                          ? AppColors.lightTextSecondary
-                          : AppColors.textSecondary,
+                      color: tokens.onDark.withValues(alpha: 0.55),
                     ),
                   ),
                 ),
-                _CopyButton(
+                CopyButton(
                   tooltip: 'Copy code',
                   payload: source,
-                  compact: true,
+                  dark: true,
                 ),
               ],
             ),
@@ -433,12 +517,12 @@ class CodeBlockView extends StatelessWidget {
             child: HighlightView(
               source,
               language: resolved,
-              theme: isLight ? githubTheme : atomOneDarkTheme,
-              padding: const EdgeInsets.all(12),
+              theme: _theme(tokens),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
               textStyle: const TextStyle(
-                fontFamily: 'SourceCodePro',
+                fontFamily: ClaudeType.mono,
                 fontSize: 12.5,
-                height: 1.45,
+                height: 1.55,
               ),
             ),
           ),
@@ -449,24 +533,29 @@ class CodeBlockView extends StatelessWidget {
 }
 
 /// Copies [payload] to the clipboard and confirms it briefly.
-class _CopyButton extends StatelessWidget {
-  const _CopyButton({
+class CopyButton extends StatelessWidget {
+  const CopyButton({
+    super.key,
     required this.payload,
     required this.tooltip,
-    this.compact = false,
+    this.dark = false,
   });
 
   final String payload;
   final String tooltip;
-  final bool compact;
+
+  /// True inside a code block, where the surface is dark in both modes.
+  final bool dark;
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     return IconButton(
       tooltip: tooltip,
-      iconSize: compact ? 15 : 17,
+      iconSize: 16,
       visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      color: dark ? tokens.onDark.withValues(alpha: 0.7) : tokens.muted,
       onPressed: () async {
         await Clipboard.setData(ClipboardData(text: payload));
         if (!context.mounted) return;
@@ -474,11 +563,10 @@ class _CopyButton extends StatelessWidget {
           SnackBar(
             content: Text('$tooltip - copied'),
             duration: const Duration(milliseconds: 1200),
-            behavior: SnackBarBehavior.floating,
           ),
         );
       },
-      icon: const Icon(Icons.content_copy_rounded, size: 15),
+      icon: const Icon(Icons.content_copy_rounded),
     );
   }
 }

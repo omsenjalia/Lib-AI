@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/widgets/empty_state.dart';
 
 /// "My Notes" - the placeholder for the Phase 2 retrieval feature.
@@ -19,11 +19,12 @@ class NotesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
     final count = ref.watch(documentCountProvider);
     final scheme = Theme.of(context).colorScheme;
     final secondary = scheme.brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+        ? tokens.muted
+        : tokens.muted;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,10 +47,10 @@ class NotesScreen extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.10),
+                  color: tokens.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.accent.withValues(alpha: 0.4),
+                    color: tokens.primary.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Text(
@@ -60,10 +61,10 @@ class NotesScreen extends ConsumerWidget {
                     loading: () => 'Checking library...',
                     error: (error, stack) => 'Library unavailable',
                   ),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.accent,
+                    color: tokens.primary,
                   ),
                 ),
               ),

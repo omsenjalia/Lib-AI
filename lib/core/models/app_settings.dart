@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../constants/app_constants.dart';
+import '../theme/claude_tokens.dart';
 
 /// Keys used in the `SettingEntries` table. Kept as constants so a typo shows up
 /// as a compile error rather than a silently ignored preference.
 abstract final class SettingKeys {
   static const String themeMode = 'theme_mode';
+  static const String chatFont = 'chat_font';
+  static const String systemPrompt = 'system_prompt';
   static const String defaultModelId = 'default_model_id';
   static const String contextLength = 'context_length';
   static const String temperature = 'temperature';
@@ -34,6 +37,8 @@ class AppSettings {
     this.autoUpdateCheckEnabled = true,
     this.modelStorageTreeUri,
     this.modelStorageFolderName,
+    this.chatFont = ChatFontFamily.lato,
+    this.systemPrompt,
   });
 
   /// Dark-mode-first, per the brief.
@@ -54,6 +59,20 @@ class AppSettings {
   final int gpuLayers;
   final bool autoUpdateCheckEnabled;
 
+  /// The face the transcript is set in. Lato is the interface's own face and
+  /// therefore the default; Lora is offered for people who read long answers
+  /// more comfortably in a serif.
+  final ChatFontFamily chatFont;
+
+  /// Extra instruction prepended to every conversation that has no persona of
+  /// its own. Null means the app's built-in study prompt is used verbatim.
+  ///
+  /// This is a real instruction to the model, not a note in a settings table:
+  /// [ChatController] reads it when it assembles the prompt. A persona, when
+  /// one is chosen, replaces it outright - two competing prompts would read as
+  /// the app ignoring one of them.
+  final String? systemPrompt;
+
   /// SAF document-tree grant chosen by the user for GGUF files. A URI is only
   /// used while Android still reports a persisted read/write grant for it.
   final String? modelStorageTreeUri;
@@ -72,6 +91,9 @@ class AppSettings {
     String? modelStorageTreeUri,
     String? modelStorageFolderName,
     bool clearModelStorageLocation = false,
+    ChatFontFamily? chatFont,
+    String? systemPrompt,
+    bool clearSystemPrompt = false,
   }) =>
       AppSettings(
         themeMode: themeMode ?? this.themeMode,
@@ -91,6 +113,9 @@ class AppSettings {
         modelStorageFolderName: clearModelStorageLocation
             ? null
             : (modelStorageFolderName ?? this.modelStorageFolderName),
+        chatFont: chatFont ?? this.chatFont,
+        systemPrompt:
+            clearSystemPrompt ? null : (systemPrompt ?? this.systemPrompt),
       );
 
   /// Reads the persisted map, falling back to defaults for anything absent or
@@ -113,6 +138,10 @@ class AppSettings {
           map[SettingKeys.autoUpdateCheckEnabled] != 'false',
       modelStorageTreeUri: map[SettingKeys.modelStorageTreeUri],
       modelStorageFolderName: map[SettingKeys.modelStorageFolderName],
+      chatFont: ChatFontFamily.fromId(map[SettingKeys.chatFont]),
+      systemPrompt: (map[SettingKeys.systemPrompt] ?? '').trim().isEmpty
+          ? null
+          : map[SettingKeys.systemPrompt],
     );
   }
 
@@ -132,6 +161,9 @@ class AppSettings {
           SettingKeys.modelStorageTreeUri: modelStorageTreeUri!,
         if (modelStorageFolderName != null)
           SettingKeys.modelStorageFolderName: modelStorageFolderName!,
+        SettingKeys.chatFont: chatFont.id,
+        if (systemPrompt != null)
+          SettingKeys.systemPrompt: systemPrompt!,
       };
 
   static ThemeMode _themeModeFromName(String? name) {
@@ -158,7 +190,9 @@ class AppSettings {
       other.gpuLayers == gpuLayers &&
       other.autoUpdateCheckEnabled == autoUpdateCheckEnabled &&
       other.modelStorageTreeUri == modelStorageTreeUri &&
-      other.modelStorageFolderName == modelStorageFolderName;
+      other.modelStorageFolderName == modelStorageFolderName &&
+      other.chatFont == chatFont &&
+      other.systemPrompt == systemPrompt;
 
   @override
   int get hashCode => Object.hash(
@@ -172,5 +206,7 @@ class AppSettings {
         autoUpdateCheckEnabled,
         modelStorageTreeUri,
         modelStorageFolderName,
+        chatFont,
+        systemPrompt,
       );
 }

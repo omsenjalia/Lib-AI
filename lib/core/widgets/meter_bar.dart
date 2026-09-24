@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/claude_tokens.dart';
 
 /// A horizontal progress/level bar with a threshold-aware colour.
 ///
-/// Used for two things that look alike but mean different things:
-///
-///  * the chat context-window meter, where crossing 75% turns amber and 90%
-///    turns red, and
-///  * the per-model storage bars in Settings, which pass explicit thresholds of
-///    null so the colour stays neutral.
+/// Used by the per-model storage bars in Settings, which pass explicit
+/// thresholds of null so the colour stays neutral, and by any other level
+/// read-out that needs the same treatment. The chat's context meter is drawn in
+/// the top bar rather than here — see `ClaudeTopBar`.
 ///
 /// [isIndeterminate] is for the "waiting for the first token" state, where the
 /// true value is unknown and a fake percentage would be a lie.
@@ -42,11 +40,8 @@ class MeterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final track = backgroundColor ??
-        (scheme.brightness == Brightness.dark
-            ? AppColors.surfaceHigh
-            : AppColors.lightSurfaceHigh);
+    final tokens = context.tokens;
+    final track = backgroundColor ?? tokens.surfaceStrong;
 
     if (isIndeterminate) {
       return ClipRRect(
@@ -84,95 +79,13 @@ class MeterBar extends StatelessWidget {
   }
 
   Color _colorFor(BuildContext context, double fraction) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
-
+    final tokens = context.tokens;
     if (criticalThreshold != null && fraction >= criticalThreshold!) {
-      return isLight ? AppColors.lightError : AppColors.meterCritical;
+      return tokens.errorText;
     }
     if (warningThreshold != null && fraction >= warningThreshold!) {
-      return isLight ? AppColors.lightMeterWarning : AppColors.meterWarning;
+      return tokens.warning;
     }
-    return isLight ? AppColors.lightAccent : AppColors.accent;
-  }
-}
-
-/// The context-window meter shown above the composer.
-///
-/// Kept as its own widget because the readout is opinionated in two ways the
-/// brief asks for: the percentage is always visible (a bare bar gives no sense
-/// of how close to the limit you are), and the estimate is labelled as an
-/// estimate until the tokeniser confirms it.
-class ContextMeter extends StatelessWidget {
-  const ContextMeter({
-    super.key,
-    required this.usedTokens,
-    required this.maxTokens,
-    this.isEstimate = true,
-    this.compact = false,
-  });
-
-  final int usedTokens;
-  final int maxTokens;
-  final bool isEstimate;
-  final bool compact;
-
-  double get fraction => maxTokens <= 0 ? 0 : usedTokens / maxTokens;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final percent = (fraction * 100).clamp(0, 100).round();
-    final nearLimit = fraction >= 0.75;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        MeterBar(
-          value: fraction,
-          height: compact ? 4 : 5,
-          warningThreshold: 0.75,
-          criticalThreshold: 0.90,
-        ),
-        if (!compact) ...[
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Text(
-                '$percent% of ${_formatTokens(maxTokens)} context',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: nearLimit
-                      ? (scheme.brightness == Brightness.light
-                          ? AppColors.lightMeterWarning
-                          : AppColors.meterWarning)
-                      : (scheme.brightness == Brightness.light
-                          ? AppColors.lightTextSecondary
-                          : AppColors.textSecondary),
-                  fontWeight: nearLimit ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                isEstimate ? 'estimated' : 'exact',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: scheme.brightness == Brightness.dark
-                      ? AppColors.textSecondary.withValues(alpha: 0.7)
-                      : AppColors.lightTextSecondary.withValues(alpha: 0.7),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  static String _formatTokens(int tokens) {
-    if (tokens >= 1000000) return '${(tokens / 1000000).toStringAsFixed(1)}M';
-    if (tokens >= 1000) return '${(tokens / 1000).toStringAsFixed(0)}k';
-    return '$tokens';
+    return tokens.primary;
   }
 }

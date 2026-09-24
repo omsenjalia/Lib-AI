@@ -11,7 +11,7 @@ import '../../../core/services/model_adoption_service.dart';
 import '../../../core/services/model_migration_service.dart';
 import '../../../core/services/pdf_export_service.dart';
 import '../../../core/services/settings_service.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../model_library/screens/model_library_screen.dart';
@@ -121,6 +121,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ModelCatalogue? catalogue,
     List<ModelInstallation> installs,
   ) {
+    final tokens = context.tokens;
     // The slider's ceiling comes from the model in play, so it can never be set
     // to a value the model does not support.
     final activeId = settings.defaultModelId ??
@@ -162,10 +163,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             Text(
               '$value tokens',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.accent,
+                color: tokens.primary,
               ),
             ),
           ],
@@ -398,6 +399,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     List<ModelInstallation> installs,
     ModelCatalogue? catalogue,
   ) {
+    final tokens = context.tokens;
     final totalBytes =
         installs.fold<int>(0, (sum, item) => sum + item.totalBytes);
     final location = ref.watch(modelStorageStatusProvider);
@@ -490,10 +492,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               Text(
                 formatBytes(totalBytes),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.accent,
+                  color: tokens.primary,
                 ),
               ),
             ],
@@ -1136,9 +1138,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // ------------------------------------------------------------------- about
 
   Widget _aboutSection(BuildContext context) {
+    final tokens = context.tokens;
     final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+        ? tokens.muted
+        : tokens.muted;
 
     return _Section(
       title: 'About',
@@ -1148,11 +1151,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.12),
+                color: tokens.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.auto_stories_rounded,
-                  size: 22, color: AppColors.accent),
+              child: Icon(Icons.auto_stories_rounded,
+                  size: 22, color: tokens.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1207,17 +1210,16 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
+    final tokens = context.tokens;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Container(
         decoration: BoxDecoration(
-          color: isLight ? AppColors.lightSurface : AppColors.surface,
+          color: tokens.surfaceStrong,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isLight ? AppColors.lightOutline : AppColors.outline,
+            color: tokens.hairline,
           ),
         ),
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
@@ -1292,21 +1294,23 @@ class _Note extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
-    final base = isDark ? AppColors.textSecondary : AppColors.lightTextSecondary;
+    final base = isDark ? tokens.muted : tokens.muted;
 
     final (color, background, border) = switch (tone) {
+      final tokens = context.tokens;
       _NoteTone.normal => (base, Colors.transparent, Colors.transparent),
       _NoteTone.honest => (
           base,
-          AppColors.accent.withValues(alpha: 0.05),
-          AppColors.accent.withValues(alpha: 0.22),
+          tokens.primary.withValues(alpha: 0.05),
+          tokens.primary.withValues(alpha: 0.22),
         ),
       _NoteTone.warning => (
-          isDark ? AppColors.meterWarning : AppColors.lightError,
-          AppColors.meterWarning.withValues(alpha: 0.08),
-          AppColors.meterWarning.withValues(alpha: 0.3),
+          isDark ? tokens.warning : tokens.errorText,
+          tokens.warning.withValues(alpha: 0.08),
+          tokens.warning.withValues(alpha: 0.3),
         ),
     };
 
@@ -1435,6 +1439,7 @@ class _SliderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final clamped = value.clamp(min, max);
 
     return Column(
@@ -1447,10 +1452,10 @@ class _SliderRow extends StatelessWidget {
             ),
             Text(
               display,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.accent,
+                color: tokens.primary,
               ),
             ),
           ],
@@ -1483,9 +1488,10 @@ class _StorageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+        ? tokens.muted
+        : tokens.muted;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1507,7 +1513,7 @@ class _StorageRow extends StatelessWidget {
             tooltip: 'Delete',
             onPressed: onDelete,
             iconSize: 16,
-            color: AppColors.error,
+            color: tokens.errorText,
             icon: const Icon(Icons.delete_outline_rounded),
           ),
         ],

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/database.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 
@@ -19,6 +19,7 @@ class PersonasScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
     final personas = ref.watch(personasProvider);
 
     return Scaffold(
@@ -27,7 +28,7 @@ class PersonasScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(context, ref, null),
-        backgroundColor: AppColors.accent,
+        backgroundColor: tokens.primary,
         foregroundColor: const Color(0xFF1A1A2E),
         icon: const Icon(Icons.add_rounded),
         label: const Text('New persona'),
@@ -74,9 +75,10 @@ class PersonasScreen extends ConsumerWidget {
   }
 
   Widget _sectionLabel(BuildContext context, String label) {
+    final tokens = context.tokens;
     final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+        ? tokens.muted
+        : tokens.muted;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
@@ -98,19 +100,17 @@ class PersonasScreen extends ConsumerWidget {
     Persona persona, {
     required bool deleteAllowed,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
-    final secondary =
-        isLight ? AppColors.lightTextSecondary : AppColors.textSecondary;
+    final tokens = context.tokens;
+    final secondary = tokens.muted;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
         decoration: BoxDecoration(
-          color: isLight ? AppColors.lightSurface : AppColors.surface,
+          color: tokens.surfaceStrong,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isLight ? AppColors.lightOutline : AppColors.outline,
+            color: tokens.hairline,
           ),
         ),
         padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
@@ -141,7 +141,7 @@ class PersonasScreen extends ConsumerWidget {
                     tooltip: 'Delete',
                     onPressed: () => _delete(context, ref, persona),
                     iconSize: 17,
-                    color: AppColors.error,
+                    color: tokens.errorText,
                     icon: const Icon(Icons.delete_outline_rounded),
                   ),
               ],
@@ -163,16 +163,17 @@ class PersonasScreen extends ConsumerWidget {
   }
 
   Widget _explainer(BuildContext context) {
+    final tokens = context.tokens;
     final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+        ? tokens.muted
+        : tokens.muted;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.06),
+        color: tokens.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
+        border: Border.all(color: tokens.primary.withValues(alpha: 0.25)),
       ),
       child: Text(
         'A persona is a system prompt. Unlike a general prompt, it is sent '
@@ -284,6 +285,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final isEditing = widget.persona != null;
     final name = _nameController.text.trim();
     final prompt = _promptController.text.trim();
@@ -311,7 +313,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.4),
+                      color: tokens.primary.withValues(alpha: 0.4),
                     ),
                   ),
                   child: Text(_emoji, style: const TextStyle(fontSize: 20)),
@@ -345,7 +347,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: _emoji == emoji
-                              ? AppColors.accent
+                              ? tokens.primary
                               : Colors.transparent,
                         ),
                       ),
@@ -372,7 +374,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.06),
+                color: tokens.primary.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -386,8 +388,8 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                   fontSize: 10.5,
                   height: 1.45,
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.textSecondary
-                      : AppColors.lightTextSecondary,
+                      ? tokens.muted
+                      : tokens.muted,
                 ),
               ),
             ),
@@ -411,7 +413,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                             ),
                           ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
+                    backgroundColor: tokens.primary,
                     foregroundColor: const Color(0xFF1A1A2E),
                   ),
                   child: Text(isEditing ? 'Save' : 'Create'),

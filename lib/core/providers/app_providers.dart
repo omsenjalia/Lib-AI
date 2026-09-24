@@ -17,6 +17,7 @@ import '../services/settings_service.dart';
 import '../services/storage_paths.dart';
 import '../services/update_checker.dart';
 import '../services/update_scheduler.dart';
+import '../theme/claude_tokens.dart';
 
 /// The provider graph.
 ///
@@ -94,6 +95,22 @@ class SettingsController extends AsyncNotifier<AppSettings> {
         topK: topK,
         gpuLayers: gpuLayers,
       ),
+    );
+  }
+
+  Future<void> setChatFont(ChatFontFamily font) async {
+    final current = state.valueOrNull ?? const AppSettings();
+    await save(current.copyWith(chatFont: font));
+  }
+
+  /// Empty clears the override and returns to the built-in study prompt.
+  Future<void> setSystemPrompt(String? prompt) async {
+    final current = state.valueOrNull ?? const AppSettings();
+    final trimmed = prompt?.trim();
+    await save(
+      (trimmed == null || trimmed.isEmpty)
+          ? current.copyWith(clearSystemPrompt: true)
+          : current.copyWith(systemPrompt: trimmed),
     );
   }
 

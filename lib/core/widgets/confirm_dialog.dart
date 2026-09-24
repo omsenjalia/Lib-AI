@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/claude_tokens.dart';
 
 /// The single confirmation dialog used by the whole app.
 ///
@@ -66,11 +66,8 @@ class ConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final accent = destructive ? scheme.error : scheme.primary;
-    final secondary = scheme.brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final tokens = context.tokens;
+    final accent = destructive ? tokens.errorText : tokens.primaryActive;
 
     return AlertDialog(
       icon: icon == null
@@ -79,7 +76,7 @@ class ConfirmDialog extends StatelessWidget {
       title: Text(
         title,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        style: ClaudeType.titleSmall.copyWith(color: context.tokens.ink),
       ),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
@@ -89,7 +86,7 @@ class ConfirmDialog extends StatelessWidget {
           children: [
             Text(
               message,
-              style: TextStyle(fontSize: 13, height: 1.5, color: secondary),
+              style: ClaudeType.bodySmall.copyWith(color: secondary),
             ),
             if (details.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -113,9 +110,8 @@ class ConfirmDialog extends StatelessWidget {
                       Expanded(
                         child: Text(
                           detail,
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.45,
+                          style: ClaudeType.caption.copyWith(
+                            fontWeight: FontWeight.w400,
                             color: secondary,
                           ),
                         ),
@@ -136,9 +132,7 @@ class ConfirmDialog extends StatelessWidget {
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: FilledButton.styleFrom(
-            backgroundColor: destructive ? scheme.error : scheme.primary,
-            foregroundColor:
-                destructive ? scheme.onError : scheme.onPrimary,
+            backgroundColor: accent,
           ),
           child: Text(confirmLabel),
         ),

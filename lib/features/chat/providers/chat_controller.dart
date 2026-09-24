@@ -253,6 +253,16 @@ class ChatController extends ChangeNotifier {
         .updateConversationMeta(id: id, title: trimmed);
   }
 
+  /// Removes one message from the current thread.
+  ///
+  /// A message that is mid-stream is stopped first: deleting the row an active
+  /// generation is writing into would leave the engine appending to a row that
+  /// no longer exists.
+  Future<void> deleteMessage(Message message) async {
+    if (_streamingMessageId == message.id) await stop();
+    await _ref.read(databaseProvider).deleteMessage(message.id);
+  }
+
   /// Per-message "Render math" toggle, for models that emit bare LaTeX.
   Future<void> toggleRenderMath(Message message) async {
     await _ref.read(databaseProvider).updateMessage(
@@ -640,7 +650,12 @@ class ChatController extends ChangeNotifier {
   static const double contextBudgetFraction = 0.70;
 
   String _systemPrompt(Persona? persona) {
+    // Precedence: a persona for this thread, then the user's own default
+    // instruction, then the built-in study prompt. Only one of the three is
+    // used — stacking them would let a persona silently override the person
+    // who is actually typing.
     final base = persona?.systemPrompt ??
+        _ref.read(currentSettingsProvider).systemPrompt ??
         'You are a study assistant in an offline app. Answer clearly and '
             'concisely, and show your working for anything mathematical.';
     return '$base\n\n'
