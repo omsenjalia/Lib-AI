@@ -11,8 +11,9 @@ import '../../../core/services/model_adoption_service.dart';
 import '../../../core/services/model_migration_service.dart';
 import '../../../core/services/pdf_export_service.dart';
 import '../../../core/services/settings_service.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/widgets/claude_sheet.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../model_library/screens/model_library_screen.dart';
 
@@ -69,7 +70,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         data: (value) => ListView(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+          // The rows carry the 16 dp gutter themselves; a list inset on top of
+          // that would put them 28 dp in while the sidebar sits at 16.
+          padding: const EdgeInsets.only(bottom: ClaudeSpacing.xl),
           children: [
             _appearance(context, value, controller),
             _modelSection(value, controller, catalogue, installs),
@@ -92,6 +95,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AppSettings settings,
     SettingsController controller,
   ) {
+    final tokens = context.tokens;
+    final hasCustomPrompt = settings.systemPrompt != null;
+
     return _Section(
       title: 'Appearance',
       children: [
@@ -105,12 +111,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           },
           onChanged: controller.setThemeMode,
         ),
+        _SegmentedRow<ChatFontFamily>(
+          label: 'Chat font',
+          value: settings.chatFont,
+          options: {
+            for (final family in ChatFontFamily.values)
+              family: family.label,
+          },
+          onChanged: controller.setChatFont,
+        ),
+        ClaudeRow(
+          label: 'System prompt',
+          subtitle: hasCustomPrompt
+              ? _oneLine(settings.systemPrompt!)
+              : 'Built-in study prompt',
+          onTap: () => _editSystemPrompt(settings.systemPrompt),
+          trailing: Icon(
+            Icons.chevron_right_rounded,
+            size: 20,
+            color: tokens.mutedSoft,
+          ),
+        ),
         const _Note(
           'Both themes are designed rather than derived: the light theme is a '
-          'warm paper surface, not an inverted dark one.',
+          'warm paper surface, not an inverted dark one. The chat font applies '
+          'to messages only, never to the app chrome.',
         ),
       ],
     );
+  }
+
+  /// A prompt shown as a row subtitle: one line, clipped sensibly.
+  String _oneLine(String prompt) {
+    final collapsed = prompt.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (collapsed.length <= 72) return collapsed;
+    return '${collapsed.substring(0, 71)}…';
+  }
+
+  /// Edits the user's default system prompt.
+  ///
+  /// An empty field clears the override and returns to the built-in study
+  /// prompt, which is what the dialog's second button does in one tap.
+  Future<void> _editSystemPrompt(String? current) async {
+    final next = await showDialog<String>(
+      context: context,
+      builder: (_) => _SystemPromptDialog(initial: current),
+    );
+    if (!mounted || next == null) return;
+    await ref.read(settingsControllerProvider.notifier).setSystemPrompt(next);
   }
 
   // ------------------------------------------------------------ model/context
@@ -121,6 +169,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ModelCatalogue? catalogue,
     List<ModelInstallation> installs,
   ) {
+    final tokens = context.tokens;
     // The slider's ceiling comes from the model in play, so it can never be set
     // to a value the model does not support.
     final activeId = settings.defaultModelId ??
@@ -154,39 +203,60 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
             onChanged: controller.setDefaultModel,
           ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            const Expanded(
-              child: Text('Context length', style: TextStyle(fontSize: 13)),
-            ),
-            Text(
-              '$value tokens',
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: AppColors.accent,
+        const SizedBox(height: ClaudeSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: ClaudeSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Context length',
+                      style: ClaudeType.bodySmall.copyWith(
+                        color: tokens.bodyStrong,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$value total · '
+                    '${AppConstants.perChatContextLength(value)} per '
+                    'chat',
+                    style: ClaudeType.caption.copyWith(
+                      color: tokens.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        Slider(
-          value: value.toDouble(),
-          min: min.toDouble(),
-          max: max.toDouble(),
-          // The usable range spans 512 to 262144, so a linear slider would be
-          // unusable at the low end. Divisions pick round steps.
-          divisions: _divisionsFor(min, max),
-          label: '$value',
-          onChanged: (next) => controller.setContextLength(next.round()),
-          onChangeEnd: (next) => controller.setContextLength(next.round()),
-        ),
-        Row(
-          children: [
-            Text('$min', style: const TextStyle(fontSize: 10)),
-            const Spacer(),
-            Text('$max', style: const TextStyle(fontSize: 10)),
-          ],
+              Slider(
+                value: value.toDouble(),
+                min: min.toDouble(),
+                max: max.toDouble(),
+                // The usable range spans 512 to 262144, so a linear slider
+                // would be unusable at the low end. Divisions pick round steps.
+                divisions: _divisionsFor(min, max),
+                label: '$value',
+                onChanged: (next) => controller.setContextLength(next.round()),
+                onChangeEnd: (next) =>
+                    controller.setContextLength(next.round()),
+              ),
+              Row(
+                children: [
+                  Text(
+                    '$min',
+                    style: ClaudeType.caption.copyWith(color: tokens.muted),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$max',
+                    style: ClaudeType.caption.copyWith(color: tokens.muted),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         if (isUnsafe)
           const _Note(
@@ -202,6 +272,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : 'Default in new conversations. ${model.displayName} supports '
                     'up to ${model.maxContextLength} tokens, and larger windows '
                     'need more RAM.',
+          ),
+          const _Note(
+            'The engine runs four llama.cpp slots per model and divides this '
+            'between them, so each conversation gets a quarter of the number '
+            'above. Memory is charged for the total, not the quarter.',
+            tone: _NoteTone.honest,
           ),
         const _Note(
           'Lowering this is the quickest fix for an out-of-memory error, and it '
@@ -293,7 +369,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return _Section(
       title: 'Advanced',
-      initiallyExpanded: false,
       children: [
         if (gpuAvailability.isLoading)
           const _Note('Checking the native inference backend for GPU support...')
@@ -341,19 +416,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return _Section(
       title: 'Model updates',
       children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          value: settings.autoUpdateCheckEnabled,
-          onChanged: controller.setAutoUpdateCheck,
-          title: const Text(
-            'Check for model updates',
-            style: TextStyle(fontSize: 13),
-          ),
-          subtitle: const Text(
-            'Asked at most once every 24 hours per model, when you reconnect '
-            'to the internet, and only for models you have downloaded.',
-            style: TextStyle(fontSize: 10.5, height: 1.4),
+        ClaudeRow(
+          label: 'Check for model updates',
+          subtitle: 'Asked at most once every 24 hours per model, when you '
+              'reconnect to the internet, and only for models you have '
+              'downloaded.',
+          trailing: Switch(
+            value: settings.autoUpdateCheckEnabled,
+            onChanged: controller.setAutoUpdateCheck,
           ),
         ),
         const _Note(
@@ -363,28 +433,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'button. The 27B model is never checked on mobile data.',
           tone: _NoteTone.honest,
         ),
-        const SizedBox(height: 6),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.maybeOf(context);
-              await ref.read(updateSchedulerProvider).checkNow();
-              if (!context.mounted) return;
-              final pending = checker.firstPending;
-              messenger?.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    pending == null
-                        ? 'All downloaded models are up to date.'
-                        : 'An update is available. See Model Library.',
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            ClaudeSpacing.md,
+            ClaudeSpacing.sm,
+            ClaudeSpacing.md,
+            0,
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                await ref.read(updateSchedulerProvider).checkNow();
+                if (!context.mounted) return;
+                final pending = checker.firstPending;
+                messenger?.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      pending == null
+                          ? 'All downloaded models are up to date.'
+                          : 'An update is available. See Model Library.',
+                    ),
+                    behavior: SnackBarBehavior.floating,
                   ),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            icon: const Icon(Icons.refresh_rounded, size: 16),
-            label: const Text('Check now'),
+                );
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Check now'),
+            ),
           ),
         ),
       ],
@@ -398,6 +475,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     List<ModelInstallation> installs,
     ModelCatalogue? catalogue,
   ) {
+    final tokens = context.tokens;
     final totalBytes =
         installs.fold<int>(0, (sum, item) => sum + item.totalBytes);
     final location = ref.watch(modelStorageStatusProvider);
@@ -417,30 +495,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final movePending = ref.watch(pendingModelMoveProvider).valueOrNull ?? false;
     final configuredTreeUri =
         ref.watch(currentSettingsProvider).modelStorageTreeUri;
+    // Resolved here rather than inside the row, because the subtitle colour has
+    // to match the text: an access warning is not a description.
+    final locationSubtitle = location.when(
+      loading: () => 'Checking storage access…',
+      error: (_, __) => 'App storage',
+      data: (status) => '${status.displayName} · '
+          '${formatBytes(status.bytesUsed)}'
+          '${status.warning == null ? '' : '\n${status.warning}'}',
+    );
 
     return _Section(
       title: 'Storage',
       children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
+        ClaudeRow(
+          label: 'Model files location',
+          subtitle: locationSubtitle,
+          subtitleColor:
+              storageStatus?.warning == null ? null : tokens.errorText,
           leading: const Icon(Icons.folder_open_outlined, size: 19),
-          title: const Text('Model files location', style: TextStyle(fontSize: 13)),
-          subtitle: location.when(
-            loading: () => const Text('Checking storage access…'),
-            error: (_, __) => const Text('App storage'),
-            data: (status) => Text(
-              '${status.displayName} · ${formatBytes(status.bytesUsed)}'
-              '${status.warning == null ? '' : '\n${status.warning}'}',
-              style: TextStyle(
-                fontSize: 10.5,
-                color: status.warning == null
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
-                    : Theme.of(context).colorScheme.error,
-              ),
-            ),
+          trailing: Icon(
+            Icons.chevron_right_rounded,
+            size: 19,
+            color: tokens.mutedSoft,
           ),
-          trailing: const Icon(Icons.chevron_right_rounded, size: 19),
           onTap: () => _chooseModelStorageFolder(
             context,
             installs: installs,
@@ -464,15 +542,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           tone: _NoteTone.honest,
         ),
         if (configuredTreeUri != null)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
+          ClaudeRow(
+            label: 'Use app storage',
+            subtitle: 'Store future downloads in the app-private models '
+                'folder.',
             leading: const Icon(Icons.phone_android_rounded, size: 18),
-            title: const Text('Use app storage', style: TextStyle(fontSize: 13)),
-            subtitle: const Text(
-              'Store future downloads in the app-private models folder.',
-              style: TextStyle(fontSize: 10.5),
-            ),
             onTap: () => _usePrivateModelStorage(
               context,
               installs: installs,
@@ -482,23 +556,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (installs.isEmpty)
           const _Note('No models are stored on this device.')
         else ...[
-          Row(
-            children: [
-              const Expanded(
-                child: Text('Models on this device',
-                    style: TextStyle(fontSize: 13)),
-              ),
-              Text(
-                formatBytes(totalBytes),
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.accent,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: ClaudeSpacing.md,
+              vertical: ClaudeSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Models on this device',
+                    style: ClaudeType.bodySmall.copyWith(
+                      color: tokens.bodyStrong,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                Text(
+                  formatBytes(totalBytes),
+                  style: ClaudeType.caption.copyWith(
+                    color: tokens.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
           for (final installation in installs)
             _StorageRow(
               name: catalogue?.byId(installation.modelId)?.displayName ??
@@ -508,23 +590,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onDelete: () => _deleteModel(context, ref, installation),
             ),
           if (catalogue != null)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
+            ClaudeRow(
+              label:
+                  movePending ? 'Resume model move' : 'Move existing models',
+              subtitle: movePending
+                  ? 'Continues verified, per-model moves after an '
+                      'interruption.'
+                  : 'Copies installed models to the selected folder. '
+                      'Originals stay until each copy verifies.',
               leading: Icon(
-                movePending ? Icons.play_arrow_rounded : Icons.drive_file_move_outlined,
-                size: 18,
-              ),
-              title: Text(
-                movePending ? 'Resume model move' : 'Move existing models',
-                style: const TextStyle(fontSize: 13),
-              ),
-              subtitle: Text(
                 movePending
-                    ? 'Continues verified, per-model moves after an interruption.'
-                    : 'Copies installed models to the selected folder. Originals '
-                        'stay until each copy verifies.',
-                style: const TextStyle(fontSize: 10.5),
+                    ? Icons.play_arrow_rounded
+                    : Icons.drive_file_move_outlined,
+                size: 18,
               ),
               onTap: () => _runModelMove(
                 context,
@@ -534,34 +612,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
         ],
-        const Divider(height: 22),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
+        Divider(
+          height: ClaudeSpacing.lg,
+          thickness: 1,
+          color: tokens.hairline,
+        ),
+        ClaudeRow(
+          label: 'Export all conversations (ZIP of PDFs)',
+          subtitle: 'Writes one PDF per conversation into a single archive.',
           leading: const Icon(Icons.folder_zip_outlined, size: 18),
-          title: const Text(
-            'Export all conversations (ZIP of PDFs)',
-            style: TextStyle(fontSize: 13),
-          ),
-          subtitle: const Text(
-            'Writes one PDF per conversation into a single archive.',
-            style: TextStyle(fontSize: 10.5),
-          ),
           onTap: () => _exportEverything(context, ref),
         ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
+        ClaudeRow(
+          label: 'Clean up unfinished downloads',
+          subtitle: 'Discards saved partial model files. Resume from the '
+              'Model Library to keep and continue them.',
           leading: const Icon(Icons.cleaning_services_outlined, size: 18),
-          title: const Text(
-            'Clean up unfinished downloads',
-            style: TextStyle(fontSize: 13),
-          ),
-          subtitle: const Text(
-            'Discards saved partial model files. Resume from the Model Library '
-            'to keep and continue them.',
-            style: TextStyle(fontSize: 10.5),
-          ),
           onTap: () => _sweep(context, ref),
         ),
       ],
@@ -1112,7 +1178,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return _Section(
       title: 'Notification diagnostics',
-      initiallyExpanded: false,
       children: [
         _DiagnosticRow('Service ready', diagnostics.ready ? 'Yes' : 'No'),
         _DiagnosticRow('Permission result', diagnostics.permissionResult),
@@ -1124,6 +1189,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               : '${diagnostics.lastError} · '
                   '${diagnostics.lastErrorAt?.toLocal().toIso8601String() ?? ''}',
         ),
+        // The diagnostics are key/value pairs, not rows: they read as one
+        // block, so a single hairline closes the group instead of one rule per
+        // pair.
+        Divider(height: 1, thickness: 1, color: context.tokens.hairline),
         const _Note(
           'For device logs, run: adb logcat -s flutter. Notification setup '
           'and show failures are logged in release builds too.',
@@ -1136,50 +1205,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // ------------------------------------------------------------------- about
 
   Widget _aboutSection(BuildContext context) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final tokens = context.tokens;
+    final secondary = tokens.muted;
 
     return _Section(
       title: 'About',
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: ClaudeSpacing.md,
+            vertical: ClaudeSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(ClaudeSpacing.xs),
+                decoration: BoxDecoration(
+                  color: tokens.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(ClaudeRadius.lg),
+                ),
+                child: Icon(
+                  Icons.auto_stories_rounded,
+                  size: 22,
+                  color: tokens.primary,
+                ),
               ),
-              child: const Icon(Icons.auto_stories_rounded,
-                  size: 22, color: AppColors.accent),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    AppConstants.appName,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: ClaudeSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppConstants.appName,
+                      style: ClaudeType.bodySmall.copyWith(
+                        color: tokens.bodyStrong,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  Text(
-                    AppConstants.tagline,
-                    style: TextStyle(fontSize: 11.5, color: secondary),
-                  ),
-                  Text(
-                    _version == null ? 'Version unknown' : 'Version $_version',
-                    style: TextStyle(fontSize: 10.5, color: secondary),
-                  ),
-                ],
+                    Text(
+                      AppConstants.tagline,
+                      style: ClaudeType.caption.copyWith(color: secondary),
+                    ),
+                    Text(
+                      _version == null
+                          ? 'Version unknown'
+                          : 'Version $_version',
+                      style: ClaudeType.caption.copyWith(color: secondary),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
         const _Note(
           'Inference runs entirely on this device through llama.cpp. The app '
           'has no account, no telemetry and no server. The only network traffic '
@@ -1194,57 +1272,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 // -------------------------------------------------------------- small pieces
 
+/// A Settings group: an uppercase header over a flat, hairline-separated list.
+///
+/// The same header the sidebar uses, so the two lists read as one system. There
+/// is no card and no border: the group sits directly on the canvas and the rows
+/// draw the only horizontal rules on the screen.
 class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.children,
-    this.initiallyExpanded = true,
-  });
+  const _Section({required this.title, required this.children});
 
   final String title;
   final List<Widget> children;
-  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isLight ? AppColors.lightSurface : AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isLight ? AppColors.lightOutline : AppColors.outline,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClaudeSectionHeader(
+          title: title,
+          padding: const EdgeInsets.fromLTRB(
+            ClaudeSpacing.md,
+            ClaudeSpacing.lg,
+            ClaudeSpacing.md,
+            ClaudeSpacing.xs,
           ),
         ),
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-        child: Theme(
-          // Nested expansion tiles draw their own dividers; the section border
-          // is enough.
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            initiallyExpanded: initiallyExpanded,
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: const EdgeInsets.only(top: 4),
-            title: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: children,
-              ),
-            ],
-          ),
-        ),
-      ),
+        ...children,
+      ],
     );
   }
 }
@@ -1257,9 +1311,15 @@ class _DiagnosticRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
+    final tokens = context.tokens;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.fromLTRB(
+        ClaudeSpacing.md,
+        6,
+        ClaudeSpacing.md,
+        6,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1267,17 +1327,107 @@ class _DiagnosticRow extends StatelessWidget {
             width: 112,
             child: Text(
               label,
-              style: TextStyle(fontSize: 11, color: secondary),
+              style: ClaudeType.caption.copyWith(color: tokens.muted),
             ),
           ),
+          const SizedBox(width: ClaudeSpacing.sm),
           Expanded(
             child: SelectableText(
               value,
-              style: const TextStyle(fontSize: 11, height: 1.35),
+              style: ClaudeType.code.copyWith(color: tokens.body),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The system-prompt editor.
+///
+/// Returns the new prompt, or an empty string for "back to the built-in study
+/// prompt". `null` means the user cancelled.
+class _SystemPromptDialog extends StatefulWidget {
+  const _SystemPromptDialog({this.initial});
+
+  final String? initial;
+
+  @override
+  State<_SystemPromptDialog> createState() => _SystemPromptDialogState();
+}
+
+class _SystemPromptDialogState extends State<_SystemPromptDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial ?? '');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final isCustom = widget.initial != null;
+
+    return AlertDialog(
+      backgroundColor: tokens.surfaceCard,
+      title: Text(
+        'System prompt',
+        style: ClaudeType.titleSmall.copyWith(color: tokens.bodyStrong),
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Sent before every conversation. Leave it empty to use the '
+              'built-in study prompt.',
+              style: ClaudeType.caption.copyWith(color: tokens.muted),
+            ),
+            const SizedBox(height: ClaudeSpacing.sm),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              minLines: 4,
+              maxLines: 8,
+              maxLength: 2000,
+              style: ClaudeType.bodySmall.copyWith(color: tokens.bodyStrong),
+              decoration: InputDecoration(
+                hintText: 'e.g. You are a patient tutor. Answer in short '
+                    'paragraphs and always define new terms.',
+                hintStyle: ClaudeType.bodySmall.copyWith(
+                  color: tokens.mutedSoft,
+                ),
+                counterStyle: ClaudeType.caption.copyWith(
+                  color: tokens.mutedSoft,
+                ),
+              ),
+            ),
+            if (isCustom)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(''),
+                  child: const Text('Reset to built-in prompt'),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
@@ -1292,36 +1442,42 @@ class _Note extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
-    final base = isDark ? AppColors.textSecondary : AppColors.lightTextSecondary;
+    final base = tokens.muted;
 
     final (color, background, border) = switch (tone) {
       _NoteTone.normal => (base, Colors.transparent, Colors.transparent),
       _NoteTone.honest => (
           base,
-          AppColors.accent.withValues(alpha: 0.05),
-          AppColors.accent.withValues(alpha: 0.22),
+          tokens.primary.withValues(alpha: 0.05),
+          tokens.primary.withValues(alpha: 0.22),
         ),
       _NoteTone.warning => (
-          isDark ? AppColors.meterWarning : AppColors.lightError,
-          AppColors.meterWarning.withValues(alpha: 0.08),
-          AppColors.meterWarning.withValues(alpha: 0.3),
+          isDark ? tokens.warning : tokens.errorText,
+          tokens.warning.withValues(alpha: 0.08),
+          tokens.warning.withValues(alpha: 0.3),
         ),
     };
 
     return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      margin: const EdgeInsets.fromLTRB(
+        ClaudeSpacing.md,
+        ClaudeSpacing.xs,
+        ClaudeSpacing.md,
+        ClaudeSpacing.xxs,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: ClaudeSpacing.xs,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(ClaudeRadius.md),
         border: Border.all(color: border),
       ),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 10.5, height: 1.45, color: color),
-      ),
+      child: Text(text, style: ClaudeType.caption.copyWith(color: color)),
     );
   }
 }
@@ -1341,24 +1497,21 @@ class _SegmentedRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13)),
-        const Spacer(),
-        SegmentedButton<T>(
-          segments: [
-            for (final entry in options.entries)
-              ButtonSegment<T>(value: entry.key, label: Text(entry.value)),
-          ],
-          selected: {value},
-          showSelectedIcon: false,
-          style: const ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11.5)),
-          ),
-          onSelectionChanged: (selection) => onChanged(selection.first),
+    return ClaudeRow(
+      label: label,
+      trailing: SegmentedButton<T>(
+        segments: [
+          for (final entry in options.entries)
+            ButtonSegment<T>(value: entry.key, label: Text(entry.value)),
+        ],
+        selected: {value},
+        showSelectedIcon: false,
+        style: const ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          textStyle: WidgetStatePropertyAll(ClaudeType.button),
         ),
-      ],
+        onSelectionChanged: (selection) => onChanged(selection.first),
+      ),
     );
   }
 }
@@ -1378,38 +1531,45 @@ class _DropdownRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
-              value: items.containsKey(value) ? value : items.keys.first,
-              isExpanded: true,
-              isDense: true,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              onChanged: (next) {
-                if (next != null) onChanged(next);
-              },
-              items: [
-                for (final entry in items.entries)
-                  DropdownMenuItem<T>(
-                    value: entry.key,
-                    child: Text(
-                      entry.value,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5),
+    final tokens = context.tokens;
+
+    return ClaudeRow(
+      label: label,
+      trailing: SizedBox(
+        width: 168,
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<T>(
+            value: items.containsKey(value) ? value : items.keys.first,
+            isExpanded: true,
+            isDense: true,
+            alignment: Alignment.centerRight,
+            icon: Icon(
+              Icons.unfold_more_rounded,
+              size: 18,
+              color: tokens.muted,
+            ),
+            style: ClaudeType.bodySmall.copyWith(color: tokens.bodyStrong),
+            dropdownColor: tokens.surfaceCard,
+            onChanged: (next) {
+              if (next != null) onChanged(next);
+            },
+            items: [
+              for (final entry in items.entries)
+                DropdownMenuItem<T>(
+                  value: entry.key,
+                  child: Text(
+                    entry.value,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: ClaudeType.bodySmall.copyWith(
+                      color: tokens.bodyStrong,
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -1435,35 +1595,43 @@ class _SliderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final clamped = value.clamp(min, max);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(label, style: const TextStyle(fontSize: 13)),
-            ),
-            Text(
-              display,
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: AppColors.accent,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: ClaudeSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: ClaudeType.bodySmall.copyWith(
+                    color: tokens.bodyStrong,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-        Slider(
-          value: clamped,
-          min: min,
-          max: max,
-          divisions: divisions,
-          label: display,
-          onChanged: onChanged,
-        ),
-      ],
+              Text(
+                display,
+                style: ClaudeType.caption.copyWith(
+                  color: tokens.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: clamped,
+            min: min,
+            max: max,
+            divisions: divisions,
+            label: display,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1483,34 +1651,17 @@ class _StorageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final tokens = context.tokens;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontSize: 12.5)),
-                Text(
-                  '$quant · ${formatBytes(bytes)}',
-                  style: TextStyle(fontSize: 10.5, color: secondary),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Delete',
-            onPressed: onDelete,
-            iconSize: 16,
-            color: AppColors.error,
-            icon: const Icon(Icons.delete_outline_rounded),
-          ),
-        ],
+    return ClaudeRow(
+      label: name,
+      subtitle: '$quant · ${formatBytes(bytes)}',
+      trailing: IconButton(
+        tooltip: 'Delete',
+        onPressed: onDelete,
+        iconSize: 18,
+        color: tokens.errorText,
+        icon: const Icon(Icons.delete_outline_rounded),
       ),
     );
   }

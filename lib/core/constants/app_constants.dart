@@ -54,4 +54,34 @@ abstract final class AppConstants {
   /// How many recent messages are sent to the model. Guards against a long
   /// conversation silently blowing past the context window.
   static const int maxMessagesInContext = 40;
+
+  /// How many llama.cpp sequences the pinned fllama build runs per context.
+  ///
+  /// Not a choice this app can make. At the pinned ref `fllama.cpp` sets
+  /// `params.n_parallel = ServerManager::DEFAULT_N_PARALLEL` for every request,
+  /// and `fllama_inference_queue.h` defines that as 4; the request's own
+  /// `nParallel` field is documented as a web-only override. llama.cpp then
+  /// divides the requested context between the sequences whenever the KV cache
+  /// is not unified - `n_ctx_seq = n_ctx / n_seq_max` in `llama-context.cpp` -
+  /// and fllama leaves `kv_unified` at its `false` default. A request for 8192
+  /// tokens therefore gives each conversation 2048, while the KV cache is still
+  /// allocated for the whole 8192.
+  ///
+  /// If the engine is ever patched to a single slot - one line in fllama, see
+  /// `docs/FLLAMA_FORK.md` - this is the only line that has to change here, and
+  /// every prompt budget, preflight and meter follows from it.
+  static const int parallelSlots = 4;
+
+  /// The window one conversation actually gets from a requested total.
+  ///
+  /// llama.cpp pads the per-sequence figure up to a multiple of 256, so the
+  /// real value can be slightly larger than this - never smaller, which is the
+  /// direction that matters for a budget. The only case that returns the input
+  /// unchanged is a request too small to divide at all.
+  static int perChatContextLength(int requestedContextLength) {
+    if (requestedContextLength <= 0) return requestedContextLength;
+    final perSlot = requestedContextLength ~/ parallelSlots;
+    final padded = perSlot < 256 ? 256 : perSlot;
+    return padded > requestedContextLength ? requestedContextLength : padded;
+  }
 }

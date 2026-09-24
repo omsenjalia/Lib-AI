@@ -1,29 +1,196 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/data/database.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/claude_mark.dart';
 import '../../chat/providers/chat_controller.dart';
+import '../../model_library/screens/model_library_screen.dart';
 import '../../notes/screens/notes_screen.dart';
 import '../../personas/screens/personas_screen.dart';
 import '../../settings/screens/settings_screen.dart';
-import '../../model_library/screens/model_library_screen.dart';
+import 'conversation_actions_sheet.dart';
 
-/// The conversation list, shown as the chat screen's drawer.
+/// The recents panel, and the host that slides it in.
+///
+/// ## Why this is not a Material [Drawer]
+///
+/// The panel's width (85 %), its travel time (280 ms with the documented
+/// ease-out) and its scrim (black at 40 %) are all specified, and none of the
+/// three is configurable on [Scaffold]'s drawer. Rather than accept a 246 ms
+/// slide at Material's own scrim the host owns one [AnimationController], which
+/// also lets the panel track a finger during an edge swipe instead of only
+/// playing a fixed animation.
+///
+/// The host handles what a drawer would otherwise provide for free: the scrim
+/// tap, a left-edge drag to open, a leftward drag on the panel to close, and the
+/// system back gesture.
+class SidebarHost extends StatefulWidget {
+  const SidebarHost({
+    super.key,
+    required this.child,
+    required this.sidebar,
+    this.edgeDragWidth = 20,
+  });
+
+  /// The screen behind the panel.
+  final Widget child;
+
+  /// The panel itself.
+  final Widget sidebar;
+
+  /// How far in from the left edge a drag may start an open gesture.
+  final double edgeDragWidth;
+
+  @override
+  State<SidebarHost> createState() => SidebarHostState();
+}
+
+class SidebarHostState extends State<SidebarHost>
+    with SingleTickerProviderStateMixin {
+  /// 0 = closed, 1 = fully open. Driven by the animation or by a drag.
+  late final AnimationController _progress = AnimationController(
+    vsync: this,
+    duration: ClaudeMotion.base,
+    reverseDuration: ClaudeMotion.base,
+  );
+
+  /// The panel's share of the screen width.
+  static const double _widthFactor = 0.85;
+
+  bool get isOpen => _progress.value > 0.0;
+
+  void open() => _progress.forward();
+
+  void close() => _progress.reverse();
+
+  void toggle() => isOpen ? close() : open();
+
+  @override
+  void dispose() {
+    _progress.dispose();
+    super.dispose();
+  }
+
+  /// Drag handling shared by the edge strip and the panel.
+  void _onDragUpdate(DragUpdateDetails details) {
+    final width = MediaQuery.sizeOf(context).width * _widthFactor;
+    if (width <= 0) return;
+    _progress.value = (_progress.value + details.delta.dx / width).clamp(0, 1);
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    final velocity = details.velocity.pixelsPerSecond.dx;
+    // A decisive flick wins over position; otherwise the panel settles to
+    // whichever end it is closer to.
+    if (velocity.abs() > 350) {
+      velocity > 0 ? open() : close();
+      return;
+    }
+    _progress.value >= 0.5 ? open() : close();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final panelWidth = screenWidth * _widthFactor;
+
+    return PopScope(
+      // A back gesture closes the panel first, and does not leave the screen.
+      canPop: !isOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isOpen) close();
+      },
+      child: Stack(
+        children: [
+          widget.child,
+
+          // Left-edge strip. Only present while closed, so it cannot swallow
+          // drags that belong to the transcript.
+          if (!isOpen)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: widget.edgeDragWidth,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onHorizontalDragUpdate: _onDragUpdate,
+                onHorizontalDragEnd: _onDragEnd,
+              ),
+            ),
+
+          // Scrim: fades in with the panel, and only takes taps once it is
+          // actually visible.
+          AnimatedBuilder(
+            animation: _progress,
+            builder: (context, _) {
+              final value = _progress.value;
+              return IgnorePointer(
+                ignoring: value == 0,
+                child: GestureDetector(
+                  key: const Key('sidebar-scrim'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: close,
+                  child: ColoredBox(
+                    color: tokens.scrim.withValues(
+                      alpha: tokens.scrim.a * value,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          AnimatedBuilder(
+            animation: _progress,
+            builder: (context, child) {
+              final value = Curves.easeOutCubic.transform(
+                _progress.value.clamp(0.0, 1.0),
+              );
+              return Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: panelWidth,
+                child: FractionalTranslation(
+                  translation: Offset(value - 1, 0),
+                  child: GestureDetector(
+                    key: const Key('sidebar-panel'),
+                    onHorizontalDragUpdate: _onDragUpdate,
+                    onHorizontalDragEnd: _onDragEnd,
+                    child: child,
+                  ),
+                ),
+              );
+            },
+            child: Material(
+              color: tokens.sidebarSurface,
+              child: widget.sidebar,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The conversation list panel.
 ///
 /// Ordering and search are both local: the list is a stream from SQLite, and
 /// what the user types filters that in-memory list. Nothing here touches the
 /// network, which is what lets the sidebar work in airplane mode like every
 /// other screen.
-///
-/// Swipe-to-delete is paired with undo rather than a confirmation dialog: a
-/// swipe is easy to trigger by accident, and an undo bar is a lighter way to
-/// make that recoverable than a modal for every deletion.
 class ConversationSidebar extends ConsumerStatefulWidget {
-  const ConversationSidebar({super.key});
+  const ConversationSidebar({super.key, this.onNavigate});
+
+  /// Called when a row has opened a conversation, so the host can close the
+  /// panel.
+  final VoidCallback? onNavigate;
 
   /// Deletes [conversation], leaving an undo bar in its place.
   ///
@@ -48,7 +215,7 @@ class ConversationSidebar extends ConsumerStatefulWidget {
       SnackBar(
         content: Text('Deleted "${conversation.title}"'),
         duration: const Duration(seconds: 6),
-        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(ClaudeSpacing.md),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () async {
@@ -82,6 +249,10 @@ class ConversationSidebar extends ConsumerStatefulWidget {
 class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
   final _searchController = TextEditingController();
 
+  /// Ids mid-collapse, so a delete animates the row away before the list
+  /// rebuilds without it.
+  final _collapsing = <int>{};
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -90,8 +261,7 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
+    final tokens = context.tokens;
     final conversations = ref.watch(conversationsProvider);
     final chat = ref.watch(chatControllerProvider);
 
@@ -100,84 +270,113 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _header(context),
-          _searchField(context, isLight),
-          const Divider(height: 1),
+          _newChatButton(context),
+          _searchField(context),
           Expanded(
             child: conversations.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: tokens.primary,
+                ),
+              ),
               error: (error, stack) => Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('Could not load conversations: $error'),
+                padding: const EdgeInsets.all(ClaudeSpacing.md),
+                child: Text(
+                  'Could not load conversations: $error',
+                  style: ClaudeType.bodySmall.copyWith(color: tokens.muted),
+                ),
               ),
               data: (rows) {
                 final filtered = _filter(rows);
                 if (filtered.isEmpty) {
-                  return EmptyState(
-                    icon: Icons.forum_outlined,
-                    title: rows.isEmpty
-                        ? 'No conversations yet'
-                        : 'Nothing matches',
-                    message: rows.isEmpty
-                        ? 'Ask a question and your conversations will appear here.'
-                        : 'Try a different search term.',
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(ClaudeSpacing.lg),
+                      child: Text(
+                        rows.isEmpty
+                            ? 'No conversations yet.\nAsk something and it '
+                                'will appear here.'
+                            : 'Nothing matches that search.',
+                        textAlign: TextAlign.center,
+                        style: ClaudeType.bodySmall.copyWith(
+                          color: tokens.muted,
+                        ),
+                      ),
+                    ),
                   );
                 }
                 return _conversationList(filtered, chat);
               },
             ),
           ),
-          const Divider(height: 1),
-          _footer(context, ref),
+          _footer(context),
         ],
       ),
     );
   }
 
   Widget _header(BuildContext context) {
+    final tokens = context.tokens;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+      padding: const EdgeInsets.fromLTRB(
+        ClaudeSpacing.md,
+        ClaudeSpacing.md,
+        ClaudeSpacing.md,
+        ClaudeSpacing.xs,
+      ),
       child: Row(
         children: [
-          const Expanded(
-            child: Text(
-              'Library AI',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-          IconButton(
-            tooltip: 'New chat',
-            onPressed: () {
-              ref.read(chatControllerProvider).startNewChat();
-              Navigator.of(context).maybePop();
-            },
-            icon: const Icon(Icons.edit_square),
-            iconSize: 19,
-            color: AppColors.accent,
+          ClaudeMark(size: 20, color: tokens.primary),
+          const SizedBox(width: ClaudeSpacing.xs),
+          Text(
+            AppConstants.appName,
+            style: ClaudeType.titleSmall.copyWith(color: tokens.ink),
           ),
         ],
       ),
     );
   }
 
-  Widget _searchField(BuildContext context, bool isLight) {
+  Widget _newChatButton(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      padding: const EdgeInsets.symmetric(horizontal: ClaudeSpacing.md),
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: () {
+            ref.read(chatControllerProvider).startNewChat();
+            widget.onNavigate?.call();
+          },
+          icon: const Icon(Icons.edit_outlined, size: 17),
+          label: const Text('New chat'),
+        ),
+      ),
+    );
+  }
+
+  Widget _searchField(BuildContext context) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        ClaudeSpacing.md,
+        ClaudeSpacing.sm,
+        ClaudeSpacing.md,
+        ClaudeSpacing.xs,
+      ),
       child: TextField(
         controller: _searchController,
         onChanged: (_) => setState(() {}),
-        style: const TextStyle(fontSize: 13),
+        style: ClaudeType.bodySmall.copyWith(color: tokens.ink),
         decoration: InputDecoration(
           isDense: true,
+          filled: true,
+          fillColor: tokens.surfaceSoft,
           hintText: 'Search conversations',
-          hintStyle: TextStyle(
-            fontSize: 13,
-            color: isLight
-                ? AppColors.lightTextSecondary
-                : AppColors.textSecondary,
-          ),
-          prefixIcon: const Icon(Icons.search_rounded, size: 18),
+          hintStyle: ClaudeType.bodySmall.copyWith(color: tokens.muted),
+          prefixIcon: Icon(Icons.search_rounded, size: 18, color: tokens.muted),
           prefixIconConstraints:
-              const BoxConstraints(minWidth: 34, minHeight: 34),
+              const BoxConstraints(minWidth: 40, minHeight: 40),
           suffixIcon: _searchController.text.isEmpty
               ? null
               : IconButton(
@@ -189,10 +388,16 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
                   icon: const Icon(Icons.close_rounded),
                 ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(
-              color: isLight ? AppColors.lightOutline : AppColors.outline,
-            ),
+            borderRadius: BorderRadius.circular(ClaudeRadius.pill),
+            borderSide: BorderSide(color: tokens.hairline),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(ClaudeRadius.pill),
+            borderSide: BorderSide(color: tokens.hairline),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(ClaudeRadius.pill),
+            borderSide: BorderSide(color: tokens.primary),
           ),
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
         ),
@@ -211,155 +416,353 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
     }).toList(growable: false);
   }
 
-  Widget _conversationList(
-    List<Conversation> rows,
-    ChatController chat,
-  ) {
+  /// Groups by recency, in the order the reference uses: a search result set is
+  /// not re-grouped, because a search is about finding one row rather than
+  /// browsing a timeline.
+  Widget _conversationList(List<Conversation> rows, ChatController chat) {
+    if (_searchController.text.trim().isNotEmpty) {
+      return ListView(
+        padding: const EdgeInsets.only(bottom: ClaudeSpacing.md),
+        children: [for (final row in rows) _tile(row, chat)],
+      );
+    }
+
+    final now = DateTime.now();
+    final buckets = <String, List<Conversation>>{
+      'Today': [],
+      'Yesterday': [],
+      'Previous 7 days': [],
+      'Older': [],
+    };
+
+    for (final row in rows) {
+      buckets[_bucketFor(row.updatedAt, now)]!.add(row);
+    }
+
     return ListView(
-      padding: const EdgeInsets.only(bottom: 12),
-      children: [for (final conversation in rows) _tile(conversation, chat)],
+      padding: const EdgeInsets.only(bottom: ClaudeSpacing.md),
+      children: [
+        for (final entry in buckets.entries)
+          if (entry.value.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                ClaudeSpacing.md,
+                ClaudeSpacing.md,
+                ClaudeSpacing.md,
+                ClaudeSpacing.xs,
+              ),
+              child: Text(
+                entry.key.toUpperCase(),
+                style: ClaudeType.captionCaps.copyWith(
+                  color: context.tokens.muted,
+                ),
+              ),
+            ),
+            for (final conversation in entry.value) _tile(conversation, chat),
+          ],
+      ],
     );
   }
 
+  static String _bucketFor(DateTime updatedAt, DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final that = DateTime(updatedAt.year, updatedAt.month, updatedAt.day);
+    final days = today.difference(that).inDays;
+    if (days <= 0) return 'Today';
+    if (days == 1) return 'Yesterday';
+    if (days < 7) return 'Previous 7 days';
+    return 'Older';
+  }
+
   Widget _tile(Conversation conversation, ChatController chat) {
-    final scheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     final isActive = chat.conversationId == conversation.id;
+    final collapsing = _collapsing.contains(conversation.id);
+
+    final row = Material(
+      color: isActive ? tokens.surfaceSoft : Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          chat.openConversation(conversation.id);
+          widget.onNavigate?.call();
+        },
+        // Long press is where a conversation's own actions live: rename,
+        // duplicate, export and delete all act on the row that was pressed.
+        onLongPress: () => ConversationActionsSheet.show(
+          context,
+          conversation,
+          onClosed: widget.onNavigate,
+        ),
+        child: SizedBox(
+          height: ClaudeSpacing.sidebarRowHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: ClaudeSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        conversation.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ClaudeType.bodySmall.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: tokens.bodyStrong,
+                        ),
+                      ),
+                      if (_personaName(conversation) != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: _SubjectTag(
+                            label: _personaName(conversation)!,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: ClaudeSpacing.xs),
+                Text(
+                  formatRelativeTime(conversation.updatedAt),
+                  style: ClaudeType.caption.copyWith(
+                    fontWeight: FontWeight.w400,
+                    color: tokens.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
     return Dismissible(
       key: ValueKey('conversation-${conversation.id}'),
       direction: DismissDirection.endToStart,
+      // The red affordance is exactly the width of the delete target, so what
+      // the user reveals is what they are about to hit.
       background: Container(
         alignment: Alignment.centerRight,
-        color: AppColors.error.withValues(alpha: 0.85),
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+        color: tokens.error,
+        width: 48,
+        padding: const EdgeInsets.only(right: ClaudeSpacing.md),
+        child: Icon(
+          Icons.delete_outline_rounded,
+          color: tokens.onPrimary,
+          size: 20,
+        ),
       ),
-      // Confirm before removing: the delete is undoable, but a Dismissible that
-      // returns true is gone from the tree immediately, so the undo bar is what
-      // the user actually sees.
       confirmDismiss: (_) async {
-        await ConversationSidebar.deleteWithUndo(context, ref, conversation);
+        // Collapse the row first, then delete: the list is a database stream,
+        // so a row that vanished without a transition would read as a glitch.
+        setState(() => _collapsing.add(conversation.id));
+        await Future<void>.delayed(ClaudeMotion.base);
+        if (!mounted) return false;
+        // If the delete fails the row stays in the list; un-collapsing it after
+        // the fact is better than leaving an invisible row behind.
+        Future<void>.delayed(const Duration(seconds: 3), () {
+          if (mounted) setState(() => _collapsing.remove(conversation.id));
+        });
+        await ConversationSidebar.deleteWithUndo(
+          context,
+          ref,
+          conversation,
+        );
         return false;
       },
-      child: Material(
-        color: isActive
-            ? AppColors.accent.withValues(alpha: 0.10)
-            : Colors.transparent,
-        child: ListTile(
-          dense: true,
-          selected: isActive,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-          title: Text(
-            conversation.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              color: scheme.onSurface,
-            ),
+      child: ClipRect(
+        child: AnimatedAlign(
+          alignment: Alignment.centerLeft,
+          heightFactor: collapsing ? 0 : 1,
+          duration: ClaudeMotion.base,
+          curve: ClaudeMotion.easeOut,
+          child: AnimatedOpacity(
+            opacity: collapsing ? 0 : 1,
+            duration: ClaudeMotion.base,
+            curve: ClaudeMotion.easeOut,
+            child: row,
           ),
-          subtitle: Text(
-            formatRelativeTime(conversation.updatedAt),
-            style: TextStyle(
-              fontSize: 10.5,
-              color: scheme.brightness == Brightness.dark
-                  ? AppColors.textSecondary
-                  : AppColors.lightTextSecondary,
-            ),
-          ),
-          onTap: () {
-            chat.openConversation(conversation.id);
-            Navigator.of(context).maybePop();
-          },
         ),
       ),
     );
   }
 
-  Widget _footer(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final secondary = scheme.brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+  String? _personaName(Conversation conversation) {
+    final personaId = conversation.personaId;
+    if (personaId == null) return null;
+    final personas = ref.watch(personasProvider).valueOrNull;
+    if (personas == null) return null;
+    for (final persona in personas) {
+      if (persona.id == personaId) return persona.name;
+    }
+    return null;
+  }
+
+  Widget _footer(BuildContext context) {
+    final tokens = context.tokens;
+    final activeModel = ref.watch(activeModelIdProvider);
 
     void push(Widget screen) {
+      // Navigating from the panel closes it, so returning from a pushed screen
+      // lands on the conversation rather than on an open drawer.
+      widget.onNavigate?.call();
       Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => screen),
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          _footerTile(
-            icon: Icons.library_books_rounded,
-            label: 'Model Library',
-            trailing: _modelBadge(ref),
-            onTap: () => push(const ModelLibraryScreen()),
-            secondary: secondary,
-          ),
-          _footerTile(
-            icon: Icons.school_rounded,
-            label: 'Study Personas',
-            onTap: () => push(const PersonasScreen()),
-            secondary: secondary,
-          ),
-          _footerTile(
-            icon: Icons.note_alt_outlined,
-            label: 'My Notes',
-            trailing: const Text(
-              'Coming soon',
-              style: TextStyle(fontSize: 10, color: AppColors.accent),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Divider(height: 1, thickness: 1, color: tokens.hairline),
+        _footerRow(
+          icon: Icons.library_books_rounded,
+          label: 'Model Library',
+          trailing: Text(
+            activeModel == null ? 'No model' : 'Ready',
+            style: ClaudeType.caption.copyWith(
+              fontWeight: FontWeight.w400,
+              color: activeModel == null ? tokens.errorText : tokens.muted,
             ),
-            onTap: () => push(const NotesScreen()),
-            secondary: secondary,
           ),
-          _footerTile(
-            icon: Icons.settings_rounded,
-            label: 'Settings',
-            onTap: () => push(const SettingsScreen()),
-            secondary: secondary,
+          onTap: () => push(const ModelLibraryScreen()),
+        ),
+        _footerRow(
+          icon: Icons.school_rounded,
+          label: 'Study Personas',
+          onTap: () => push(const PersonasScreen()),
+        ),
+        _footerRow(
+          icon: Icons.note_alt_outlined,
+          label: 'My Notes',
+          onTap: () => push(const NotesScreen()),
+        ),
+        _footerRow(
+          icon: Icons.settings_rounded,
+          label: 'Settings',
+          onTap: () => push(const SettingsScreen()),
+          showDivider: false,
+        ),
+        Divider(height: 1, thickness: 1, color: tokens.hairline),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: ClaudeSpacing.md,
+            vertical: ClaudeSpacing.sm,
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: tokens.surfaceStrong,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: tokens.hairline),
+                ),
+                child: Text(
+                  'AI',
+                  style: ClaudeType.caption.copyWith(
+                    fontSize: 10,
+                    color: tokens.bodyStrong,
+                  ),
+                ),
+              ),
+              const SizedBox(width: ClaudeSpacing.sm),
+              Expanded(
+                child: Text(
+                  AppConstants.appName,
+                  style: ClaudeType.bodySmall.copyWith(
+                    color: tokens.bodyStrong,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Settings',
+                iconSize: 18,
+                color: tokens.muted,
+                onPressed: () => push(const SettingsScreen()),
+                icon: const Icon(Icons.settings_outlined),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  /// Number of installed models, or nothing while the list is loading.
-  Widget? _modelBadge(WidgetRef ref) {
-    final installs = ref.watch(installationsProvider).valueOrNull;
-    if (installs == null) return null;
-    if (installs.isEmpty) {
-      return const Text(
-        'No model',
-        style: TextStyle(fontSize: 10, color: AppColors.error),
-      );
-    }
-    return Text(
-      '${installs.length} installed',
-      style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-    );
-  }
-
-  Widget _footerTile({
+  Widget _footerRow({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    required Color secondary,
     Widget? trailing,
+    bool showDivider = true,
   }) {
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18),
-      leading: Icon(icon, size: 18, color: secondary),
-      title: Text(
-        label,
-        style: const TextStyle(fontSize: 12.5),
+    final tokens = context.tokens;
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 44,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: ClaudeSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, size: 18, color: tokens.muted),
+                  const SizedBox(width: ClaudeSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: ClaudeType.bodySmall.copyWith(
+                        color: tokens.bodyStrong,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) trailing,
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (showDivider)
+          Divider(height: 1, thickness: 1, color: tokens.hairlineSoft),
+      ],
+    );
+  }
+}
+
+/// The 10 px subject tag on a conversation row.
+class _SubjectTag extends StatelessWidget {
+  const _SubjectTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: tokens.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(ClaudeRadius.xs),
       ),
-      trailing: trailing,
-      onTap: onTap,
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: ClaudeType.caption.copyWith(
+          fontSize: 10,
+          fontWeight: FontWeight.w400,
+          color: tokens.primaryActive,
+        ),
+      ),
     );
   }
 }

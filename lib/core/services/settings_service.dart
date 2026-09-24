@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import '../data/database.dart';
 import '../models/app_settings.dart';
+import '../theme/claude_tokens.dart';
 
 /// Loads and persists [AppSettings] against the `SettingEntries` table.
 ///
@@ -63,6 +64,9 @@ class SettingsService {
     int? topK,
     int? gpuLayers,
     bool? autoUpdateCheckEnabled,
+    ChatFontFamily? chatFont,
+    String? systemPrompt,
+    bool clearSystemPrompt = false,
   }) async {
     final next = current.copyWith(
       themeMode: themeMode,
@@ -73,6 +77,9 @@ class SettingsService {
       topK: topK,
       gpuLayers: gpuLayers,
       autoUpdateCheckEnabled: autoUpdateCheckEnabled,
+      chatFont: chatFont,
+      systemPrompt: systemPrompt,
+      clearSystemPrompt: clearSystemPrompt,
     );
     await save(next);
     return next;

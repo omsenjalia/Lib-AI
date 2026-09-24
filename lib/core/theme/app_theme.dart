@@ -1,301 +1,285 @@
 import 'package:flutter/material.dart';
 
-import 'app_colors.dart';
+import 'claude_tokens.dart';
 
-/// Builds Library AI's Material 3 themes.
+/// Library AI's Material themes, built entirely from the Claude token set.
 ///
-/// Dark mode is the primary design and is tuned first; light mode is a genuine
-/// second design (warm paper stock) rather than a mechanical inversion, because
-/// a study app that goes blinding-white at night is not intentional.
+/// Two rules run through this file:
 ///
-/// Note throughout: `withValues(alpha:)` is used instead of the deprecated
-/// `withOpacity()`, and Material 3 `surfaceContainer*` roles are used instead of
-/// the deprecated `background`/`surfaceVariant` pair.
+///  * **No elevation.** Every surface is flat; depth is expressed as a colour
+///    step (`canvas` → `surfaceSoft` → `surfaceCard`) and a 1 px hairline. No
+///    Material widget in the app is allowed a shadow, so every theme entry that
+///    could introduce one is pinned to zero.
+///  * **One accent.** `primary` is the only saturated colour in the interface.
+///    Nothing else is allowed to compete with it.
+///
+/// ## Why accent-coloured *fills* use `primaryActive`
+///
+/// The reference paints label-bearing accent buttons in coral `#CC785C`, which
+/// measures 3.3:1 against white — enough for the icon-only compose button, not
+/// enough for a 14 px word. Every accent surface that carries a label therefore
+/// uses `primaryActive` `#A9583E` (5.1:1), while icon-only accent fills keep the
+/// transcribed `primary`. This is the one visual place the shell intentionally
+/// differs from the reference, and it is a contrast requirement rather than a
+/// taste call.
 abstract final class AppTheme {
-  static ThemeData dark() {
-    const scheme = ColorScheme(
-      brightness: Brightness.dark,
-      primary: AppColors.accent,
-      onPrimary: AppColors.base,
-      primaryContainer: AppColors.accentMuted,
-      onPrimaryContainer: AppColors.accent,
-      secondary: AppColors.accent,
-      onSecondary: AppColors.base,
-      tertiary: AppColors.success,
-      onTertiary: AppColors.base,
-      error: AppColors.error,
-      onError: AppColors.base,
-      surface: AppColors.base,
-      onSurface: AppColors.textPrimary,
-      surfaceContainerLowest: AppColors.base,
-      surfaceContainerLow: AppColors.surface,
-      surfaceContainer: AppColors.surface,
-      surfaceContainerHigh: AppColors.surfaceHigh,
-      surfaceContainerHighest: AppColors.surfaceHigh,
-      onSurfaceVariant: AppColors.textSecondary,
-      outline: AppColors.outline,
-      outlineVariant: AppColors.outline,
-      shadow: Colors.black,
-      scrim: Colors.black,
-      inverseSurface: AppColors.textPrimary,
-      onInverseSurface: AppColors.base,
-      inversePrimary: AppColors.base,
+  static ThemeData dark() => _build(ClaudeTokens.dark);
+
+  static ThemeData light() => _build(ClaudeTokens.light);
+
+  static ThemeData _build(ClaudeTokens tokens) {
+    final scheme = ColorScheme(
+      brightness: tokens.isDark ? Brightness.dark : Brightness.light,
+      primary: tokens.primaryActive,
+      onPrimary: tokens.onPrimary,
+      primaryContainer: tokens.primary,
+      onPrimaryContainer: tokens.onPrimary,
+      secondary: tokens.primary,
+      onSecondary: tokens.onPrimary,
+      tertiary: tokens.success,
+      onTertiary: tokens.onPrimary,
+      error: tokens.error,
+      onError: ClaudeColors.onPrimary,
+      surface: tokens.canvas,
+      onSurface: tokens.ink,
+      surfaceContainerLowest: tokens.canvas,
+      surfaceContainerLow: tokens.surfaceSoft,
+      surfaceContainer: tokens.surfaceCard,
+      surfaceContainerHigh: tokens.surfaceCard,
+      surfaceContainerHighest: tokens.surfaceStrong,
+      onSurfaceVariant: tokens.muted,
+      outline: tokens.hairline,
+      outlineVariant: tokens.hairlineSoft,
+      // Zero elevation everywhere, including the shadow colour itself so a
+      // stray `elevation` on a widget cannot paint grey.
+      shadow: Colors.transparent,
+      scrim: tokens.scrim,
+      inverseSurface: tokens.ink,
+      onInverseSurface: tokens.canvas,
+      inversePrimary: tokens.onPrimary,
     );
 
-    return _base(scheme).copyWith(
-      scaffoldBackgroundColor: AppColors.base,
-      cardTheme: _cardTheme(AppColors.surface, AppColors.outline),
-      dividerTheme: const DividerThemeData(
-        color: AppColors.outline,
-        thickness: 1,
-        space: 1,
-      ),
-    );
-  }
-
-  static ThemeData light() {
-    const scheme = ColorScheme(
-      brightness: Brightness.light,
-      primary: AppColors.lightAccent,
-      onPrimary: Colors.white,
-      primaryContainer: AppColors.lightAccentMuted,
-      onPrimaryContainer: AppColors.lightAccent,
-      secondary: AppColors.lightAccent,
-      onSecondary: Colors.white,
-      tertiary: AppColors.lightSuccess,
-      onTertiary: Colors.white,
-      error: AppColors.lightError,
-      onError: Colors.white,
-      surface: AppColors.lightBase,
-      onSurface: AppColors.lightTextPrimary,
-      surfaceContainerLowest: Colors.white,
-      surfaceContainerLow: AppColors.lightSurface,
-      surfaceContainer: AppColors.lightSurface,
-      surfaceContainerHigh: AppColors.lightSurfaceHigh,
-      surfaceContainerHighest: AppColors.lightSurfaceHigh,
-      onSurfaceVariant: AppColors.lightTextSecondary,
-      outline: AppColors.lightOutline,
-      outlineVariant: AppColors.lightOutline,
-      shadow: Colors.black26,
-      scrim: Colors.black45,
-      inverseSurface: AppColors.lightTextPrimary,
-      onInverseSurface: Colors.white,
-      inversePrimary: AppColors.accent,
-    );
-
-    return _base(scheme).copyWith(
-      scaffoldBackgroundColor: AppColors.lightBase,
-      cardTheme: _cardTheme(AppColors.lightSurface, AppColors.lightOutline),
-      dividerTheme: const DividerThemeData(
-        color: AppColors.lightOutline,
-        thickness: 1,
-        space: 1,
-      ),
-    );
-  }
-
-  /// Everything the two modes share.
-  static ThemeData _base(ColorScheme scheme) {
-    final isDark = scheme.brightness == Brightness.dark;
-    final textColor =
-        isDark ? AppColors.textPrimary : AppColors.lightTextPrimary;
-    final mutedColor =
-        isDark ? AppColors.textSecondary : AppColors.lightTextSecondary;
+    final text = _textTheme(tokens);
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      // Bundled locally; the app works identically in airplane mode.
-      fontFamily: 'Inter',
+      extensions: <ThemeExtension<dynamic>>[tokens],
+      // One family for every control and body run. Display copy opts into Lora
+      // through the type tokens rather than through the theme default.
+      fontFamily: ClaudeType.ui,
+      textTheme: text,
+      scaffoldBackgroundColor: tokens.canvas,
+      canvasColor: tokens.canvas,
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
-      textTheme: _textTheme(textColor, mutedColor).apply(fontFamily: 'Inter'),
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: tokens.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
-        foregroundColor: textColor,
-        titleTextStyle: TextStyle(
-          color: textColor,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.2,
+        centerTitle: true,
+        foregroundColor: tokens.ink,
+        titleTextStyle: ClaudeType.titleSmall.copyWith(color: tokens.ink),
+      ),
+      iconTheme: IconThemeData(color: tokens.muted, size: 22),
+      dividerTheme: DividerThemeData(
+        color: tokens.hairline,
+        thickness: 1,
+        space: 1,
+      ),
+      listTileTheme: ListTileThemeData(
+        iconColor: tokens.muted,
+        textColor: tokens.ink,
+        titleTextStyle: ClaudeType.bodySmall.copyWith(color: tokens.bodyStrong),
+      ),
+      cardTheme: CardThemeData(
+        color: tokens.surfaceCard,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ClaudeRadius.lg),
+          side: BorderSide(color: tokens.hairline),
         ),
       ),
-      iconTheme: IconThemeData(color: mutedColor, size: 20),
-      listTileTheme: ListTileThemeData(
-        iconColor: mutedColor,
-        textColor: textColor,
-      ),
       chipTheme: ChipThemeData(
-        backgroundColor: scheme.surfaceContainerHigh,
-        side: BorderSide(color: scheme.outline),
-        labelStyle: TextStyle(color: mutedColor, fontSize: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        backgroundColor: tokens.surfaceCard,
+        side: BorderSide(color: tokens.hairline),
+        labelStyle: ClaudeType.caption.copyWith(color: tokens.body),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(ClaudeRadius.lg),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHigh,
-        hintStyle: TextStyle(color: mutedColor, fontSize: 14),
+        fillColor: tokens.surfaceSoft,
+        hintStyle: ClaudeType.body.copyWith(color: tokens.muted),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.outline),
+          borderRadius: BorderRadius.circular(ClaudeRadius.pill),
+          borderSide: BorderSide(color: tokens.hairline),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.outline),
+          borderRadius: BorderRadius.circular(ClaudeRadius.pill),
+          borderSide: BorderSide(color: tokens.hairline),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(ClaudeRadius.pill),
+          borderSide: BorderSide(color: tokens.primary, width: 1),
         ),
       ),
+      // Buttons are flat-cornered: the reference has no rounded buttons
+      // anywhere, and the 0 dp radius is a load-bearing part of the look.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: scheme.primary,
-          foregroundColor: scheme.onPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+          backgroundColor: tokens.primaryActive,
+          foregroundColor: tokens.onPrimary,
+          disabledBackgroundColor: tokens.primaryDisabled,
+          disabledForegroundColor: tokens.muted,
+          elevation: 0,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          minimumSize: const Size(0, 44),
+          textStyle: ClaudeType.button,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: textColor,
-          side: BorderSide(color: scheme.outline),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+          foregroundColor: tokens.ink,
+          side: BorderSide(color: tokens.hairline),
+          elevation: 0,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+          minimumSize: const Size(0, 44),
+          textStyle: ClaudeType.button,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: scheme.primary),
+        style: TextButton.styleFrom(
+          foregroundColor: tokens.primaryActive,
+          textStyle: ClaudeType.button,
+          minimumSize: const Size(0, ClaudeSpacing.minTouchTarget),
+        ),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: scheme.primary,
-        inactiveTrackColor: scheme.surfaceContainerHighest,
-        thumbColor: scheme.primary,
-        overlayColor: scheme.primary.withValues(alpha: 0.14),
+        activeTrackColor: tokens.primary,
+        inactiveTrackColor: tokens.surfaceStrong,
+        thumbColor: tokens.primary,
+        overlayColor: tokens.primary.withValues(alpha: 0.14),
         trackHeight: 3,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return scheme.primary;
-          return mutedColor;
+          if (states.contains(WidgetState.selected)) return tokens.onPrimary;
+          return tokens.muted;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return scheme.primary.withValues(alpha: 0.35);
-          }
-          return scheme.surfaceContainerHighest;
+          if (states.contains(WidgetState.selected)) return tokens.primary;
+          return tokens.surfaceStrong;
         }),
+        trackOutlineColor: WidgetStatePropertyAll(tokens.hairline),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: scheme.surfaceContainerHigh,
+        backgroundColor: tokens.sheetSurface,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        modalElevation: 0,
+        // The handle is drawn by the sheet widgets themselves, at the size the
+        // tokens specify (32 x 4).
+        showDragHandle: false,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(ClaudeRadius.sheet)),
         ),
-        showDragHandle: true,
-        dragHandleColor: scheme.outline,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: scheme.surfaceContainerHigh,
+        backgroundColor: tokens.sheetSurface,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(ClaudeRadius.xl),
         ),
-        titleTextStyle: TextStyle(
-          color: textColor,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
+        titleTextStyle: ClaudeType.titleSmall.copyWith(color: tokens.ink),
+        contentTextStyle: ClaudeType.bodySmall.copyWith(color: tokens.body),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: tokens.sheetSurface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ClaudeRadius.lg),
+          side: BorderSide(color: tokens.hairline),
         ),
-        contentTextStyle: TextStyle(color: mutedColor, fontSize: 14),
+        textStyle: ClaudeType.bodySmall.copyWith(color: tokens.ink),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: scheme.surfaceContainerHighest,
-        contentTextStyle: TextStyle(color: textColor, fontSize: 14),
-        actionTextColor: scheme.primary,
+        backgroundColor: tokens.codeSurface,
+        contentTextStyle: ClaudeType.bodySmall.copyWith(color: tokens.onCode),
+        actionTextColor: tokens.primary,
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(ClaudeRadius.lg),
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: scheme.primary,
-        linearTrackColor: scheme.surfaceContainerHighest,
-        linearMinHeight: 4,
+        color: tokens.primary,
+        linearTrackColor: tokens.hairline,
+        linearMinHeight: 2,
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
+          color: tokens.codeSurface,
+          borderRadius: BorderRadius.circular(ClaudeRadius.sm),
         ),
-        textStyle: TextStyle(color: textColor, fontSize: 12),
+        textStyle: ClaudeType.caption.copyWith(color: tokens.onCode),
+      ),
+      // The banner is a message, not a raised surface: flat fill, hairline
+      // edges, no elevation.
+      bannerTheme: MaterialBannerThemeData(
+        backgroundColor: tokens.surfaceCard,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        dividerColor: tokens.hairline,
+        contentTextStyle: ClaudeType.bodySmall.copyWith(color: tokens.body),
       ),
     );
   }
 
-  static CardThemeData _cardTheme(Color fill, Color border) => CardThemeData(
-        color: fill,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: border),
+  static TextTheme _textTheme(ClaudeTokens t) => TextTheme(
+        displayLarge: ClaudeType.displayLarge.copyWith(color: t.ink),
+        displayMedium: ClaudeType.heading.copyWith(color: t.ink),
+        displaySmall: ClaudeType.greeting.copyWith(color: t.ink),
+        headlineMedium: ClaudeType.heading.copyWith(color: t.ink),
+        headlineSmall: ClaudeType.titleSmall.copyWith(color: t.ink),
+        titleLarge: ClaudeType.title.copyWith(color: t.ink),
+        titleMedium: ClaudeType.titleSmall.copyWith(
+          fontWeight: FontWeight.w500,
+          color: t.ink,
         ),
-      );
-
-  static TextTheme _textTheme(Color primary, Color secondary) => TextTheme(
-        displaySmall: TextStyle(
-          color: primary,
-          fontSize: 30,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.6,
+        titleSmall: ClaudeType.caption.copyWith(color: t.bodyStrong),
+        bodyLarge: ClaudeType.body.copyWith(color: t.ink),
+        bodyMedium: ClaudeType.bodySmall.copyWith(color: t.body),
+        bodySmall: ClaudeType.caption.copyWith(
+          color: t.muted,
+          fontWeight: FontWeight.w400,
         ),
-        headlineMedium: TextStyle(
-          color: primary,
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.4,
+        labelLarge: ClaudeType.button.copyWith(color: t.ink),
+        labelMedium: ClaudeType.caption.copyWith(
+          color: t.muted,
+          fontWeight: FontWeight.w400,
         ),
-        headlineSmall: TextStyle(
-          color: primary,
-          fontSize: 19,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.3,
+        labelSmall: ClaudeType.captionCaps.copyWith(
+          color: t.muted,
+          fontSize: 10,
         ),
-        titleMedium: TextStyle(
-          color: primary,
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
-        titleSmall: TextStyle(
-          color: primary,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
-        bodyLarge: TextStyle(color: primary, fontSize: 15.5, height: 1.6),
-        bodyMedium: TextStyle(color: primary, fontSize: 14, height: 1.55),
-        bodySmall: TextStyle(color: secondary, fontSize: 12, height: 1.45),
-        labelLarge: TextStyle(
-          color: primary,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
-        labelMedium: TextStyle(color: secondary, fontSize: 11.5),
-        labelSmall: TextStyle(color: secondary, fontSize: 10.5),
       );
 }

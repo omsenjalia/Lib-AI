@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/data/database.dart';
 import '../../../core/models/model_catalogue.dart';
 import '../../../core/models/transfer_state.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/meter_bar.dart';
+import '../../../core/widgets/status_badge.dart';
 
 /// One model in the library: what it is, which quantisation is selected,
 /// whether it is installed, and what can be done with it.
@@ -74,10 +74,9 @@ class _ModelCardState extends State<ModelCard> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
+    final tokens = context.tokens;
     final secondary =
-        isLight ? AppColors.lightTextSecondary : AppColors.textSecondary;
+        tokens.muted;
 
     final task = widget.task;
     final isDownloading = task != null && task.isActive;
@@ -85,12 +84,12 @@ class _ModelCardState extends State<ModelCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isLight ? AppColors.lightSurface : AppColors.surface,
+        color: tokens.surfaceStrong,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: _model.highRam
-              ? AppColors.error.withValues(alpha: 0.45)
-              : (isLight ? AppColors.lightOutline : AppColors.outline),
+              ? tokens.errorText.withValues(alpha: 0.45)
+              : (tokens.hairline),
           width: _model.highRam ? 1.2 : 1,
         ),
       ),
@@ -209,18 +208,19 @@ class _ModelCardState extends State<ModelCard> {
   }
 
   Widget _warningCard(BuildContext context, Color secondary) {
+    final tokens = context.tokens;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.09),
+        color: tokens.errorText.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
+        border: Border.all(color: tokens.errorText.withValues(alpha: 0.35)),
       ),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              size: 15, color: AppColors.error),
+          Icon(Icons.warning_amber_rounded,
+              size: 15, color: tokens.errorText),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -239,7 +239,7 @@ class _ModelCardState extends State<ModelCard> {
   }
 
   Widget _quantSelector(BuildContext context, Color secondary) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
+    final tokens = context.tokens;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,10 +258,10 @@ class _ModelCardState extends State<ModelCard> {
         const SizedBox(height: 5),
         Container(
           decoration: BoxDecoration(
-            color: isLight ? AppColors.lightSurfaceHigh : AppColors.surfaceHigh,
+            color: tokens.surfaceStrong,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isLight ? AppColors.lightOutline : AppColors.outline,
+              color: tokens.hairline,
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -297,21 +297,21 @@ class _ModelCardState extends State<ModelCard> {
                           ),
                         ),
                         if (option.quant == _model.recommendedQuant)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
                             child: Icon(
                               Icons.star_rounded,
                               size: 13,
-                              color: AppColors.accent,
+                              color: tokens.primary,
                             ),
                           ),
                         if (!option.fitsTargetDevice)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
                             child: Icon(
                               Icons.warning_amber_rounded,
                               size: 13,
-                              color: AppColors.error,
+                              color: tokens.errorText,
                             ),
                           ),
                         if (option.isMtp)
@@ -339,7 +339,7 @@ class _ModelCardState extends State<ModelCard> {
           style: TextStyle(
             fontSize: 10.5,
             height: 1.4,
-            color: _isInstalled ? AppColors.accent : secondary,
+            color: _isInstalled ? tokens.primary : secondary,
           ),
         ),
       ],
@@ -411,6 +411,7 @@ class _ModelCardState extends State<ModelCard> {
   /// so; where the card is ambiguous that is recorded here rather than quietly
   /// resolved in either direction.
   Widget _visionNote(BuildContext context, Color secondary) {
+    final tokens = context.tokens;
     final evidence = _model.visionSupported
         ? _model.visionEvidence
         : _model.visionAbsenceNote;
@@ -425,7 +426,7 @@ class _ModelCardState extends State<ModelCard> {
               ? Icons.visibility_outlined
               : Icons.no_photography_outlined,
           size: 13,
-          color: _model.visionSupported ? AppColors.accent : secondary,
+          color: _model.visionSupported ? tokens.primary : secondary,
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -457,27 +458,28 @@ class _ModelCardState extends State<ModelCard> {
   }
 
   Widget _updateNote(BuildContext context, Color secondary) {
+    final tokens = context.tokens;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.accentMuted.withValues(alpha: 0.5),
+        color: tokens.primary.withValues(alpha: 0.14).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+        border: Border.all(color: tokens.primary.withValues(alpha: 0.4)),
       ),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.system_update_alt_rounded,
-                  size: 14, color: AppColors.accent),
-              SizedBox(width: 6),
+                  size: 14, color: tokens.primary),
+              const SizedBox(width: 6),
               Text(
                 'Update available',
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.accent,
+                  color: tokens.primary,
                 ),
               ),
             ],
@@ -497,9 +499,8 @@ class _ModelCardState extends State<ModelCard> {
   }
 
   Widget _progress(BuildContext context, DownloadTask task) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final tokens = context.tokens;
+    final secondary = tokens.muted;
 
     final isVerifying = task.phase == DownloadPhase.verifying;
     final detail = isVerifying
@@ -527,7 +528,7 @@ class _ModelCardState extends State<ModelCard> {
             TextButton(
               onPressed: widget.onCancel,
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.error,
+                foregroundColor: tokens.errorText,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: const Size(0, 30),
               ),
@@ -550,10 +551,10 @@ class _ModelCardState extends State<ModelCard> {
           const SizedBox(height: 4),
           Text(
             task.error!,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10.5,
               height: 1.4,
-              color: AppColors.error,
+              color: tokens.errorText,
             ),
           ),
         ],
@@ -562,6 +563,7 @@ class _ModelCardState extends State<ModelCard> {
   }
 
   Widget _actions(BuildContext context, Color secondary) {
+    final tokens = context.tokens;
     final hasUpdate = widget.update?.updateAvailable ?? false;
     final task = widget.task;
     final interrupted = task != null &&
@@ -582,8 +584,8 @@ class _ModelCardState extends State<ModelCard> {
               icon: const Icon(Icons.system_update_alt_rounded, size: 16),
               label: const Text('Update'),
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: const Color(0xFF1A1A2E),
+                backgroundColor: tokens.primaryActive,
+                foregroundColor: tokens.onPrimary,
               ),
             ),
           OutlinedButton.icon(
@@ -595,7 +597,7 @@ class _ModelCardState extends State<ModelCard> {
             label: Text(widget.isDefault ? 'Default model' : 'Use by default'),
             style: OutlinedButton.styleFrom(
               foregroundColor:
-                  widget.isDefault ? AppColors.accent : secondary,
+                  widget.isDefault ? tokens.primary : secondary,
             ),
           ),
           OutlinedButton.icon(
@@ -603,9 +605,9 @@ class _ModelCardState extends State<ModelCard> {
             icon: const Icon(Icons.delete_outline_rounded, size: 16),
             label: const Text('Delete'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
+              foregroundColor: tokens.errorText,
               side: BorderSide(
-                color: AppColors.error.withValues(alpha: 0.4),
+                color: tokens.errorText.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -630,9 +632,9 @@ class _ModelCardState extends State<ModelCard> {
             // A model that cannot load still gets a working button - the brief
             // requires the hard block to be about mobile data, not about
             // disabling the download - but it is coloured as a risk.
-            backgroundColor: blocked ? AppColors.error : AppColors.accent,
-            foregroundColor:
-                blocked ? Colors.white : const Color(0xFF1A1A2E),
+            backgroundColor:
+                blocked ? tokens.errorText : tokens.primaryActive,
+            foregroundColor: tokens.onPrimary,
           ),
         ),
         if (canResume) ...[
@@ -646,10 +648,10 @@ class _ModelCardState extends State<ModelCard> {
           const SizedBox(height: 5),
           Text(
             task.error!,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10.5,
               height: 1.4,
-              color: AppColors.error,
+              color: tokens.errorText,
             ),
           ),
         ],
@@ -657,7 +659,7 @@ class _ModelCardState extends State<ModelCard> {
           const SizedBox(height: 5),
           Row(
             children: [
-              const Icon(Icons.wifi_rounded, size: 12, color: AppColors.accent),
+              Icon(Icons.wifi_rounded, size: 12, color: tokens.primary),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(

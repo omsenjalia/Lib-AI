@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/database.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
+import '../../../core/widgets/claude_sheet.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/widgets/empty_state.dart';
 
@@ -24,13 +25,16 @@ class PersonasScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Study Personas', style: TextStyle(fontSize: 16)),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _edit(context, ref, null),
-        backgroundColor: AppColors.accent,
-        foregroundColor: const Color(0xFF1A1A2E),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New persona'),
+        // The compose affordance lives in the bar rather than in a floating
+        // button: the reference has no FAB anywhere, and the bar already owns
+        // this slot in the chat screen.
+        actions: [
+          IconButton(
+            tooltip: 'New persona',
+            onPressed: () => _edit(context, ref, null),
+            icon: const Icon(Icons.add_rounded),
+          ),
+        ],
       ),
       body: personas.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -53,7 +57,7 @@ class PersonasScreen extends ConsumerWidget {
           final custom = rows.where((p) => !p.isBuiltIn).toList();
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+            padding: const EdgeInsets.only(bottom: ClaudeSpacing.xl),
             children: [
               _sectionLabel(context, 'Built in'),
               for (final persona in builtIn)
@@ -73,24 +77,8 @@ class PersonasScreen extends ConsumerWidget {
     );
   }
 
-  Widget _sectionLabel(BuildContext context, String label) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
-          color: secondary,
-        ),
-      ),
-    );
-  }
+  Widget _sectionLabel(BuildContext context, String label) =>
+      ClaudeSectionHeader(title: label);
 
   Widget _tile(
     BuildContext context,
@@ -98,19 +86,22 @@ class PersonasScreen extends ConsumerWidget {
     Persona persona, {
     required bool deleteAllowed,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    final isLight = scheme.brightness == Brightness.light;
-    final secondary =
-        isLight ? AppColors.lightTextSecondary : AppColors.textSecondary;
+    final tokens = context.tokens;
+    final secondary = tokens.muted;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(
+        ClaudeSpacing.md,
+        0,
+        ClaudeSpacing.md,
+        8,
+      ),
       child: Container(
         decoration: BoxDecoration(
-          color: isLight ? AppColors.lightSurface : AppColors.surface,
+          color: tokens.surfaceStrong,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isLight ? AppColors.lightOutline : AppColors.outline,
+            color: tokens.hairline,
           ),
         ),
         padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
@@ -141,7 +132,7 @@ class PersonasScreen extends ConsumerWidget {
                     tooltip: 'Delete',
                     onPressed: () => _delete(context, ref, persona),
                     iconSize: 17,
-                    color: AppColors.error,
+                    color: tokens.errorText,
                     icon: const Icon(Icons.delete_outline_rounded),
                   ),
               ],
@@ -163,16 +154,16 @@ class PersonasScreen extends ConsumerWidget {
   }
 
   Widget _explainer(BuildContext context) {
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final tokens = context.tokens;
+    final secondary = tokens.muted;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: ClaudeSpacing.md),
+      padding: const EdgeInsets.all(ClaudeSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
+        color: tokens.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(ClaudeRadius.lg),
+        border: Border.all(color: tokens.primary.withValues(alpha: 0.25)),
       ),
       child: Text(
         'A persona is a system prompt. Unlike a general prompt, it is sent '
@@ -194,7 +185,6 @@ class PersonasScreen extends ConsumerWidget {
     final result = await showModalBottomSheet<_PersonaDraft>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) => _PersonaEditorSheet(persona: persona),
     );
     if (result == null) return;
@@ -284,23 +274,30 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final isEditing = widget.persona != null;
     final name = _nameController.text.trim();
     final prompt = _promptController.text.trim();
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + ClaudeSpacing.md,
       ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              isEditing ? 'Edit persona' : 'New persona',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            const SheetHandle(),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: ClaudeSpacing.md,
+              ),
+              child: Text(
+                isEditing ? 'Edit persona' : 'New persona',
+                style: ClaudeType.titleSmall.copyWith(
+                  color: tokens.bodyStrong,
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -311,7 +308,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.4),
+                      color: tokens.primary.withValues(alpha: 0.4),
                     ),
                   ),
                   child: Text(_emoji, style: const TextStyle(fontSize: 20)),
@@ -345,7 +342,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: _emoji == emoji
-                              ? AppColors.accent
+                              ? tokens.primary
                               : Colors.transparent,
                         ),
                       ),
@@ -372,7 +369,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.06),
+                color: tokens.primary.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -385,9 +382,7 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                 style: TextStyle(
                   fontSize: 10.5,
                   height: 1.45,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.textSecondary
-                      : AppColors.lightTextSecondary,
+                  color: tokens.muted,
                 ),
               ),
             ),
@@ -411,8 +406,10 @@ class _PersonaEditorSheetState extends State<_PersonaEditorSheet> {
                             ),
                           ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: const Color(0xFF1A1A2E),
+                    // Darker fill so a white label clears AA: `primary` on its
+                    // own is 2.6:1 against white.
+                    backgroundColor: tokens.primaryActive,
+                    foregroundColor: tokens.onPrimary,
                   ),
                   child: Text(isEditing ? 'Save' : 'Create'),
                 ),

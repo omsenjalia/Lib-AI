@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 
 /// Chooses the study persona whose system prompt is prepended to every turn in
 /// this conversation.
@@ -28,6 +28,7 @@ class PersonaPickerSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final personas = ref.watch(personasProvider);
 
@@ -47,9 +48,7 @@ class PersonaPickerSheet extends ConsumerWidget {
               'Sets the system prompt for this conversation.',
               style: TextStyle(
                 fontSize: 11.5,
-                color: scheme.brightness == Brightness.dark
-                    ? AppColors.textSecondary
-                    : AppColors.lightTextSecondary,
+                color: tokens.muted,
               ),
             ),
             const SizedBox(height: 12),
@@ -99,8 +98,8 @@ class PersonaPickerSheet extends ConsumerWidget {
                         style: const TextStyle(fontSize: 11, height: 1.3),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check_circle_rounded,
-                              size: 16, color: AppColors.accent)
+                          ? Icon(Icons.check_circle_rounded,
+                              size: 16, color: tokens.primary)
                           : null,
                       onTap: () => Navigator.of(context).pop(persona.id),
                     );

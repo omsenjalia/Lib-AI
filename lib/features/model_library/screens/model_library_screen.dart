@@ -5,7 +5,7 @@ import '../../../core/data/database.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/models/model_catalogue.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/claude_tokens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../widgets/model_card.dart';
@@ -152,18 +152,17 @@ class _ModelLibraryScreenState extends ConsumerState<ModelLibraryScreen> {
   }
 
   Widget _targetDeviceNote(BuildContext context, ModelCatalogue catalogue) {
+    final tokens = context.tokens;
     final device = catalogue.targetDevice;
     final scheme = Theme.of(context).colorScheme;
-    final secondary = scheme.brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final secondary = tokens.muted;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: scheme.brightness == Brightness.dark
-            ? AppColors.surfaceHigh.withValues(alpha: 0.35)
-            : AppColors.lightSurfaceHigh,
+            ? tokens.surfaceStrong.withValues(alpha: 0.35)
+            : tokens.surfaceStrong,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -199,10 +198,9 @@ class _ModelLibraryScreenState extends ConsumerState<ModelLibraryScreen> {
   }
 
   Widget _storageSummary(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
     final bytes = ref.watch(totalModelBytesProvider);
-    final secondary = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final secondary = tokens.muted;
 
     return Padding(
       padding: const EdgeInsets.only(top: 6),

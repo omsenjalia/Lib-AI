@@ -184,8 +184,26 @@ class InferenceEngine {
   final _statusController = StreamController<EngineStatus>.broadcast();
   EngineStatus _status = const EngineStatus();
 
-  /// Identifier handed back by fllama for the in-flight request, used to cancel.
+  /// Identifier handed back by fllama for the in-flight *generation*, used to
+  /// cancel it. Loads are tracked separately on purpose: see [_warmUpRequestId].
   int? _activeRequestId;
+
+  /// Identifier for an in-flight warm-up (i.e. a load).
+  ///
+  /// Kept apart from [_activeRequestId] because cancelling a request that is
+  /// still building a context is not the same operation as cancelling a
+  /// generation, and is not something the user's stop button should ever do.
+  int? _warmUpRequestId;
+
+  /// The load currently running, if any, and the key it was requested with.
+  ///
+  /// Only one load may be in flight at a time. Each load asks llama.cpp for a
+  /// full context, and two of those landing together is how a phone that is
+  /// merely low on memory becomes a phone whose app disappears: the second
+  /// allocation fails inside native code, where there is no exception to catch
+  /// and no chance to explain anything.
+  Future<void>? _loadInFlight;
+  String? _loadInFlightKey;
 
   /// Cumulative text of the response so far. fllama's callback hands back the
   /// whole response each time, not just the newest token, so deltas are derived
@@ -194,6 +212,14 @@ class InferenceEngine {
 
   bool _stopRequested = false;
   Completer<GenerationResult>? _generationCompleter;
+
+  /// Completed when the in-flight generation has produced its last callback.
+  ///
+  /// Held as a field so [stop] can unblock a generation whose callback never
+  /// arrives: a cancel racing a token that is already in flight is exactly the
+  /// case where the native side stops calling back, and waiting forever would
+  /// leave the composer stuck in its generating state.
+  Completer<void>? _generationFinished;
   Future<bool>? _gpuBackendAvailability;
   int _activeGpuLayers = 0;
 
@@ -239,6 +265,17 @@ class InferenceEngine {
   /// Returns normally on success. Throws a typed [AppException] on failure so
   /// the caller can show specific recovery guidance - in particular, memory
   /// exhaustion gets different advice from a corrupt file.
+  ///
+  /// [contextLength] is the total the engine is asked to allocate. Note that
+  /// fllama splits it across four llama.cpp slots, so any prompt budget has to
+  /// come from `AppConstants.perChatContextLength`; see that member for the
+  /// detail.
+  ///
+  /// Concurrent requests are serialised. Three paths can ask for a load -
+  /// opening a conversation, sending a turn, and switching models - and two of
+  /// them answering at once is not hypothetical: switching models and then
+  /// typing immediately is the ordinary way to use the app. An identical
+  /// request joins the load already running; a different one waits for it.
   Future<void> load({
     required CatalogueModel model,
     required QuantOption quant,
@@ -246,7 +283,88 @@ class InferenceEngine {
     required int contextLength,
     required int gpuLayers,
     bool includeMmproj = true,
+  }) {
+    final key = _loadKey(
+      model: model,
+      quant: quant,
+      paths: paths,
+      contextLength: contextLength,
+      gpuLayers: gpuLayers,
+      includeMmproj: includeMmproj,
+    );
+    return _serialiseLoad(
+      key,
+      () => _load(
+        model: model,
+        quant: quant,
+        paths: paths,
+        contextLength: contextLength,
+        gpuLayers: gpuLayers,
+        includeMmproj: includeMmproj,
+      ),
+    );
+  }
+
+  static String _loadKey({
+    required CatalogueModel model,
+    required QuantOption quant,
+    required ModelInstallationPaths paths,
+    required int contextLength,
+    required int gpuLayers,
+    required bool includeMmproj,
+  }) =>
+      '${model.id}|${quant.fileName}|${paths.modelPath}|'
+      '${includeMmproj ? paths.mmprojPath ?? '' : ''}|$contextLength|$gpuLayers';
+
+  /// Runs [body] as the only load in flight.
+  ///
+  /// Dart has no awaitable mutex, so this is the loop-and-completer form of one:
+  /// a caller either joins the identical load, waits out a different one, or
+  /// becomes the one running.
+  Future<void> _serialiseLoad(String key, Future<void> Function() body) async {
+    while (true) {
+      final inFlight = _loadInFlight;
+      if (inFlight == null) break;
+      if (_loadInFlightKey == key) return inFlight;
+      try {
+        await inFlight;
+      } catch (_) {
+        // Another request's failure is not this request's failure. Ours has not
+        // been attempted yet, so fall through and try it.
+      }
+    }
+
+    final completer = Completer<void>();
+    // Joiners may or may not arrive; without this, a load that fails with no
+    // one waiting would be reported as an unhandled error in the zone.
+    completer.future.ignore();
+    _loadInFlight = completer.future;
+    _loadInFlightKey = key;
+    try {
+      await body();
+      completer.complete();
+    } catch (error) {
+      completer.completeError(error);
+      rethrow;
+    } finally {
+      _loadInFlight = null;
+      _loadInFlightKey = null;
+    }
+  }
+
+  Future<void> _load({
+    required CatalogueModel model,
+    required QuantOption quant,
+    required ModelInstallationPaths paths,
+    required int contextLength,
+    required int gpuLayers,
+    required bool includeMmproj,
   }) async {
+    // Decoding and context-building at the same time doubles the peak and is
+    // never what the caller wants - a load means the model is about to be
+    // replaced. The partial answer is kept, as with any other stop.
+    if (_activeRequestId != null) stop();
+
     await _releaseModelFileLeases();
     ModelFileLease? modelLease;
     ModelFileLease? mmprojLease;
@@ -457,8 +575,9 @@ class InferenceEngine {
     });
 
     // Warm-up has no user-facing cancel, but a hung load should not pin the
-    // spinner forever.
-    _activeRequestId = id;
+    // spinner forever. It is tracked in its own field so that the composer's
+    // stop button cannot cancel a request that is still building a context.
+    _warmUpRequestId = id;
 
     try {
       await completer.future.timeout(const Duration(minutes: 5));
@@ -469,7 +588,7 @@ class InferenceEngine {
         detail: 'Load timed out.',
       );
     } finally {
-      _activeRequestId = null;
+      _warmUpRequestId = null;
     }
   }
 
@@ -481,6 +600,24 @@ class InferenceEngine {
   /// at a smaller quant rather than told their file is broken.
   AppException _classifyLoadFailure(String raw) {
     final lower = raw.toLowerCase();
+    // The engine itself is missing from this build. Nothing about the user's
+    // model files explains it, and no model action will fix it, so it must not
+    // be reported as corruption or as a memory problem.
+    const engineSignals = [
+      'failed to load dynamic library',
+      'dlopen',
+      'unsatisfiedlinkerror',
+      'invalid argument(s): failed to load',
+      'no implementation found for',
+    ];
+    for (final signal in engineSignals) {
+      if (lower.contains(signal)) {
+        return EngineUnavailableException(
+          'This build is missing its inference engine.',
+          detail: raw,
+        );
+      }
+    }
     const memorySignals = [
       'out of memory',
       'failed to allocate',
@@ -509,10 +646,9 @@ class InferenceEngine {
   }
 
   void _fail(AppException error) {
-    if (_activeRequestId != null) {
-      fl.fllamaCancelInference(_activeRequestId!);
-      _activeRequestId = null;
-    }
+    // No cancel here: everything that routes through _fail has already
+    // reported its own failure. Cancelling a request in that state asks the
+    // native side to tear down a context it is still constructing.
     _emit(_status.copyWith(
       stage: EngineStage.failed,
       error: error,
@@ -571,6 +707,7 @@ class InferenceEngine {
     AppException? failure;
     var stopped = false;
     final finished = Completer<void>();
+    _generationFinished = finished;
 
     final requestId = await fl.fllamaChat(request, (response, openAiJson, done) {
       // fllama may deliver a load error through this callback instead of
@@ -599,6 +736,7 @@ class InferenceEngine {
       failure = _classifyLoadFailure('$error');
     } finally {
       _activeRequestId = null;
+      _generationFinished = null;
       stopped = _stopRequested;
       _emit(_status.copyWith(lastActivityAt: DateTime.now()));
     }
@@ -689,6 +827,10 @@ class InferenceEngine {
     if (id != null) {
       fl.fllamaCancelInference(id);
     }
+    // Unblock the call awaiting the callback before completing the result
+    // completer, so both paths agree that this generation is over.
+    final finished = _generationFinished;
+    if (finished != null && !finished.isCompleted) finished.complete();
     final completer = _generationCompleter;
     if (completer != null && !completer.isCompleted) {
       completer.complete(
@@ -726,6 +868,7 @@ class InferenceEngine {
   /// makes [estimatedReleaseAt] meaningful.
   Future<void> unload() async {
     stop();
+    _cancelLoad();
     _activeRequestId = null;
     _accumulated = '';
     await _releaseModelFileLeases();
@@ -744,8 +887,22 @@ class InferenceEngine {
 
   Future<void> dispose() async {
     stop();
+    _cancelLoad();
     await _releaseModelFileLeases();
     await _statusController.close();
+  }
+
+  /// Abandons a load in progress.
+  ///
+  /// Deliberately not part of [stop]: the compose button's stop is about the
+  /// answer being written, not about abandoning a context the native side is
+  /// halfway through constructing. This is for teardown, where the alternative
+  /// is leaving a request running against an engine nobody will read again.
+  void _cancelLoad() {
+    final id = _warmUpRequestId;
+    if (id == null) return;
+    fl.fllamaCancelInference(id);
+    _warmUpRequestId = null;
   }
 }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/claude_tokens.dart';
 
 /// The shared placeholder used by the empty conversation list, the empty model
 /// library and the "My Notes" coming-soon screen.
@@ -28,10 +28,8 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final secondary = scheme.brightness == Brightness.dark
-        ? AppColors.textSecondary
-        : AppColors.lightTextSecondary;
+    final tokens = context.tokens;
+    final secondary = tokens.muted;
 
     return Center(
       child: ConstrainedBox(
@@ -44,34 +42,24 @@ class EmptyState extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.08),
+                  color: tokens.surfaceCard,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: scheme.primary.withValues(alpha: 0.22),
-                  ),
+                  border: Border.all(color: tokens.hairline),
                 ),
-                child: Icon(icon, size: 30, color: scheme.primary),
+                child: Icon(icon, size: 30, color: tokens.primary),
               ),
               const SizedBox(height: 16),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
-                ),
+                style: ClaudeType.titleSmall.copyWith(color: tokens.ink),
               ),
               if (message != null) ...[
                 const SizedBox(height: 8),
                 Text(
                   message!,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.5,
-                    color: secondary,
-                  ),
+                  style: ClaudeType.bodySmall.copyWith(color: secondary),
                 ),
               ],
               if (action != null) ...[
@@ -83,11 +71,10 @@ class EmptyState extends StatelessWidget {
                 Text(
                   footnote!,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    height: 1.4,
+                  style: ClaudeType.caption.copyWith(
+                    fontWeight: FontWeight.w400,
                     fontStyle: FontStyle.italic,
-                    color: secondary.withValues(alpha: 0.8),
+                    color: secondary,
                   ),
                 ),
               ],

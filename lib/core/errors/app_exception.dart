@@ -49,6 +49,18 @@ class UnknownQuantException extends AppException {
   const UnknownQuantException(super.message, {super.detail});
 }
 
+/// The native inference engine could not be loaded at all.
+///
+/// This is deliberately not a [ModelCorruptException]: nothing is wrong with
+/// the user's files. It means llama.cpp is not in the build, which in practice
+/// means the APK was produced without Flutter's native-assets step enabled, so
+/// `libfllama.so` was never packaged. Rebuilding fixes it; no amount of
+/// re-downloading a model will.
+class EngineUnavailableException extends AppException {
+  const EngineUnavailableException(super.message, {super.detail})
+      : super(recovery: 'Reinstall the app from a release build.');
+}
+
 /// A download failed, or the bytes on disk did not match the expected hash.
 class DownloadException extends AppException {
   const DownloadException(super.message, {super.detail, super.recovery});
