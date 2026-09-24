@@ -88,9 +88,9 @@ class _BootstrapState extends ConsumerState<_Bootstrap> {
 
     // 2. Publish the stored update state so badges are correct immediately,
     //    without waiting for a network round trip.
-    final catalogue = ref.read(catalogueProvider);
     try {
-      final models = (await catalogue.future).models;
+      // `AsyncValue` has no `future` getter; the provider itself does.
+      final models = (await ref.read(catalogueProvider.future)).models;
       await ref.read(updateCheckerProvider).hydrate(models);
     } catch (_) {
       // A malformed catalogue is surfaced by the Model Library screen; it must

@@ -1,9 +1,3 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:library_ai/core/utils/latex_splitter.dart';
-import 'package:library_ai/core/utils/latex_to_text.dart';
-import 'package:library_ai/core/utils/markdown_blocks.dart';
-import 'package:library_ai/core/utils/pdf_text.dart';
-
 /// Offline evaluation of the answer-rendering pipeline.
 ///
 /// The prompts below are real-shaped model outputs, not fixtures written to make
@@ -17,6 +11,13 @@ import 'package:library_ai/core/utils/pdf_text.dart';
 /// a device and a loaded GGUF. What it can check is that the app does not mangle
 /// a good answer, which is the failure mode that is fully in our control.
 library;
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:library_ai/core/utils/latex_splitter.dart';
+import 'package:library_ai/core/utils/latex_to_text.dart';
+import 'package:library_ai/core/utils/markdown_blocks.dart';
+import 'package:library_ai/core/utils/pdf_text.dart';
+
 
 void main() {
   group('scenario: worked derivation with a display equation', () {
@@ -84,7 +85,7 @@ int search(List<int> xs, int target) {
 }
 ```
 
-Its cost is $O(\\log n)$ because the interval halves each iteration.
+Its cost is \$O(\\log n)\$ because the interval halves each iteration.
 ''';
 
     test('exactly one code block is extracted, with its language', () {
@@ -126,8 +127,8 @@ Its cost is $O(\\log n)$ because the interval halves each iteration.
     const answer = '''
 | Algorithm | Best | Average | Worst |
 |---|---|---|---|
-| Quick sort | $O(n \\log n)$ | $O(n \\log n)$ | $O(n^2)$ |
-| Merge sort | $O(n \\log n)$ | $O(n \\log n)$ | $O(n \\log n)$ |
+| Quick sort | \$O(n \\log n)\$ | \$O(n \\log n)\$ | \$O(n^2)\$ |
+| Merge sort | \$O(n \\log n)\$ | \$O(n \\log n)\$ | \$O(n \\log n)\$ |
 
 Merge sort is stable; quick sort usually is not.
 ''';

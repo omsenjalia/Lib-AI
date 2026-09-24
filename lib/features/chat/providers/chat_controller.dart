@@ -699,18 +699,6 @@ class ChatController extends ChangeNotifier {
   }
 }
 
-/// Thrown when an installation exists for a model the catalogue no longer
-/// describes - normally because the app was updated and a model was retired.
-class ModelMissingFromCatalogueException extends AppException {
-  ModelMissingFromCatalogueException(String modelId)
-      : super(
-          'This model is no longer in the catalogue.',
-          detail: 'No catalogue entry for $modelId',
-          recovery:
-              'Delete it from Model Library, then download a supported model.',
-        );
-}
-
 /// App-wide chat session. Single instance: see the controller's class docs.
 final chatControllerProvider = ChangeNotifierProvider<ChatController>(
   ChatController.new,

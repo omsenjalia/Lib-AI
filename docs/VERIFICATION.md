@@ -52,7 +52,7 @@ are the shape they claim to be.
 
 With no SDK, the only compiler available is one written for the occasion. Four
 passes were run over every `.dart` file in `lib/` and `test/` (51 + 8 files,
-14,530 + 2,124 lines):
+14,564 + 2,125 lines):
 
 | Pass | What it does | Result |
 |---|---|---|
@@ -222,8 +222,8 @@ prompt appears, or that Android renders any of it. All three need a device.
 
 ## 2. What is verified by CI instead
 
-These are the Phase 7 items that need a runtime. They are wired as CI steps and
-will be answered by the first push, not by this document:
+These are the Phase 7 items that need a runtime. They are wired as CI steps
+rather than answered by this document:
 
 | Item | Where it is checked |
 |---|---|
@@ -238,6 +238,37 @@ The CI test job is deliberately `continue-on-error` with a separate failing
 step, so a red run still posts its output as a PR comment instead of leaving
 nothing to look at.
 
+### 2.1 The first run
+
+The workflows executed for the first time on 2026-09-24, triggered by push and
+by pull request - manual dispatch is not enabled for this repository, so that
+push was the only possible trigger. Every run failed in the same place: the
+analyze gate, which is also what skipped the codegen, test and APK steps behind
+it. `flutter analyze` reported **70 issues - 44 errors, 2 warnings and 24 infos**.
+All 70 are fixed in this commit.
+
+Twenty-five errors were API facts that only a compiler could reveal, and the
+analyzer was right about every one:
+
+| What it caught | Sites | Correction |
+|---|---|---|
+| `AsyncValue` has no `future` getter | 2 | await `catalogueProvider.future` instead |
+| `pdf` 3.11.1 has no `pw.Inline`; `pw.TextStyle` has no `lineHeight`; `pw.Bullet` takes `text:` but not `child:` | 6 | inline spans as `pw.RichText(text: pw.TextSpan(children: ...))`, `height:` for line spacing, a row for bullets |
+| dio returns response headers as a `Map`, not a `Headers` object; the file sink stays nullable across an `await for` loop | 8 | index the map by header name; hold the sink in a non-null local |
+| `markdown` renamed `InlineParser.addElement` to `addNode`; a `const` constructor over a non-const superclass | 2 | renamed; keyword removed |
+| a `library;` directive after the imports; a subclass of the sealed `AppException` outside its library | 2 | directive moved; subclass moved to `app_exception.dart` |
+| three call-site mismatches in `settings_screen.dart`: a missing argument, an extra one, and a variable that no longer existed | 5 | call sites corrected |
+
+The other nineteen errors were strings, and they are exactly the kind a text
+checker cannot see, because the source reads as prose: `$O(\log n)$` and an
+unterminated `$$` in two test files, where a non-raw Dart string takes the dollar
+as the start of an interpolation. They are escaped as `\$`, and the same two
+files' `library;` directives moved above their imports.
+
+The 2 warnings (an unused field, an unused local) and the 24 infos (22
+`prefer_const_*`, 2 `use_build_context_synchronously`) are fixed as well: the
+analyze step fails on any reported issue, not only on errors.
+
 ---
 
 ## 3. Honest summary
@@ -250,6 +281,14 @@ the three framework-capability questions.
 
 **Not verified here:** that the code compiles, that it analyzes clean, that any
 test passes, that the APK builds, and anything at all about behaviour on a
-device.
+device. The first CI run (section 2.1) proved the point the hard way: it found
+70 analyzer issues in a tree that four local checkers and a ported test suite
+had passed. Those issues are fixed, but the fix itself has not been through CI
+yet.
+
+**Known gaps:** there is no `pubspec.lock` in the tree, so each `flutter pub get`
+resolves the transitive versions fresh; only `fllama` is pinned, by git ref, in
+`pubspec.yaml`. The workflows' cache keys treat the missing file as an empty
+string rather than failing.
 
 Those are stated as unverified in `README.md` and here, rather than assumed.

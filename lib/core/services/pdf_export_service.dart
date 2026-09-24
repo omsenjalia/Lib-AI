@@ -52,7 +52,6 @@ class PdfExportService {
 
   // ------------------------------------------------------------- colours
 
-  static const _base = PdfColor.fromInt(0xFF1A1A2E);
   static const _surface = PdfColor.fromInt(0xFFF7F5F1);
   static const _accent = PdfColor.fromInt(0xFF9C6210);
   static const _textPrimary = PdfColor.fromInt(0xFF1A1A2E);
@@ -430,13 +429,14 @@ class PdfExportService {
         };
         widgets.add(pw.SizedBox(height: level <= 2 ? 6 : 3));
         widgets.add(
-          pw.Inline(
-            baseline: 0,
-            children: _inlineSpans(
-              pdfSafeText(heading.group(2)!),
-              styles,
-              baseSize: size,
-              forceBold: true,
+          pw.RichText(
+            text: pw.TextSpan(
+              children: _inlineSpans(
+                pdfSafeText(heading.group(2)!),
+                styles,
+                baseSize: size,
+                forceBold: true,
+              ),
             ),
           ),
         );
@@ -481,19 +481,39 @@ class PdfExportService {
       }
 
       // --- bullet -------------------------------------------------------
+      // `pw.Bullet` takes a plain `text:` and cannot hold spans, so the marker
+      // and the rich content are laid out as a row instead.
       final bullet = RegExp(r'^\s*[-*+]\s+(.*)$').firstMatch(line);
       if (bullet != null) {
         widgets.add(
-          pw.Bullet(
-            bulletColor: _accent,
+          pw.Container(
             margin: const pw.EdgeInsets.only(left: 8, bottom: 1),
-            child: pw.Inline(
-              baseline: 0,
-              children: _inlineSpans(
-                pdfSafeText(bullet.group(1)!),
-                styles,
-                baseSize: 10,
-              ),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.SizedBox(
+                  width: 12,
+                  child: pw.Text(
+                    '\u2022',
+                    style: pw.TextStyle(
+                      font: styles.regular,
+                      fontSize: 10,
+                      color: _accent,
+                    ),
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.RichText(
+                    text: pw.TextSpan(
+                      children: _inlineSpans(
+                        pdfSafeText(bullet.group(1)!),
+                        styles,
+                        baseSize: 10,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -522,12 +542,13 @@ class PdfExportService {
                   ),
                 ),
                 pw.Expanded(
-                  child: pw.Inline(
-                    baseline: 0,
-                    children: _inlineSpans(
-                      pdfSafeText(numbered.group(2)!),
-                      styles,
-                      baseSize: 10,
+                  child: pw.RichText(
+                    text: pw.TextSpan(
+                      children: _inlineSpans(
+                        pdfSafeText(numbered.group(2)!),
+                        styles,
+                        baseSize: 10,
+                      ),
                     ),
                   ),
                 ),
@@ -574,12 +595,13 @@ class PdfExportService {
 
       // --- paragraph ----------------------------------------------------
       widgets.add(
-        pw.Inline(
-          baseline: 0,
-          children: _inlineSpans(
-            pdfSafeText(line),
-            styles,
-            baseSize: 10,
+        pw.RichText(
+          text: pw.TextSpan(
+            children: _inlineSpans(
+              pdfSafeText(line),
+              styles,
+              baseSize: 10,
+            ),
           ),
         ),
       );
@@ -655,7 +677,7 @@ class PdfExportService {
               style: pw.TextStyle(
                 font: styles.mono,
                 fontSize: 8,
-                lineHeight: 1.35,
+                height: 1.35,
                 color: _textPrimary,
               ),
             ),

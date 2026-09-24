@@ -1,9 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
-import '../models/transfer_state.dart';
-import '../utils/formatters.dart';
-
 /// Google-Play-style progress notifications for model downloads.
 ///
 /// A model is up to 7.3 GB. Without a notification the only progress the user
@@ -35,6 +29,12 @@ import '../utils/formatters.dart';
 /// platform channel; [DownloadNotificationService] is a thin wrapper that only
 /// performs the calls.
 library;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import '../models/transfer_state.dart';
+import '../utils/formatters.dart';
 
 /// Channel id. Bumping this would orphan the user's per-channel settings, so
 /// it is deliberately stable and versioned by name only.
@@ -388,7 +388,7 @@ class DownloadNotificationService {
       indeterminate: content.isIndeterminate,
       actions: content.hasCancelAction
           ? <AndroidNotificationAction>[
-              AndroidNotificationAction(
+              const AndroidNotificationAction(
                 kCancelDownloadAction,
                 'Cancel',
                 // Bring the app forward so the request is handled on the main

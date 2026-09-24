@@ -202,7 +202,9 @@ final downloadNotificationServiceProvider =
 /// Watching it in the app root is what keeps it alive.
 final downloadNotificationBinderProvider = Provider<void>((ref) {
   final service = ref.watch(downloadNotificationServiceProvider);
-  final catalogue = ref.watch(catalogueProvider);
+  // `FutureProvider.future` is the awaitable form of the provider; the
+  // `AsyncValue` handed out by `catalogueProvider` has no `future` getter.
+  final catalogue = ref.watch(catalogueProvider.future);
 
   // Names come from the catalogue, so a notification reads
   // `Phi-4-mini-instruct` rather than `phi-4-mini-3.8b`. The first task can
@@ -212,7 +214,7 @@ final downloadNotificationBinderProvider = Provider<void>((ref) {
   Future<String> nameFor(String modelId) async {
     if (names.isEmpty) {
       try {
-        final value = await catalogue.future;
+        final value = await catalogue;
         names = {for (final model in value.models) model.id: model.displayName};
       } catch (_) {
         // A malformed catalogue is reported by the Model Library, not here.

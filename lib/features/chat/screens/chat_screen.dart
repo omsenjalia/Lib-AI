@@ -320,7 +320,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       await chat.ensureModelLoaded();
     } on AppException catch (error) {
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
       setState(() => _dismissedError = false);
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
@@ -405,6 +405,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       icon: Icons.delete_outline_rounded,
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
 
     await ConversationSidebar.deleteWithUndo(context, ref, conversation);
   }

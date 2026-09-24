@@ -72,16 +72,16 @@ class ModelSwitcherSheet extends ConsumerWidget {
               ),
               data: (rows) {
                 if (rows.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'No models are installed yet.',
                           style: TextStyle(fontSize: 13),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           'Open Model Library to download one.',
                           style: TextStyle(
