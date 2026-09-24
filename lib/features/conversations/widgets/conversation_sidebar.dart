@@ -550,9 +550,9 @@ class _ConversationSidebarState extends ConsumerState<ConversationSidebar> {
         color: tokens.error,
         width: 48,
         padding: const EdgeInsets.only(right: ClaudeSpacing.md),
-        child: const Icon(
+        child: Icon(
           Icons.delete_outline_rounded,
-          color: Colors.white,
+          color: tokens.onPrimary,
           size: 20,
         ),
       ),

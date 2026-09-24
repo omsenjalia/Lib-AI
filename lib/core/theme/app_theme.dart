@@ -39,7 +39,7 @@ abstract final class AppTheme {
       tertiary: tokens.success,
       onTertiary: tokens.onPrimary,
       error: tokens.error,
-      onError: Colors.white,
+      onError: ClaudeColors.onPrimary,
       surface: tokens.canvas,
       onSurface: tokens.ink,
       surfaceContainerLowest: tokens.canvas,

@@ -584,8 +584,8 @@ class _ModelCardState extends State<ModelCard> {
               icon: const Icon(Icons.system_update_alt_rounded, size: 16),
               label: const Text('Update'),
               style: FilledButton.styleFrom(
-                backgroundColor: tokens.primary,
-                foregroundColor: const Color(0xFF1A1A2E),
+                backgroundColor: tokens.primaryActive,
+                foregroundColor: tokens.onPrimary,
               ),
             ),
           OutlinedButton.icon(
@@ -632,9 +632,9 @@ class _ModelCardState extends State<ModelCard> {
             // A model that cannot load still gets a working button - the brief
             // requires the hard block to be about mobile data, not about
             // disabling the download - but it is coloured as a risk.
-            backgroundColor: blocked ? tokens.errorText : tokens.primary,
-            foregroundColor:
-                blocked ? Colors.white : const Color(0xFF1A1A2E),
+            backgroundColor:
+                blocked ? tokens.errorText : tokens.primaryActive,
+            foregroundColor: tokens.onPrimary,
           ),
         ),
         if (canResume) ...[

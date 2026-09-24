@@ -49,13 +49,18 @@ class PdfExportService {
   const PdfExportService();
 
   // ------------------------------------------------------------- colours
+  //
+  // The Claude palette, with one deliberate change: the accent is the darker
+  // `primaryActive` rather than `primary`. On screen #CC785C is legible against
+  // a canvas because it is usually a fill; on paper it is text and rules, where
+  // 2.6:1 is not. Everything else is the token value.
 
-  static const _surface = PdfColor.fromInt(0xFFF7F5F1);
-  static const _accent = PdfColor.fromInt(0xFF9C6210);
-  static const _textPrimary = PdfColor.fromInt(0xFF1A1A2E);
-  static const _textSecondary = PdfColor.fromInt(0xFF5F5F70);
-  static const _outline = PdfColor.fromInt(0xFFD5CEC2);
-  static const _codeBg = PdfColor.fromInt(0xFFF2EFE9);
+  static const _surface = PdfColor.fromInt(0xFFF5F0E8); // surfaceSoft
+  static const _accent = PdfColor.fromInt(0xFFA9583E); // primaryActive
+  static const _textPrimary = PdfColor.fromInt(0xFF141413); // ink
+  static const _textSecondary = PdfColor.fromInt(0xFF6C6A64); // muted
+  static const _outline = PdfColor.fromInt(0xFFE6DFD8); // hairline
+  static const _codeBg = PdfColor.fromInt(0xFFF5F0E8); // surfaceSoft
 
   /// Builds the PDF bytes for one conversation.
   ///
