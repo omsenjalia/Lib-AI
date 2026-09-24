@@ -143,7 +143,7 @@ class ModelSwitcherSheet extends ConsumerWidget {
                     if (downloadable.isNotEmpty)
                       const ClaudeSectionHeader(
                         title: 'Available to download',
-                        padding: const EdgeInsets.fromLTRB(
+                        padding: EdgeInsets.fromLTRB(
                           ClaudeSpacing.md,
                           ClaudeSpacing.md,
                           ClaudeSpacing.md,
