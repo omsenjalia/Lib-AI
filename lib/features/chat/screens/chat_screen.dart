@@ -473,11 +473,15 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView>
     with SingleTickerProviderStateMixin {
+  /// The four suggestions, worded to fit two lines each in a fixed 2x2 grid on
+  /// a 360 dp phone. These are the strings recorded in
+  /// `docs/CLAUDE_UI_INVENTORY.md`; changing one without changing the other
+  /// puts the written record and the screen out of step.
   static const List<String> _suggestions = [
+    'Explain a hard idea',
     'Quiz me on a topic',
-    'Explain it step by step',
     'Summarise my notes',
-    'Work through a problem',
+    'Show the working',
   ];
 
   late final AnimationController _entrance = AnimationController(
