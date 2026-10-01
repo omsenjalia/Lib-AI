@@ -1,14 +1,22 @@
 name: Nightly Release APK
 
-# Daily build: when the default branch moved in the last 24 hours, build a
-# signed release APK and publish it as a direct `release.apk` asset on a dated
-# GitHub Release — no zip, no AAB, no extract step.
+# Daily build of the React Native app (mobile/). When the default branch moved
+# in the last 24 hours, build a release APK, verify its signature, scan it, and
+# publish it as a direct `release.apk` on a dated GitHub Release. Manual runs
+# always build.
 #
-# Cadence: every day at 00:00 IST (18:30 UTC). Manual runs via workflow_dispatch
-# always build, regardless of commit activity.
+# Adapted from omsenjalia/weathergpt-app's nightly. Differences:
+#   - npm (not bun), and the app lives in mobile/;
+#   - the 24-hour activity gate from this repo's Flutter nightly is kept;
+#   - signing falls back to the debug key when the KEYSTORE_* secrets are
+#     missing (this repo's existing policy), and the release says so loudly.
+#     A debug-signed build cannot install over a release-signed Library AI,
+#     so set the secrets to the Flutter app's release key before relying on
+#     in-place upgrades.
 
 on:
   schedule:
+    # Midnight IST (18:30 UTC), as before.
     - cron: '30 18 * * *'
   workflow_dispatch:
 
@@ -22,7 +30,10 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    # Includes up to 12 minutes waiting for the VirusTotal verdict.
+    timeout-minutes: 75
+    env:
+      CI: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,108 +42,185 @@ jobs:
       - name: Check for commits in the last 24 hours
         id: gate
         run: |
-          STAMP=$(date -u +%Y%m%d)
-          echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
-          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "Manual run — building regardless of commit activity."
-            exit 0
+            echo "run=true" >> "$GITHUB_OUTPUT"; echo "Manual run: building regardless of activity."; exit 0
           fi
           COUNT=$(git log --since="24 hours ago" --oneline | wc -l)
           if [ "$COUNT" -gt 0 ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "$COUNT commit(s) in the last 24h — building nightly release."
+            echo "run=true" >> "$GITHUB_OUTPUT"; echo "$COUNT commit(s) in the last 24h: building."
           else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "No commits in the last 24h — skipping nightly release."
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "No commits in the last 24h: skipping."
           fi
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v5
         if: steps.gate.outputs.run == 'true'
         with:
           java-version: '17'
           distribution: temurin
-          cache: gradle
-
-      - uses: subosito/flutter-action@v2
+      # No setup-android: ubuntu-latest ships the SDK (ANDROID_HOME).
+      - uses: gradle/actions/setup-gradle@v4
         if: steps.gate.outputs.run == 'true'
-        with:
-          flutter-version: '3.44.0'
-          channel: stable
-          cache: true
-          cache-key: flutter-3.44.0-stable
-          pub-cache-key: flutter-pub-${{ hashFiles('**/pubspec.lock') }}
 
-      - name: Cache pub + Gradle
+      - name: Decode release keystore (debug-key fallback when absent)
         if: steps.gate.outputs.run == 'true'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            android/.gradle
-          key: ${{ runner.os }}-nightly-${{ hashFiles('pubspec.lock', 'android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-nightly-
-            ${{ runner.os }}-android-
-
-      - name: Configure toolchain
-        if: steps.gate.outputs.run == 'true'
-        run: flutter config --enable-native-assets || true
-
-      - name: Decode release keystore
-        if: steps.gate.outputs.run == 'true'
-        id: keystore
+        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "has_keystore=false" >> "$GITHUB_OUTPUT"
-            echo "No KEYSTORE_BASE64 secret — will sign with debug keys (dev fallback)."
-          else
-            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
-            echo "has_keystore=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install dependencies
-        if: steps.gate.outputs.run == 'true'
-        run: flutter pub get
-
-      - name: Generate drift code
-        if: steps.gate.outputs.run == 'true'
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Build signed release APK
-        if: steps.gate.outputs.run == 'true'
-        env:
-          SIGNING_MODE: ${{ steps.keystore.outputs.has_keystore == 'true' && 'signed' || 'debug-keys' }}
-          KEYSTORE_PATH: android/app/release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          flutter build apk --release --no-obfuscate \
-            --build-name=1.0.0-nightly.${{ steps.gate.outputs.stamp }} \
-            --build-number=${{ github.run_number }}
-          cp build/app/outputs/flutter-apk/app-release.apk release.apk
-          ls -la release.apk
+          set -euo pipefail
+          missing=""
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [ -z "${!name}" ] && missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "mode=debug" >> "$GITHUB_OUTPUT"
+            echo "::warning::Missing$missing. Building a DEBUG-SIGNED APK; it cannot upgrade a release-signed install."
+            exit 0
+          fi
+          KEYSTORE_PATH="$RUNNER_TEMP/library-ai-release.keystore"
+          echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          echo "mode=release" >> "$GITHUB_OUTPUT"
 
-      - name: Publish nightly GitHub Release (release.apk only)
+      - name: Set nightly version
         if: steps.gate.outputs.run == 'true'
-        uses: softprops/action-gh-release@v2
+        run: |
+          set -euo pipefail
+          STAMP=$(TZ=Asia/Kolkata date +%Y%m%d)
+          # Epoch minutes exceed the Flutter build's run-number version codes, so
+          # this installs over it as an upgrade (with the same signing key).
+          echo "ANDROID_VERSION_CODE=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
+          echo "APP_VERSION=2.0.0-nightly.$STAMP" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=nightly-$STAMP-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
+        working-directory: mobile
+        run: npm ci
+      # llama.rn's prebuilt libraries come from its GitHub release; run the
+      # downloader explicitly in case npm skipped the postinstall script.
+      - name: Fetch llama.rn native libraries
+        if: steps.gate.outputs.run == 'true'
+        working-directory: mobile
+        run: npm run fetch-native
+      - name: Typecheck, lint, test
+        if: steps.gate.outputs.run == 'true'
+        working-directory: mobile
+        run: |
+          npx tsc --noEmit
+          npx expo lint
+          npx jest --ci
+
+      - name: Generate Android project
+        if: steps.gate.outputs.run == 'true'
+        working-directory: mobile
+        run: npx expo prebuild -p android --no-install
+      - name: Configure release signing
+        if: steps.gate.outputs.run == 'true' && steps.signing.outputs.mode == 'release'
+        working-directory: mobile
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: node scripts/configure-android-release.cjs
+      - name: Build release APK
+        if: steps.gate.outputs.run == 'true'
+        working-directory: mobile/android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Verify signature and prepare direct download
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk release.apk
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs release.apk
+          sha256sum release.apk > release.apk.sha256
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.run == 'true'
         with:
-          tag_name: nightly-${{ steps.gate.outputs.stamp }}
-          name: Library AI Nightly ${{ steps.gate.outputs.stamp }} (${{ steps.gate.outputs.short_sha }})
-          make_latest: true
-          prerelease: false
-          generate_release_notes: true
-          body: |
-            Daily build of Library AI (`${{ steps.gate.outputs.short_sha }}`).
+          name: library-ai-nightly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            release.apk
+            release.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
 
-            **Install:** download **`release.apk`** below directly onto your Android phone, tap it, and tap **Install** (enable "Install unknown apps" for your browser if prompted). No extraction needed.
+      - name: Scan with VirusTotal
+        if: steps.gate.outputs.run == 'true'
+        id: vt
+        env:
+          VT_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: |
+          sha=$(sha256sum release.apk | cut -d' ' -f1)
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+          # Best effort: without a key, or if VirusTotal is down, the release still ships.
+          if [ -z "$VT_API_KEY" ]; then echo "::warning::VIRUSTOTAL_API_KEY is not set; skipping the scan."; exit 0; fi
+          vt() { curl -fsS --retry 3 -H "x-apikey: $VT_API_KEY" "$@"; }
+          # Files over 32 MB must go through a one-off upload URL.
+          if ! upload_url=$(vt https://www.virustotal.com/api/v3/files/upload_url | jq -er .data) || \
+             ! analysis=$(vt -F "file=@release.apk" "$upload_url" | jq -er .data.id); then
+            echo "::warning::VirusTotal upload failed; publishing without a report."; exit 0
+          fi
+          echo "report=https://www.virustotal.com/gui/file/$sha" >> "$GITHUB_OUTPUT"
+          for _ in $(seq 1 36); do
+            result=$(vt "https://www.virustotal.com/api/v3/analyses/$analysis" || true)
+            if [ "$(jq -r '.data.attributes.status // empty' <<<"$result")" = completed ]; then
+              jq -r '.data.attributes.stats | "malicious=\(.malicious)\nsuspicious=\(.suspicious)\nengines=\(.malicious + .suspicious + .undetected + .harmless)"' <<<"$result" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::warning::VirusTotal scan still running; the report link will show the result when it finishes."
 
-            This build ships no models. The app is fully functional offline once a model has been downloaded from its own Model Library screen.
-          files: release.apk
+      - name: Publish nightly GitHub Release
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNING: ${{ steps.signing.outputs.mode }}
+          SHA256: ${{ steps.vt.outputs.sha256 }}
+          REPORT: ${{ steps.vt.outputs.report }}
+          MALICIOUS: ${{ steps.vt.outputs.malicious }}
+          SUSPICIOUS: ${{ steps.vt.outputs.suspicious }}
+          ENGINES: ${{ steps.vt.outputs.engines }}
+        run: |
+          {
+            echo "**Install:** download \`release.apk\` on your Android phone (8.0+, arm64), open it, allow \"Install unknown apps\" for your browser, then tap Install. It ships no model: open Model Library in the app and download one, and from then on it works offline."
+            echo
+            if [ "$SIGNING" = "debug" ]; then
+              echo "> **Debug-signed build.** It cannot install over a release-signed Library AI. Uninstall the old app first (its chats will not carry over)."
+              echo
+            fi
+            if [ -n "$REPORT" ] && [ -n "$ENGINES" ]; then
+              echo "**VirusTotal:** $REPORT ($((MALICIOUS + SUSPICIOUS)) of $ENGINES engines flagged it: $MALICIOUS malicious, $SUSPICIOUS suspicious)"
+            elif [ -n "$REPORT" ]; then
+              echo "**VirusTotal:** $REPORT"
+            else
+              echo "**VirusTotal:** upload \`release.apk\` at https://www.virustotal.com to scan it."
+            fi
+            echo
+            echo "**SHA-256:** \`$SHA256\` (also in \`release.apk.sha256\`)"
+            echo
+            echo "React Native build from commit $GITHUB_SHA."
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$RELEASE_TAG" release.apk release.apk.sha256 \
+            --target "$GITHUB_SHA" --title "Library AI $APP_VERSION" --latest \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Remove signing material
+        if: always()
+        run: rm -f "${KEYSTORE_PATH:-/nonexistent}"

@@ -1,269 +1,205 @@
+<div align="center">
+
+<img src="mobile/assets/icon.png" width="96" alt="Library AI icon: an open book in clay on warm charcoal" />
+
 # Library AI
 
 **Learn anywhere. No internet required.**
 
-An offline-first AI study assistant for Android. Runs open-weight language models
-entirely on the phone: chat, conversation history, markdown and LaTeX rendering,
-code highlighting, study personas and PDF export all work with the radio off.
-The only thing the network is used for is downloading a model and checking
-whether one you already have has changed upstream.
+A private AI study companion that runs open-weight language models entirely on your phone.<br/>
+Chat, maths, code and your whole history keep working with the radio off.
 
-Built for and tested against a Samsung Galaxy S25 (Android 15, Snapdragon 8
-Elite, 8 GB/12 GB RAM).
+[![Nightly APK](https://img.shields.io/github/v/release/omsenjalia/Lib-AI?include_prereleases&label=nightly%20apk&color=CC785C&logo=android&logoColor=white)](https://github.com/omsenjalia/Lib-AI/releases/latest)
+[![Mobile CI](https://github.com/omsenjalia/Lib-AI/actions/workflows/mobile-ci.yml/badge.svg)](https://github.com/omsenjalia/Lib-AI/actions/workflows/mobile-ci.yml)
+![Expo SDK 57](https://img.shields.io/badge/Expo_SDK-57-1F1E1B?logo=expo&logoColor=white)
+![React Native 0.86](https://img.shields.io/badge/React_Native-0.86-1F1E1B?logo=react&logoColor=61DAFB)
+![llama.cpp](https://img.shields.io/badge/engine-llama.cpp-1F1E1B)
+![Offline first](https://img.shields.io/badge/works-offline-496C4C)
 
----
+<br/>
 
-## What it does
+<img src="docs/screenshots/home.jpg" width="23%" alt="Home screen: serif greeting and four study starters" />
+<img src="docs/screenshots/chat.jpg" width="23%" alt="A reply with folded reasoning, headings and lists" />
+<img src="docs/screenshots/maths.jpg" width="23%" alt="Inline and display maths typeset with KaTeX" />
+<img src="docs/screenshots/code-and-stats.jpg" width="23%" alt="Highlighted code blocks and the token and speed readout" />
 
-| Screen | What is there |
-|---|---|
-| **Chat** | Recent conversation list (search, swipe-delete with undo), a clean message layout, tappable model switcher, live context-window meter, optional persona picker |
-| **Model Library** | Six catalogued models, quantisation dropdown with real sizes and checksums, download progress with speed and ETA, a download notification with a pause action, resumable transfers, update badges, per-model storage |
-| **Study Personas** | Six built-in prompts (tutor, code reviewer, maths tutor, exam coach, paper explainer, essay editor) plus your own |
-| **Settings** | Theme, default model, context-length slider, sampling parameters, per-model storage, ZIP export, update policy |
-| **My Notes** | Placeholder. Import and retrieval are Phase 2; the schema is already in place. |
+<sub>Screens from the interface preview. On a phone, the replies come from a model running on the device.</sub>
 
-Study features: markdown rendering, syntax-highlighted code blocks with a copy
-button, inline `$...$` and display `$$...$$` LaTeX, a per-message "Render math"
-toggle for models that emit bare LaTeX, OCR mode (camera → multimodal image
-input, refused for text-only models), and PDF export.
-
-A download of the 5-7 GB models takes long enough that the app cannot be the only
-place progress exists, so a transfer also posts a notification: a determinate
-progress bar with speed and ETA, a **Pause** action that keeps resumable bytes,
-then a "ready" notification that opens the Model Library. Network failures,
-timeouts, and app pauses also preserve partial data; retry validates the saved
-prefix and requests only the remaining byte range. `POST_NOTIFICATIONS` is
-requested at the moment a
-download starts — after the confirmation dialog — and declining it removes
-nothing but the notification.
+</div>
 
 ---
 
-## Requirements
+## Why
 
-- Flutter **3.44.0** (stable) with Dart 3.10 or newer
-- Android SDK with **NDK 28.2.13676358** and CMake (the inference engine
-  compiles llama.cpp from source)
-- An Android device or emulator, **arm64-v8a**
+Most AI study tools stop working the moment you lose signal, and every question
+you ask leaves your phone. Library AI downloads a model once, then answers
+entirely on-device with [llama.cpp](https://github.com/ggml-org/llama.cpp). No
+account, no server, no analytics. Your conversations live in one SQLite file in
+the app's private storage.
 
-There is no backend, no account and no API key.
+## Features
 
----
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## Setup
+**Chat that reads like a hosted assistant**
+- Streaming replies with a breathing mark while the model writes
+- Reasoning models' thinking folded into "Reasoned for N words"
+- Edit and resend, regenerate, copy, delete
+- Claude Code-style readout: `✻ Writing… (4.2s · ↓ 312 tokens · 41.2 tok/s)` live, and `↑ 1.2k · ↓ 312 tokens · 41.2 tok/s · 7.9s` under every reply
+- Context meter along the top bar, amber at 75%, red at 90%
 
-```bash
-git clone https://github.com/omsenjalia/Lib-AI.git
-cd Lib-AI
-flutter pub get
+</td>
+<td width="50%" valign="top">
 
-# drift generates lib/core/data/database.g.dart, which is not committed.
-dart run build_runner build --delete-conflicting-outputs
+**Built for studying**
+- Markdown: headings, lists, tasks, quotes, tables
+- Maths: display equations typeset by KaTeX with bundled fonts; inline maths as clean Unicode (`∑ᵢ₌₁ⁿ`, `∀ x ∈ ℝ`)
+- Code: highlighted, horizontally scrollable, one-tap copy
+- Six study personas (tutor, maths and physics, exam coach...) plus your own
+- Camera and gallery input for vision models (OCR mode)
+- Export a chat as a PDF with typeset maths, or as Markdown
 
-flutter run
-```
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-Two notes about the first build:
+**Models, handled carefully**
+- Six catalogued models with exact sizes and SHA-256 checksums
+- Resumable downloads (HTTP Range), pause from the notification
+- Free space and Wi-Fi checks before a byte is fetched
+- A file is not a model until its checksum matches
+- Update checks that only ever show a badge, never download
 
-- **It is slow.** `fllama` vendors llama.cpp and compiles it during the build.
-  On a warm machine this takes several minutes; subsequent builds reuse the
-  cache.
-- **Native assets must be enabled** if your Flutter build does not do it for
-  you: `flutter config --enable-native-assets`.
+</td>
+<td valign="top">
 
-### Model inference
+**Designed, not defaulted**
+- Warm ivory and charcoal themes, one clay accent, no shadows
+- Lora, Lato and JetBrains Mono, bundled
+- Sidebar with search across titles and message text, pinning, swipe to delete with Undo
+- Bottom sheets, spring presses, haptics
+- Every animation respects the system's reduced-motion setting
 
-The inference dependency is a **pinned git reference**, not a pub.dev package:
+</td>
+</tr>
+</table>
 
-```yaml
-fllama:
-  git:
-    url: https://github.com/Telosnex/fllama.git
-    ref: f624e4bfaf6c354d557ddc841ae4990760819c4a
-```
+<p align="center">
+  <img src="docs/screenshots/library-light.jpg" width="22%" alt="Model Library in light mode with quantisation choices" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/settings.jpg" width="22%" alt="Settings in dark mode with theme, font and sampling controls" />
+</p>
 
-The package published to pub.dev as `fllama` is an unrelated, unmaintained fork
-with a different API and no multimodal support. Do not replace this with
-`fllama: ^0.0.1`.
+## Install
 
----
+1. Open the [latest nightly release](https://github.com/omsenjalia/Lib-AI/releases/latest) on your Android phone (8.0 or newer, arm64).
+2. Download **`release.apk`**, open it, and allow "Install unknown apps" for your browser if asked.
+3. Open **Model Library** in the app and download a model. Start with **Phi-4 mini** (2.49 GB) on most phones.
+4. Turn on aeroplane mode. It still works.
 
-## Build a release APK
+Each release lists the APK's SHA-256 and, when configured, a VirusTotal report.
 
-```bash
-flutter build apk --release --no-obfuscate
-# build/app/outputs/flutter-apk/app-release.apk
-```
-
-Signing is driven by `SIGNING_MODE`, which the CI sets for you:
-
-| `SIGNING_MODE` | Behaviour |
-|---|---|
-| `signed` | Signs with `KEYSTORE_PATH` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` |
-| `debug-keys` | Signs with the debug key. Used when no keystore secret is configured |
-| *(unset)* | Falls back to debug keys |
-
-The APK is the only distribution format: no Play Store listing, no AAB.
-
----
-
-## Adding or changing a model
-
-`tool/generate_models_catalogue.py` is the **source of truth** for the catalogue.
-The app never fetches the model list from the network, so this file is what makes
-the app usable on a device that has never been online.
-
-1. Add the repository and its quantisations to the script:
-
-   ```python
-   REPOS["my-model"] = {
-       "hf_model_id": "org/Model-Name",
-       "gguf_repo_id": "org/Model-Name-GGUF",
-       ...
-   }
-
-   QUANTS["my-model"] = [
-       {
-           "quant": "Q4_K_M",
-           "fileName": "Model-Name-Q4_K_M.gguf",
-           "sizeBytes": 5736063744,
-           "qualityNote": "Recommended balance of size and quality.",
-           "fitsTargetDevice": True,
-       },
-   ]
-   ```
-
-   Sizes must be the **exact byte counts** from HuggingFace's file tree, and each
-   entry needs its real SHA-256 (the tree API's `lfs.oid` is that checksum).
-
-2. Regenerate and validate:
-
-   ```bash
-   python3 tool/generate_models_catalogue.py
-   flutter test test/models/model_catalogue_test.dart
-   ```
-
-3. Never hand-edit `assets/models_catalogue.json`. The test suite validates the
-   generated file: sizes against byte counts, checksums as real SHA-256 values,
-   download URLs inside the model's own repository, vision claims against
-   recorded evidence, and the 27B's Wi-Fi-only and High-RAM flags.
-
-### What is in the catalogue
-
-| Model | Class | Recommended quant | RAM needed | Notes |
-|---|---|---|---|---|
-| `phi-4-mini-3.8b` | 3.8B | Q4_K_M · 2.49 GB | ~3.4 GB | 128K window, text-only, MIT. Every one of its 23 quants fits an 8 GB phone |
-| `qwen3.5-9b-opus-4.6-distill` | 9B | Q4_K_M · 5.63 GB | ~5.8 GB | Text-only, 4K window |
-| `qwythos-9b-mythos-5-1m` | 9B | Q4_K_M · 5.63 GB | ~7.0 GB | Vision-capable, 1M-token YaRN window |
-| `qwythos-9b-v2` | 9B | Q4_K_M · 5.74 GB | ~7.1 GB | Vision-capable, 1M-token YaRN window |
-| `mimo-v2.6-9b` | 9B | Q4_K_M · 5.84 GB | ~7.2 GB | Vision-capable, agentic/code distil |
-| `qwen3.8-27b` | 27B | UD-IQ2_XXS · 7.27 GB | ~9.2 GB | **Will not load on an S25.** Wi-Fi only, High RAM, every quant flagged as not fitting |
+## Models
 
 Sizes and checksums are generated from HuggingFace's file tree by
-`tool/generate_models_catalogue.py`; nothing in the table is an estimate.
+[`tool/generate_models_catalogue.py`](tool/generate_models_catalogue.py) and
+bundled with the app, so it knows its models on a phone that has never been
+online.
 
-### Why one model is deliberately awkward
+| Model | Size class | Recommended quant | RAM needed | Notes |
+|---|---|---|---|---|
+| `phi-4-mini-3.8b` | 3.8B | Q4_K_M · 2.49 GB | ~3.4 GB | 128K window, text only, MIT |
+| `qwen3.5-9b-opus-4.6-distill` | 9B | Q4_K_M · 5.63 GB | ~5.8 GB | Text only, 4K window |
+| `qwythos-9b-mythos-5-1m` | 9B | Q4_K_M · 5.63 GB | ~7.0 GB | Vision, 1M-token YaRN window |
+| `qwythos-9b-v2` | 9B | Q4_K_M · 5.74 GB | ~7.1 GB | Vision, 1M-token YaRN window |
+| `mimo-v2.6-9b` | 9B | Q4_K_M · 5.84 GB | ~7.2 GB | Vision, agentic and code distil |
+| `qwen3.8-27b` | 27B | UD-IQ2_XXS · 7.27 GB | ~9.2 GB | Will not load on 8 to 12 GB phones; Wi-Fi only by design |
 
-`Qwen3.8-27B` is in the catalogue with a **High RAM** badge, a **hard Wi-Fi-only
-block** and an explicit warning that it will not load on this device. It is kept
-because it is the reference model for the study use case, and hiding it would
-make the library a worse comparison. It cannot be downloaded on mobile data at
-all, and the app says so rather than merely advising against it.
+Model weights are not bundled. Each carries its own licence from its
+HuggingFace repository, shown on the model card before you download.
 
----
+## How it works
 
-## Release workflow
-
-Three workflows run automatically, plus two on demand:
-
-| Workflow | Trigger | What it does |
-|---|---|---|
-| `ci-test.yml` | PRs, pushes to `main`/`develop` | Generate drift code, analyze, test. Failures are posted as a PR comment before the job fails |
-| `ci-build-signed.yml` | PRs, pushes | Builds a signed `release.apk` and uploads it as an artifact |
-| `nightly-release.yml` | Daily at 00:00 IST, or manual | If the branch moved in the last 24h, publishes a dated GitHub Release with a direct `release.apk` asset |
-| `release.yml` | Tag push `v*`, or manual | Runs the tests, builds, and publishes a GitHub Release for that tag |
-| `pr-check.yml` | PRs | Catalogue validation, the offline boundary check, and no-`print`/no-`TODO` guardrails |
-
-To cut a release:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
+```mermaid
+flowchart LR
+  subgraph Phone
+    UI["Chat UI<br/>(React Native)"] --> Store["Stores<br/>(zustand)"]
+    Store --> Engine["llama.rn<br/>(llama.cpp, JSI)"]
+    Store --> DB[("SQLite<br/>library_ai.sqlite")]
+    Engine --> GGUF[("GGUF model<br/>app storage")]
+  end
+  HF["HuggingFace"] -.->|"model download<br/>(once, checksum-verified)"| GGUF
+  HF -.->|"update check<br/>(badge only)"| Store
 ```
 
-**Optional repository secrets** for signed builds. Without them CI still
-succeeds, signing with the debug key:
+Dotted lines are the only network traffic the app ever makes, and a test fails
+the build if any other code reaches for the network. The full design, including
+the load path, prompt budgeting, download resume rules and rendering pipeline,
+is in **[mobile/ARCHITECTURE.md](mobile/ARCHITECTURE.md)**.
+
+## Development
+
+```bash
+cd mobile
+npm install
+npm run fetch-native   # llama.rn's prebuilt Android/iOS libraries (run from PowerShell on Windows)
+npx expo start --web   # interface preview in a browser, with a sample-answer engine
+```
+
+| Task | Command |
+|---|---|
+| Typecheck | `npx tsc --noEmit` |
+| Lint | `npx expo lint` |
+| Tests (131, including the offline boundary and real-SQLite migrations) | `npx jest` |
+| Run on a device or emulator (JDK 17 + Android SDK) | `npx expo run:android` |
+| Cloud APK without a local JDK | `npx eas-cli@latest build -p android --profile preview` |
+
+New to the codebase? Read **[CLAUDE.md](CLAUDE.md)** first: the hard rules, the
+conventions, and where everything lives.
+
+### Adding or changing a model
+
+1. Edit `REPOS` and `QUANTS` in `tool/generate_models_catalogue.py` with exact byte sizes and real SHA-256s.
+2. Run `python3 tool/generate_models_catalogue.py`.
+3. Copy `assets/models_catalogue.json` to `mobile/assets/models_catalogue.json`. The test suite fails if the two differ, and validates sizes, checksums, URLs and vision claims.
+
+## Releases
+
+| Workflow | When | What |
+|---|---|---|
+| [`mobile-ci.yml`](.github/workflows/mobile-ci.yml) | PRs and pushes touching `mobile/` | Typecheck, lint, tests, `expo-doctor`, Android bundle, then a release APK artifact |
+| [`nightly-release.yml`](.github/workflows/nightly-release.yml) | Daily at 00:00 IST if `main` moved, or manually | Release APK, `apksigner` verification, SHA-256, VirusTotal scan, GitHub Release |
+
+Signing uses these repository secrets. Without them the nightly is
+debug-signed and its release notes say so; set them to the **same key the
+Flutter app shipped with** so the new app installs over it and keeps everyone's
+chats and models.
 
 | Secret | Purpose |
 |---|---|
 | `KEYSTORE_BASE64` | `base64 -w0 release.keystore` |
-| `KEYSTORE_PASSWORD` | Keystore password |
-| `KEY_ALIAS` | Key alias |
-| `KEY_PASSWORD` | Key password |
+| `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | Keystore credentials |
+| `VIRUSTOTAL_API_KEY` | Optional; adds a scan report to each release |
 
----
-
-## Repository layout
+## Repository
 
 ```
-lib/
-  core/
-    constants/    fixed values, seeded tags and personas
-    data/         drift tables, AppDatabase, DAOs (database.g.dart is generated)
-    errors/       typed AppExceptions that carry user-facing recovery advice
-    models/       catalogue, settings and transfer value objects
-    providers/    the Riverpod graph that wires the services together
-    services/     inference engine, downloads, notifications, update, export
-    theme/        Material 3 themes, dark-mode-first
-    utils/        LaTeX splitting, markdown blocks, PDF text, formatters
-    widgets/      shared UI (badges, tags, meters, dialogs, banners)
-  features/
-    chat/         chat screen, controller, message rendering, composer
-    conversations/ sidebar with search, grouping and undo-delete
-    model_library/ model cards, quant selector, download flow
-    personas/      study persona library and editor
-    notes/         "My Notes" placeholder (Phase 2)
-    settings/      all preferences and storage management
-tool/             catalogue generator (source of truth for model metadata)
-assets/           the generated catalogue, bundled into the APK
-docs/             Phase 1 research brief, verification record
-test/             unit tests for pure logic, schema tests, offline eval scenarios
+mobile/        the app (React Native, Expo SDK 57): src/, tests, config
+assets/        models_catalogue.json, generated (source for the app's copy)
+tool/          catalogue generator, the source of truth for model metadata
+docs/          UI reference inventory, research brief, screenshots
+lib/ android/  the original Flutter build, kept as a reference (docs/FLUTTER_README.md)
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for why these choices were made, how the
-inference pipeline works, the full SQLite schema, and how RAG will slot in.
-
----
-
-## The offline guarantee
-
-The app must pass a full airplane-mode smoke test: chat, history, markdown,
-LaTeX, code highlighting, PDF export, OCR, tags and personas.
-
-It does, because nothing outside model management touches the network. That
-claim is enforced, not just asserted: `.github/workflows/pr-check.yml` fails any
-pull request that imports a networking package outside the six model-management
-services.
-
-The network is used for exactly three things, all of them yours to trigger or
-observe:
-
-1. Downloading a model you asked for.
-2. Checking whether a downloaded model has changed upstream — at most once per
-   model per 24 hours, never on mobile data for the 27B, and silently skipped
-   when offline.
-3. Nothing else. An update check can only ever produce a badge; it never
-   downloads. Replacing a model file requires you to tap Update.
-
----
-
-## Licence and model terms
+## Licence
 
 No licence file is included, so the application code is all rights reserved by
-default. Choose and add one before publishing if that is not what you want.
+default. Bundled fonts (Lato, Lora, JetBrains Mono) are under the SIL Open Font
+License; llama.cpp, llama.rn, KaTeX and marked are MIT.
 
-Model weights are **not** covered by this repository and are not bundled with the
-app. Each model carries its own licence from its HuggingFace repository, listed
-per model in `assets/models_catalogue.json` and shown on the model card before
-you download anything.
+<div align="center">
+<sub>Made for students who study on trains, in basements, and anywhere the signal gives up.</sub>
+</div>

@@ -1,0 +1,78 @@
+name: Mobile (React Native)
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths: ['mobile/**', 'assets/models_catalogue.json', '.github/workflows/mobile-ci.yml']
+  push:
+    branches: [main, develop]
+    paths: ['mobile/**', 'assets/models_catalogue.json', '.github/workflows/mobile-ci.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      # Lifecycle scripts are skipped: these checks need no native libraries.
+      - run: npm ci --ignore-scripts
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx expo lint
+      # Includes the offline-boundary test and the catalogue-drift test against
+      # the root assets/models_catalogue.json.
+      - name: Unit tests
+        run: npx jest --ci
+      - name: Expo config
+        run: npx expo-doctor
+      # Proves every native import resolves for Android without a native build.
+      - name: Android JS bundle
+        run: npx expo export --platform android --output-dir /tmp/export
+
+  apk:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci
+      # llama.rn's prebuilt libraries come from its GitHub release. Run the
+      # downloader explicitly in case the package manager skipped postinstall.
+      - name: Fetch llama.rn native libraries
+        run: npm run fetch-native
+      - name: Generate the Android project
+        run: npx expo prebuild --platform android --no-install
+      - name: Build release APK (debug-signed)
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: library-ai-rn-apk
+          path: mobile/android/app/build/outputs/apk/release/*.apk

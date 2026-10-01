@@ -1,5 +1,11 @@
 # Architecture
 
+> This document describes the **Flutter** build in `lib/`. The app is being
+> ported to React Native in `mobile/`; see
+> [mobile/ARCHITECTURE.md](mobile/ARCHITECTURE.md) for that version. The rules
+> explained here (checksum gate, Wi-Fi block, badge-only updates, load before
+> write) carry over unchanged.
+
 How Library AI is put together, and why. The short version: one SQLite file, one
 resident model, one isolate doing the heavy work, and no code outside the model
 layer that knows the internet exists.
