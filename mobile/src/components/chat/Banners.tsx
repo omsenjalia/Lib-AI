@@ -19,7 +19,8 @@ import { Shimmer } from './Shimmer';
 export function EngineBanner() {
   const { colors } = useTheme();
   const status = useEngineStatus();
-  const loading = status.stage === 'verifying' || status.stage === 'readingMetadata' || status.stage === 'loadingWeights';
+  const loading =
+    status.stage === 'verifying' || status.stage === 'readingMetadata' || status.stage === 'loadingWeights' || status.visionLoading;
   const p = useSharedValue(0);
   useEffect(() => {
     p.set(withTiming(status.stage === 'loadingWeights' ? status.progress : status.stage === 'readingMetadata' ? 0.04 : 0.01, {

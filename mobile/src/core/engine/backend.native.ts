@@ -93,20 +93,31 @@ export const backend: LlamaBackend = {
   },
 
   async init({ path, contextLength, gpuLayers, vision }, onProgress) {
-    const ctx = await initLlama(
-      {
-        model: toFileUri(path),
-        n_ctx: contextLength,
-        // One sequence: the conversation gets the whole window it pays for.
-        n_parallel: AppConstants.parallelSlots,
-        n_gpu_layers: gpuLayers,
-        use_mmap: true,
-        use_mlock: false,
-        // Multimodal prompts need stable media positions, so no context shift.
-        ctx_shift: !vision,
-      },
-      (progress) => onProgress(Math.max(0, Math.min(1, progress / 100))),
-    );
-    return new LlamaRnContext(ctx);
+    const base = {
+      model: toFileUri(path),
+      n_ctx: contextLength,
+      // One sequence: the conversation gets the whole window it pays for.
+      n_parallel: AppConstants.parallelSlots,
+      n_gpu_layers: gpuLayers,
+      use_mmap: true,
+      use_mlock: false,
+      // Multimodal prompts need stable media positions, so no context shift.
+      // A projector attached later turns it off itself (rn-mtmd.hpp).
+      ctx_shift: !vision,
+    };
+    const progress = (p: number) => onProgress(Math.max(0, Math.min(1, p / 100)));
+    try {
+      // An 8-bit KV cache is half the memory of f16 at a quality cost too small
+      // to measure in chat. llama.cpp only accepts a quantised V cache with
+      // flash attention, which 'auto' enables wherever the backend supports it.
+      return new LlamaRnContext(
+        await initLlama({ ...base, cache_type_k: 'q8_0', cache_type_v: 'q8_0', flash_attn_type: 'auto' }, progress),
+      );
+    } catch {
+      // A backend without flash attention rejects the quantised V cache. Fall
+      // back to the default cache rather than fail the load; a genuine OOM
+      // fails this attempt too and is reported from here.
+      return new LlamaRnContext(await initLlama(base, progress));
+    }
   },
 };

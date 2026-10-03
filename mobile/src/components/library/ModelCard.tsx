@@ -28,11 +28,13 @@ import { ConfirmSheet } from '@/components/ui/Screen';
 import { AppText, Button, Chip, PressableScale, useHaptic } from '@/components/ui/primitives';
 import { Toggle } from '@/components/ui/controls';
 import { toast } from '@/components/ui/Toast';
-import { recommendedQuantOf, totalDownloadBytes, type CatalogueModel, type QuantOption } from '@/core/catalogue';
+import { ramRequirementGbFor, recommendedQuantOf, totalDownloadBytes, type CatalogueModel, type QuantOption } from '@/core/catalogue';
 import { AppError } from '@/core/errors';
 import { files } from '@/core/services/files';
 import { formatBytes, formatDuration, formatSpeed } from '@/core/utils/formatters';
+import { loadFit, peakRequirementBytes } from '@/core/utils/memoryBudget';
 import { useActiveModelId, useLibrary } from '@/state/library';
+import { useSettings } from '@/state/settings';
 import { useTheme } from '@/theme/ThemeProvider';
 import { motion, radius, space } from '@/theme/tokens';
 
@@ -41,8 +43,20 @@ import { motion, radius, space } from '@/theme/tokens';
  * the one action that matters right now (download, pause, resume, use,
  * update, delete). Sizes are exact byte counts from the catalogue.
  */
-export const ModelCard = memo(function ModelCard({ model, index }: { model: CatalogueModel; index: number }) {
+/** Free memory as the Library last read it; null where the platform cannot say. */
+export type MemorySnapshot = { available: number; residentId: string | null } | null;
+
+export const ModelCard = memo(function ModelCard({
+  model,
+  index,
+  memory,
+}: {
+  model: CatalogueModel;
+  index: number;
+  memory: MemorySnapshot;
+}) {
   const { colors } = useTheme();
+  const contextLength = useSettings((s) => s.settings.contextLength);
   const install = useLibrary((s) => s.installations[model.id]);
   const task = useLibrary((s) => s.tasks.get(model.id));
   const update = useLibrary((s) => s.updates[model.id]);
@@ -58,6 +72,18 @@ export const ModelCard = memo(function ModelCard({ model, index }: { model: Cata
   const quantScroll = useRef<ScrollView>(null);
 
   const total = totalDownloadBytes(model, quant, vision);
+  // Text-only figure: the projector is attached only when an image is sent.
+  const fit = memory
+    ? loadFit({
+        required: peakRequirementBytes({
+          requirementGb: ramRequirementGbFor(model, quant),
+          contextLength: Math.min(contextLength, model.maxContextLength),
+          recommendedContextLength: model.recommendedContextLength,
+        }),
+        available: memory.available,
+        resident: memory.residentId === model.id,
+      })
+    : null;
   const isActive = install && activeId === model.id;
 
   const start = async (q: QuantOption, includeMmproj: boolean) => {
@@ -95,6 +121,7 @@ export const ModelCard = memo(function ModelCard({ model, index }: { model: Cata
         <AppText variant="bodySmall" tone="body">
           {model.blurb}
         </AppText>
+        {fit ? <FitLine fit={fit} /> : null}
       </View>
 
       {model.warning ? (
@@ -282,7 +309,7 @@ export const ModelCard = memo(function ModelCard({ model, index }: { model: Cata
         body={install ? `Frees ${formatBytes(install.totalBytes)}. Your conversations are kept.` : undefined}
         confirmLabel="Delete model"
         danger
-        onConfirm={() => void remove(model)}
+        onConfirm={() => void remove(model.id)}
         onClose={() => setConfirm(null)}
       />
       <ConfirmSheet
@@ -387,3 +414,24 @@ const styles = StyleSheet.create({
   fill: { height: 6, width: '100%', transformOrigin: 'left' },
   detailsToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 2 },
 });
+
+/** Whether this model loads with the memory the phone has free right now. */
+function FitLine({ fit }: { fit: NonNullable<ReturnType<typeof loadFit>> }) {
+  const { colors } = useTheme();
+  const ok = fit.kind !== 'short';
+  const Icon = ok ? CheckCircle : Warning;
+  const text =
+    fit.kind === 'resident'
+      ? 'Loaded now'
+      : fit.kind === 'fits'
+        ? 'Fits in free memory now'
+        : `Needs about ${formatBytes(fit.required)} free, ${formatBytes(fit.available)} available now. Close other apps or pick a smaller quantisation.`;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+      <Icon size={14} color={ok ? colors.success : colors.warning} style={{ marginTop: 2 }} />
+      <AppText variant="caption" style={{ flex: 1, color: ok ? colors.success : colors.warning }}>
+        {text}
+      </AppText>
+    </View>
+  );
+}

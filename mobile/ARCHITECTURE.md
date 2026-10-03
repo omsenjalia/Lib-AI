@@ -105,14 +105,17 @@ ensureModelLoaded()                         state/chat.ts
   ├─ active model: default if installed, else first installed
   ├─ context = conversation override ?? settings, clamped to the model's max
   ├─ memory preflight: /proc/meminfo MemAvailable (+ what the resident model frees)
-  │     vs ramRequirementGb + KV for extra context + projector, x1.15 headroom
+  │     vs ramRequirementGbFor(installed quant) + KV for extra context, x1.15 headroom
+  │     (the projector is not part of the load; see 3.3 step 4)
   └─ engine.load(request)                   serialised; same request joins, others queue
         ├─ verifying        file exists and is over 1 MB
         ├─ readingMetadata  loadLlamaModelInfo(): a truncated GGUF fails here, cheaply
-        ├─ loadingWeights   initLlama({n_ctx, n_parallel: 1, n_gpu_layers, ctx_shift: !vision})
+        ├─ loadingWeights   initLlama({n_ctx, n_parallel: 1, n_gpu_layers, ctx_shift: !vision,
+        │                             cache_type_k/v: 'q8_0', flash_attn_type: 'auto'})
+        │                   8-bit KV cache is half of f16; a backend that rejects it
+        │                   (quantised V needs flash attention) gets one retry on f16.
         │                   progress 0..1 drives the banner; GPU failure retries on CPU
-        ├─ initMultimodal() when a projector is present (failure = text-only, not fatal)
-        └─ ready
+        └─ ready            projector NOT attached yet: status.visionAvailable only
 ```
 
 Failures are classified once (`classifyLoadFailure` in `errors.ts`): a missing
@@ -127,7 +130,12 @@ send(text, image?)
   2. ensureModelLoaded()  BEFORE any write: a load failure is stored as an
                           error turn, never as a question with no answer
   3. persist the user turn (estimated token count)
-  4. buildPrompt()        core/prompt.ts, see 3.4
+  4. buildPrompt()        core/prompt.ts, see 3.4. If it carries an image and the
+                          projector is not attached: check MemAvailable against the
+                          projector alone (the model is already resident), then
+                          engine.ensureVision() -> initMultimodal() on the live
+                          context. Either failing is stored as an error turn. A
+                          failed attach is remembered until the next load.
   5. insert an empty assistant row, then engine.generate():
        tokens -> in-memory buffer -> UI at ~30 fps (33 ms timer)
                                -> SQLite at most every 2 s (silent write)
@@ -143,7 +151,7 @@ re-enter at step 2.
   latest turn is always kept.
 - Error turns and empty placeholders are never sent back to the model.
 - Past `<think>` reasoning is stripped from assistant turns before resending.
-- Only the newest image is attached, and only when the projector loaded.
+- Only the newest image is attached, and only when a projector is available.
 - System prompt precedence: chat persona, else the user's default instruction,
   else the built-in study prompt, plus an "offline, use LaTeX" suffix. Never
   stacked.

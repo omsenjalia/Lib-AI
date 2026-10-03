@@ -16,7 +16,11 @@ export type EngineStatus = {
   stage: EngineStage;
   modelId: string | null;
   contextLength: number;
+  /** A projector is on disk for the loaded model; it is attached on first use. */
+  visionAvailable: boolean;
   visionReady: boolean;
+  /** True while the projector is being attached to the loaded model. */
+  visionLoading: boolean;
   gpu: boolean;
   /** 0..1 while weights load. */
   progress: number;
@@ -30,7 +34,9 @@ const initialStatus: EngineStatus = {
   stage: 'unloaded',
   modelId: null,
   contextLength: 0,
+  visionAvailable: false,
   visionReady: false,
+  visionLoading: false,
   gpu: false,
   progress: 0,
   message: null,
@@ -74,6 +80,8 @@ export class InferenceEngine {
   private listeners = new Set<(s: EngineStatus) => void>();
   private ctx: BackendContext | null = null;
   private loadedKey: string | null = null;
+  private mmprojPath: string | null = null;
+  private visionFailed = false;
   private inFlight: { key: string; promise: Promise<void> } | null = null;
   private generating = false;
   private stopRequested = false;
@@ -196,22 +204,45 @@ export class InferenceEngine {
       }
     }
 
-    let visionReady = false;
-    if (mmproj) {
-      this.emit({ message: 'Loading vision projector' });
-      visionReady = await ctx.initVision(mmproj);
-    }
-
+    // The projector is not attached here. It is up to a gigabyte that most
+    // text-only chats never use; ensureVision() attaches it to this same
+    // context the first time a prompt carries an image.
     this.ctx = ctx;
     this.loadedKey = key;
+    this.mmprojPath = mmproj;
+    this.visionFailed = false;
     this.emit({
       stage: 'ready',
-      visionReady,
+      visionAvailable: vision,
+      visionReady: false,
       gpu: ctx.gpu,
       progress: 1,
-      message: vision && !visionReady ? 'Vision projector unavailable; text only.' : null,
+      message: null,
       error: null,
     });
+  }
+
+  /**
+   * Attaches the vision projector to the loaded model if it is not attached
+   * yet. Returns whether images can be read. A failed attach is remembered so
+   * every later turn does not retry it.
+   */
+  async ensureVision(): Promise<boolean> {
+    const ctx = this.ctx;
+    if (!ctx || this.status.stage !== 'ready' || !this.mmprojPath || this.visionFailed) return false;
+    if (this.status.visionReady) return true;
+    this.emit({ visionLoading: true, message: 'Loading vision projector' });
+    let ok = false;
+    try {
+      ok = await ctx.initVision(this.mmprojPath);
+    } catch {
+      ok = false;
+    }
+    // The model may have been swapped while the projector loaded.
+    if (this.ctx !== ctx) return false;
+    this.visionFailed = !ok;
+    this.emit({ visionLoading: false, visionReady: ok, message: ok ? null : 'Vision projector unavailable; text only.' });
+    return ok;
   }
 
   async generate(req: GenerateRequest): Promise<GenerationResult> {
@@ -293,6 +324,7 @@ export class InferenceEngine {
     const ctx = this.ctx;
     this.ctx = null;
     this.loadedKey = null;
+    this.mmprojPath = null;
     if (ctx) {
       try {
         await ctx.release();

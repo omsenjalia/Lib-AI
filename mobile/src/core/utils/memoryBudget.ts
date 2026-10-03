@@ -32,3 +32,16 @@ export function peakRequirementBytes(opts: {
 }
 
 export const fitsInMemory = (available: number, required: number) => available >= required * memoryHeadroom;
+
+/**
+ * What the library says about loading a model right now. `available` should
+ * already include memory the resident model would give back on a switch.
+ */
+export type LoadFit = { kind: 'resident' } | { kind: 'fits' } | { kind: 'short'; required: number; available: number };
+
+export function loadFit(opts: { required: number; available: number; resident: boolean }): LoadFit {
+  if (opts.resident) return { kind: 'resident' };
+  return fitsInMemory(opts.available, opts.required)
+    ? { kind: 'fits' }
+    : { kind: 'short', required: Math.ceil(opts.required * memoryHeadroom), available: opts.available };
+}

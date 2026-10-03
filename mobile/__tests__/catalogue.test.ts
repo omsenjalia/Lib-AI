@@ -1,6 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { catalogue, ramRequirementGbFor, recommendedQuantOf } from '../src/core/catalogue';
+import { catalogue, installedRequirementGb, orphanedInstallations, ramRequirementGbFor, recommendedQuantOf } from '../src/core/catalogue';
+import type { ModelInstallation } from '../src/core/db/types';
+import { loadFit, memoryHeadroom } from '../src/core/utils/memoryBudget';
 
 // The generator (tool/generate_models_catalogue.py) writes the root copy. The
 // app bundles its own copy; this test is what stops the two drifting apart.
@@ -99,5 +101,49 @@ describe('ramRequirementGbFor', () => {
     for (const m of catalogue.models) {
       for (const q of m.quants) expect(ramRequirementGbFor(m, q)).toBeGreaterThanOrEqual(q.sizeBytes / 1e9);
     }
+  });
+});
+
+describe('installedRequirementGb', () => {
+  it('follows the installed quant and falls back to the recommended one', () => {
+    const m = catalogue.models.find((x) => x.id === 'qwen3.5-4b')!;
+    const q3 = m.quants.find((q) => q.quant === 'Q3_K_M')!;
+    expect(installedRequirementGb(m, { quant: 'Q3_K_M' })).toBeCloseTo(ramRequirementGbFor(m, q3), 9);
+    expect(installedRequirementGb(m, undefined)).toBeCloseTo(m.ramRequirementGb, 9);
+    expect(installedRequirementGb(m, { quant: 'not-a-quant' })).toBeCloseTo(m.ramRequirementGb, 9);
+  });
+});
+
+describe('orphanedInstallations', () => {
+  const install = (modelId: string): ModelInstallation => ({
+    modelId,
+    quant: 'Q4_K_M',
+    fileName: 'm.gguf',
+    localPath: '/x',
+    mmprojPath: null,
+    sizeBytes: 1,
+    sha256: 'a',
+    repoSha: null,
+    totalBytes: 5e9,
+    downloadedAt: 0,
+  });
+
+  it('lists installs the catalogue dropped, and only those', () => {
+    const installs = { 'qwen3.8-27b': install('qwen3.8-27b'), 'qwen3.5-4b': install('qwen3.5-4b'), 'mimo-v2.6-9b': install('mimo-v2.6-9b') };
+    const ids = catalogue.models.map((m) => m.id);
+    expect(orphanedInstallations(installs, ids).map((i) => i.modelId)).toEqual(['mimo-v2.6-9b', 'qwen3.8-27b']);
+    expect(orphanedInstallations({}, ids)).toEqual([]);
+  });
+});
+
+describe('loadFit', () => {
+  it('says the resident model is loaded whatever the numbers', () => {
+    expect(loadFit({ required: 9e9, available: 1e9, resident: true })).toEqual({ kind: 'resident' });
+  });
+
+  it('applies the same headroom as the load preflight', () => {
+    expect(loadFit({ required: 4e9, available: 4e9 * memoryHeadroom, resident: false })).toEqual({ kind: 'fits' });
+    const short = loadFit({ required: 4e9, available: 4e9, resident: false });
+    expect(short).toEqual({ kind: 'short', required: Math.ceil(4e9 * memoryHeadroom), available: 4e9 });
   });
 });

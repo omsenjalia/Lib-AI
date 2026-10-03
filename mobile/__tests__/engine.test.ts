@@ -161,6 +161,52 @@ describe('InferenceEngine', () => {
     expect(engine.getStatus().stage).toBe('unloaded');
   });
 
+  it('loads without the projector and attaches it on first use', async () => {
+    let attached = 0;
+    const { engine } = setup({
+      init: async () =>
+        fakeContext({
+          initVision: async () => {
+            attached++;
+            return true;
+          },
+        }),
+    });
+    await engine.load(req({ mmprojPath: '/models/mmproj.gguf' }));
+    expect(attached).toBe(0);
+    expect(engine.getStatus()).toMatchObject({ visionAvailable: true, visionReady: false });
+
+    expect(await engine.ensureVision()).toBe(true);
+    expect(await engine.ensureVision()).toBe(true);
+    expect(attached).toBe(1);
+    expect(engine.getStatus()).toMatchObject({ visionReady: true, visionLoading: false });
+  });
+
+  it('remembers a failed projector attach instead of retrying every turn', async () => {
+    let attached = 0;
+    const { engine } = setup({
+      init: async () =>
+        fakeContext({
+          initVision: async () => {
+            attached++;
+            return false;
+          },
+        }),
+    });
+    await engine.load(req({ mmprojPath: '/models/mmproj.gguf' }));
+    expect(await engine.ensureVision()).toBe(false);
+    expect(await engine.ensureVision()).toBe(false);
+    expect(attached).toBe(1);
+    expect(engine.getStatus().message).toMatch(/text only/);
+  });
+
+  it('has no vision to attach for a text-only load', async () => {
+    const { engine } = setup({});
+    await engine.load(req());
+    expect(engine.getStatus().visionAvailable).toBe(false);
+    expect(await engine.ensureVision()).toBe(false);
+  });
+
   it('streams tokens and returns the full text', async () => {
     const { engine } = setup({});
     await engine.load(req());

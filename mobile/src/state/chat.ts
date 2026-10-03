@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { modelById, ramRequirementGbFor, recommendedQuantOf } from '@/core/catalogue';
+import { installedRequirementGb, modelById, ramRequirementGbFor, recommendedQuantOf } from '@/core/catalogue';
 import { AppConstants } from '@/core/constants';
 import * as db from '@/core/db/database';
 import { onChange } from '@/core/db/events';
@@ -75,6 +75,27 @@ export const useChat = create<ChatState>((set, get) => {
     return usePersonas.getState().list.find((p) => p.id === conv.personaId) ?? null;
   }
 
+  /**
+   * Attaches the vision projector the first time a prompt carries an image.
+   * The model is already resident, so MemAvailable already reflects it and only
+   * the projector itself has to fit.
+   */
+  async function attachVision(modelId: string | null): Promise<AppError | null> {
+    const model = modelById(modelId);
+    const bytes = model?.mmproj?.sizeBytes ?? 0;
+    const available = await files.memAvailableBytes();
+    if (available !== null && !fitsInMemory(available, bytes)) {
+      return new AppError('insufficientMemory', 'Not enough free memory to read the image.', {
+        detail: `The vision projector needs about ${formatBytes(bytes)}; this device has ${formatBytes(available)} available right now.`,
+        recovery: 'Close other apps and try again, or ask without the image.',
+      });
+    }
+    if (await engine.ensureVision()) return null;
+    return new AppError('unsupportedModality', 'The vision projector could not be loaded, so the image was not read.', {
+      recovery: 'Re-download the model with image input from Model Library, or ask without the image.',
+    });
+  }
+
   async function persistError(conversationId: number, error: AppError) {
     await db.addMessage({ conversationId, role: 'assistant', content: error.toTranscript(), isError: true });
   }
@@ -90,8 +111,17 @@ export const useChat = create<ChatState>((set, get) => {
       persona,
       userDefaultPrompt: settings.systemPrompt,
       contextLength: ctx,
-      visionReady: status.visionReady,
+      // An available projector counts: it is attached below if the prompt needs it.
+      visionReady: status.visionReady || status.visionAvailable,
     });
+    if (prompt.some((m) => m.imagePath) && !status.visionReady) {
+      const error = await attachVision(status.modelId);
+      if (error) {
+        set({ isGenerating: false, lastError: error });
+        await persistError(conversationId, error);
+        return;
+      }
+    }
     const assistantId = await db.addMessage({ conversationId, role: 'assistant', content: '' });
     pendingText = '';
     const stats: StreamStats = {
@@ -322,13 +352,16 @@ export async function ensureModelLoaded(conversationId: number | null): Promise<
   if (available !== null) {
     // The resident model is released before the next one maps, so only the
     // incoming model counts, plus what the current one will give back.
-    const resident = modelById(engine.getStatus().modelId);
-    const releasing = resident ? Math.round(resident.ramRequirementGb * 1e9) : 0;
+    const residentId = engine.getStatus().modelId;
+    const resident = modelById(residentId);
+    const residentInstall = residentId ? useLibrary.getState().installations[residentId] : undefined;
+    const releasing = resident ? Math.round(installedRequirementGb(resident, residentInstall) * 1e9) : 0;
+    // The projector is not part of this load; attachVision() checks it when an
+    // image is actually sent.
     const required = peakRequirementBytes({
       requirementGb: ramRequirementGbFor(model, quant),
       contextLength,
       recommendedContextLength: model.recommendedContextLength,
-      extraBytes: includeVision ? model.mmproj?.sizeBytes ?? 0 : 0,
     });
     if (!fitsInMemory(available + releasing, required)) {
       throw new AppError('insufficientMemory', `Not enough free memory to load ${model.displayName}.`, {

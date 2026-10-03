@@ -21,7 +21,8 @@ type LibraryState = {
   download(model: CatalogueModel, quant: QuantOption, includeMmproj: boolean): Promise<void>;
   pause(modelId: string): void;
   cancel(model: CatalogueModel): Promise<void>;
-  remove(model: CatalogueModel): Promise<void>;
+  /** Takes an id, not a catalogue entry, so a model the catalogue dropped can still be deleted. */
+  remove(modelId: string): Promise<void>;
   setActive(modelId: string): Promise<void>;
   checkUpdates(force?: boolean): Promise<void>;
   dismissUpdate(modelId: string): Promise<void>;
@@ -45,15 +46,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   pause: (modelId) => downloads.pause(modelId),
   cancel: (model) => downloads.cancel(model),
 
-  async remove(model) {
-    const install = get().installations[model.id];
-    if (engine.getStatus().modelId === model.id) await engine.unload();
+  async remove(modelId) {
+    const install = get().installations[modelId];
+    if (engine.getStatus().modelId === modelId) await engine.unload();
     if (install) {
       await files.unlink(install.localPath);
       if (install.mmprojPath) await files.unlink(install.mmprojPath);
     }
-    await deleteInstallation(model.id);
-    if (useSettings.getState().settings.defaultModelId === model.id) {
+    await deleteInstallation(modelId);
+    if (useSettings.getState().settings.defaultModelId === modelId) {
       await useSettings.getState().patch({ defaultModelId: null });
     }
   },
