@@ -181,3 +181,15 @@ export function recommendedQuantOf(model: CatalogueModel): QuantOption {
 export function totalDownloadBytes(model: CatalogueModel, quant: QuantOption, includeMmproj: boolean): number {
   return quant.sizeBytes + (includeMmproj && model.mmproj ? model.mmproj.sizeBytes : 0);
 }
+
+/**
+ * `ramRequirementGb` adjusted for the quant actually installed. The catalogue
+ * figure is derived from the recommended quant, so using it unchanged would
+ * refuse a small IQ3 file on the strength of a Q4 file's weights. The non-weight
+ * part (KV cache, compute buffers) does not depend on the quant and carries over.
+ */
+export function ramRequirementGbFor(model: CatalogueModel, quant: QuantOption): number {
+  const deltaGb = (quant.sizeBytes - recommendedQuantOf(model).sizeBytes) / 1e9;
+  // Never claim less than the weights themselves.
+  return Math.max(model.ramRequirementGb + deltaGb, quant.sizeBytes / 1e9);
+}

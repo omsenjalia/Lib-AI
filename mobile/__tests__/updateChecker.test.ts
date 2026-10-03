@@ -3,7 +3,10 @@ import type { ModelInstallation, UpdateCheck } from '../src/core/db/types';
 import { checkForUpdates, hasChanged, type UpdateDeps } from '../src/core/services/updateChecker';
 
 const model = catalogue.models.find((m) => !m.wifiOnly)!;
-const big = catalogue.models.find((m) => m.wifiOnly)!;
+// No shipped model is Wi-Fi only any more, but the gate still exists, so it is
+// tested against a fixture built from a real entry.
+const big = { ...catalogue.models.find((m) => m.id !== model.id)!, id: 'wifi-only-fixture', wifiOnly: true };
+const models = [...catalogue.models, big];
 
 const install = (modelId: string, over: Partial<ModelInstallation> = {}): ModelInstallation => ({
   modelId,
@@ -50,25 +53,25 @@ describe('hasChanged', () => {
 describe('checkForUpdates', () => {
   it('does nothing offline', async () => {
     const fetched: string[] = [];
-    await checkForUpdates(catalogue.models, deps({ network: async () => 'offline', fetched }));
+    await checkForUpdates(models, deps({ network: async () => 'offline', fetched }));
     expect(fetched).toEqual([]);
   });
   it('never polls a Wi-Fi-only model on mobile data', async () => {
     const fetched: string[] = [];
-    await checkForUpdates(catalogue.models, deps({ network: async () => 'metered', fetched }));
+    await checkForUpdates(models, deps({ network: async () => 'metered', fetched }));
     expect(fetched).toEqual([model.ggufRepoId]);
   });
   it('respects the 24-hour throttle unless forced', async () => {
     const fetched: string[] = [];
     const recent = [{ modelId: model.id, lastCheckedAt: 10 * 86_400_000 - 1000, remoteSha: null, updateAvailable: false }];
-    await checkForUpdates(catalogue.models, deps({ checks: async () => recent, fetched }));
+    await checkForUpdates(models, deps({ checks: async () => recent, fetched }));
     expect(fetched).not.toContain(model.ggufRepoId);
-    await checkForUpdates(catalogue.models, deps({ checks: async () => recent, fetched }), true);
+    await checkForUpdates(models, deps({ checks: async () => recent, fetched }), true);
     expect(fetched).toContain(model.ggufRepoId);
   });
   it('records an available update as a flag only', async () => {
     const saved: UpdateCheck[] = [];
-    await checkForUpdates(catalogue.models, deps({ saved }));
+    await checkForUpdates(models, deps({ saved }));
     expect(saved.find((s) => s.modelId === model.id)?.updateAvailable).toBe(true);
   });
 });

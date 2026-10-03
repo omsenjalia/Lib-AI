@@ -109,14 +109,18 @@ Sizes and checksums are generated from HuggingFace's file tree by
 bundled with the app, so it knows its models on a phone that has never been
 online.
 
+Every model is chosen to load with 4 to 5 GB of free RAM. "RAM needed" is for
+text chat; image input adds the vision projector on top.
+
 | Model | Size class | Recommended quant | RAM needed | Notes |
 |---|---|---|---|---|
+| `qwen3.5-2b` | 2B | Q4_K_M · 1.28 GB | ~1.8 GB | Vision (+0.67 GB), lightest |
+| `gemma-4-e2b` | E2B | QAT UD-Q4_K_XL · 2.62 GB | ~3.1 GB | Vision (+0.99 GB), Google, 128K window |
+| `qwen3.5-4b` | 4B | Q4_K_M · 2.74 GB | ~3.3 GB | Vision (+0.68 GB) |
+| `qwen3.5-4b-opus-4.6-distill` | 4B | Q4_K_M · 2.71 GB | ~3.3 GB | Text only, Claude Opus reasoning distil |
 | `phi-4-mini-3.8b` | 3.8B | Q4_K_M · 2.49 GB | ~3.4 GB | 128K window, text only, MIT |
-| `qwen3.5-9b-opus-4.6-distill` | 9B | Q4_K_M · 5.63 GB | ~5.8 GB | Text only, 4K window |
-| `qwythos-9b-mythos-5-1m` | 9B | Q4_K_M · 5.63 GB | ~7.0 GB | Vision, 1M-token YaRN window |
-| `qwythos-9b-v2` | 9B | Q4_K_M · 5.74 GB | ~7.1 GB | Vision, 1M-token YaRN window |
-| `mimo-v2.6-9b` | 9B | Q4_K_M · 5.84 GB | ~7.2 GB | Vision, agentic and code distil |
-| `qwen3.8-27b` | 27B | UD-IQ2_XXS · 7.27 GB | ~9.2 GB | Will not load on 8 to 12 GB phones; Wi-Fi only by design |
+| `gemma-4-e4b` | E4B | QAT UD-Q4_K_XL · 4.22 GB | ~4.8 GB | Vision (+0.99 GB), Google, 128K window |
+| `qwythos-9b-v2-compact` | 9B | IQ3_XXS · 4.41 GB | ~5.0 GB | Vision (+0.92 GB), 2 to 4 bit quants of Qwythos-9B-v2 |
 
 Model weights are not bundled. Each carries its own licence from its
 HuggingFace repository, shown on the model card before you download.

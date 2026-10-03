@@ -189,6 +189,23 @@ class CatalogueModel {
     return total;
   }
 
+  /// [ramRequirementGb] adjusted for the quant actually installed.
+  ///
+  /// The catalogue figure is derived from the recommended quant, so using it
+  /// unchanged would refuse a small IQ3 file on the strength of a Q4 one's
+  /// weights - which is exactly the user who picked a small quant to fit. The
+  /// non-weight part (KV cache, compute buffers) does not depend on the quant
+  /// and is carried over as is.
+  double ramRequirementGbFor(QuantOption quant) {
+    final recommended = recommendedQuantInfo;
+    if (recommended == null) return ramRequirementGb;
+    final deltaGb = (quant.sizeBytes - recommended.sizeBytes) / 1e9;
+    final adjusted = ramRequirementGb + deltaGb;
+    // Never claim less than the weights themselves.
+    final weightsGb = quant.sizeBytes / 1e9;
+    return adjusted < weightsGb ? weightsGb : adjusted;
+  }
+
   factory CatalogueModel.fromJson(Map<String, dynamic> json) {
     String req(String key) {
       final value = json[key];

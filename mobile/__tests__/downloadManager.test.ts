@@ -73,7 +73,8 @@ function fakeFs(server: Server, opts: { free?: number } = {}) {
 
 const textModel = catalogue.models.find((m) => !m.mmproj && !m.wifiOnly)!;
 const quant = textModel.quants.find((q) => q.quant === textModel.recommendedQuant)!;
-const bigModel = catalogue.models.find((m) => m.wifiOnly)!;
+// No shipped model is Wi-Fi only any more; the gate is tested on a fixture.
+const bigModel = { ...catalogue.models[0], id: 'wifi-only-fixture', wifiOnly: true };
 
 function manager(fs: FileService, network: NetworkKind = 'unmetered') {
   const saved: ModelInstallation[] = [];

@@ -459,7 +459,7 @@ class ChatController extends ChangeNotifier {
           ? catalogue.byId(residentId)
           : null;
       final required = MemoryBudget.peakRequirementBytes(
-        requirementGb: model.ramRequirementGb,
+        requirementGb: model.ramRequirementGbFor(quant),
         alsoResidentGb: swappingFrom?.ramRequirementGb ?? 0,
         contextLength: contextLength,
         recommendedContextLength: model.recommendedContextLength,

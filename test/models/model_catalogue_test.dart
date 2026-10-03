@@ -28,28 +28,23 @@ void main() {
     expect(catalogue.targetDevice.usableRamGb, greaterThan(0));
   });
 
-  test('all six approved models are present, with their approved repos', () {
-    expect(catalogue.models, hasLength(6));
+  test('all seven approved models are present, with their approved repos',
+      () {
+    expect(catalogue.models, hasLength(7));
 
     final byId = {for (final model in catalogue.models) model.id: model};
 
     expect(byId.keys, containsAll([
-      'qwen3.8-27b',
-      'mimo-v2.6-9b',
-      'qwythos-9b-v2',
-      'qwythos-9b-mythos-5-1m',
-      'qwen3.5-9b-opus-4.6-distill',
       'phi-4-mini-3.8b',
+      'qwythos-9b-v2-compact',
+      'qwen3.5-4b',
+      'qwen3.5-4b-opus-4.6-distill',
+      'qwen3.5-2b',
+      'gemma-4-e4b',
+      'gemma-4-e2b',
     ]));
 
-    // D3: third-party GGUFs where no official GGUF exists.
-    expect(byId['qwen3.8-27b']!.ggufRepoId, 'unsloth/Qwen3.8-27B-GGUF');
-    expect(
-      byId['mimo-v2.6-9b']!.ggufRepoId,
-      'bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF',
-      reason: 'MiMo must not come from ggml-org: its only quant there is Q8_0, '
-          'which is too large for this device',
-    );
+    // Third-party GGUFs where the upstream repo ships safetensors only.
     expect(
       byId['phi-4-mini-3.8b']!.ggufRepoId,
       'bartowski/microsoft_Phi-4-mini-instruct-GGUF',
@@ -57,6 +52,19 @@ void main() {
           '`bartowski/Phi-4-mini-instruct-GGUF` returns 404, so a typo here '
           'would make every download fail at the first request.',
     );
+    expect(byId['gemma-4-e4b']!.ggufRepoId, 'unsloth/gemma-4-E4B-it-qat-GGUF');
+    expect(byId['gemma-4-e2b']!.ggufRepoId, 'unsloth/gemma-4-E2B-it-qat-GGUF');
+  });
+
+  test('no shipped model is Wi-Fi only, High RAM, or marked as not fitting',
+      () {
+    // The 27B that carried these flags was removed on 2026-10-03. The Wi-Fi
+    // gate itself is still enforced by the download manager.
+    for (final model in catalogue.models) {
+      expect(model.wifiOnly, isFalse, reason: model.id);
+      expect(model.highRam, isFalse, reason: model.id);
+      expect(model.fitsTargetDevice, isTrue, reason: model.id);
+    }
   });
 
   test('every model has at least one quantisation with a real checksum', () {
@@ -123,11 +131,15 @@ void main() {
 
       final mmproj = model.mmproj;
       if (mmproj != null) {
+        // One deliberate exception: bartowski's compact Qwythos quants ship no
+        // projector, so the entry borrows empero's for the same weights.
+        final projectorRepo = model.id == 'qwythos-9b-v2-compact'
+            ? 'empero-ai/Qwythos-9B-v2-GGUF'
+            : model.ggufRepoId;
         expect(
           mmproj.downloadUrl,
-          startsWith(
-            'https://huggingface.co/${model.ggufRepoId}/resolve/main/',
-          ),
+          startsWith('https://huggingface.co/$projectorRepo/resolve/main/'),
+          reason: '${model.id} projector URL is wrong',
         );
         expect(mmproj.downloadUrl, endsWith(mmproj.fileName));
         expect(mmproj.sha256, isNotNull);
@@ -150,51 +162,6 @@ void main() {
             'not in its quant list',
       );
     }
-  });
-
-  group('the 27B is handled exactly as decided in D1', () {
-    late CatalogueModel target;
-
-    setUp(() {
-      target = catalogue.byId('qwen3.8-27b')!;
-    });
-
-    test('it is flagged Wi-Fi only and High RAM', () {
-      expect(target.wifiOnly, isTrue);
-      expect(target.highRam, isTrue);
-    });
-
-    test('it does not claim to fit this device', () {
-      expect(target.fitsTargetDevice, isFalse);
-      expect(target.ramRequirementGb, greaterThan(catalogue.targetDevice.usableRamGb));
-    });
-
-    test('it carries an explicit will-not-load warning', () {
-      expect(target.hasWarning, isTrue);
-      expect(target.warning!.toUpperCase(), contains('WILL NOT LOAD'));
-    });
-
-    test('its default quant is the D1 decision, UD-IQ2_XXS', () {
-      expect(target.recommendedQuant, 'UD-IQ2_XXS');
-
-      final recommended = target.recommendedQuantInfo!;
-      expect(recommended.quant, target.recommendedQuant);
-      expect(
-        target.quants.map((q) => q.quant),
-        contains(recommended.quant),
-        reason: 'the D1 default quant must stay one of the published quants',
-      );
-    });
-
-    test('no quant of it is marked as fitting this device', () {
-      expect(target.quants.every((q) => !q.fitsTargetDevice), isTrue);
-    });
-
-    test('the 27B is the only Wi-Fi-only model in the catalogue', () {
-      final wifiOnly = catalogue.models.where((m) => m.wifiOnly).toList();
-      expect(wifiOnly, hasLength(1));
-      expect(wifiOnly.single.id, 'qwen3.8-27b');
-    });
   });
 
   group('vision support is only claimed with evidence', () {
@@ -225,12 +192,6 @@ void main() {
       }
     });
 
-    test('the two text-only models are recorded as such', () {
-      final model = catalogue.byId('qwen3.5-9b-opus-4.6-distill')!;
-      expect(model.visionSupported, isFalse);
-      expect(model.mmproj, isNull);
-    });
-
     test('Phi-4-mini is text-only, and the entry says why', () {
       // The base repo is pipeline_tag=text-generation with no vision tag, no
       // preprocessor_config.json, and no mmproj in the GGUF repo. OCR mode has
@@ -243,12 +204,22 @@ void main() {
       expect(model.visionAbsenceNote!.toLowerCase(), contains('text-only'));
     });
 
-    test('exactly two of the six models are text-only', () {
+    test('exactly two of the seven models are text-only', () {
       final textOnly = catalogue.models.where((m) => !m.visionSupported);
       expect(
         textOnly.map((m) => m.id).toList(),
-        ['qwen3.5-9b-opus-4.6-distill', 'phi-4-mini-3.8b'],
+        ['phi-4-mini-3.8b', 'qwen3.5-4b-opus-4.6-distill'],
       );
+    });
+
+    test('the 4B Opus distil is text-only even though its repo has a projector',
+        () {
+      // The repo ships mmproj-BF16.gguf, but the card claims no vision. Listing
+      // it would download 0.68 GB the app has no grounds to use.
+      final model = catalogue.byId('qwen3.5-4b-opus-4.6-distill')!;
+      expect(model.visionSupported, isFalse);
+      expect(model.mmproj, isNull);
+      expect(model.visionAbsenceNote, contains('mmproj-BF16.gguf'));
     });
   });
 
@@ -276,9 +247,10 @@ void main() {
       );
     });
 
-    test('it is a quarter of the RAM of the next smallest model', () {
+    test('it needs less RAM than any of the 9B-and-up models', () {
       final others = catalogue.models
           .where((m) => m.id != 'phi-4-mini-3.8b')
+          .where((m) => m.sizeClass == '9B' || m.sizeClass == '27B')
           .map((m) => m.ramRequirementGb);
       expect(target.ramRequirementGb, lessThan(others.reduce((a, b) => a < b ? a : b)));
     });
@@ -306,24 +278,22 @@ void main() {
         );
       }
     });
-
-    test('the 4k Opus-4.6 distill is capped at 4096', () {
-      final model = catalogue.byId('qwen3.5-9b-opus-4.6-distill')!;
-      expect(model.maxContextLength, 4096);
-      expect(model.recommendedContextLength, 4096);
-    });
   });
 
   group('sampling defaults come from the model cards', () {
     test('Qwythos records its documented repeat penalty of 1.05', () {
-      final model = catalogue.byId('qwythos-9b-v2')!;
+      final model = catalogue.byId('qwythos-9b-v2-compact')!;
       expect(model.samplingDefaults.repeatPenalty, 1.05);
     });
 
-    test('the Mythos variant warns about low temperatures', () {
-      // Its card documents repetition loops at or below 0.3.
-      final model = catalogue.byId('qwythos-9b-mythos-5-1m')!;
-      expect(model.samplingDefaults.temperature, greaterThan(0.3));
+    test('Gemma 4 uses the card\'s standard configuration', () {
+      // temperature 1.0, top_p 0.95, top_k 64 "across all use cases".
+      for (final id in ['gemma-4-e4b', 'gemma-4-e2b']) {
+        final sampling = catalogue.byId(id)!.samplingDefaults;
+        expect(sampling.temperature, 1.0, reason: id);
+        expect(sampling.topP, 0.95, reason: id);
+        expect(sampling.topK, 64, reason: id);
+      }
     });
 
     test('every model has a usable temperature and top-p', () {
@@ -356,12 +326,80 @@ void main() {
     }
   });
 
-  test('the 94 published quantisations are all accounted for', () {
+  test('the 89 published quantisations are all accounted for', () {
     final total = catalogue.models.fold<int>(
       0,
       (sum, model) => sum + model.quants.length,
     );
-    expect(total, 94);
+    expect(total, 89);
+  });
+
+  group('every entry fits a phone with 4-5 GB free', () {
+    test('each recommended quant loads text-only in 5 GB', () {
+      for (final model in catalogue.models) {
+        final id = model.id;
+        expect(
+          model.ramRequirementGbFor(model.recommendedQuantInfo!),
+          lessThanOrEqualTo(5.0),
+          reason: '$id does not fit 5 GB at its recommended quant',
+        );
+      }
+    });
+
+    test('the 4B and 2B vision models fit 5 GB with the projector loaded', () {
+      for (final id in ['qwen3.5-4b', 'qwen3.5-2b', 'gemma-4-e2b']) {
+        final model = catalogue.byId(id)!;
+        final withProjectorGb =
+            model.ramRequirementGbFor(model.recommendedQuantInfo!) +
+                model.mmproj!.sizeBytes / 1e9;
+        expect(withProjectorGb, lessThanOrEqualTo(5.0), reason: id);
+      }
+    });
+
+    test('the compact Qwythos quants are all smaller than empero\'s smallest',
+        () {
+      // empero's own repo starts at Q4_K_M, 5,629,108,896 bytes; the compact
+      // entry exists only for what sits below that.
+      final compact = catalogue.byId('qwythos-9b-v2-compact')!;
+      expect(
+        compact.quants.every((q) => q.sizeBytes < 5629108896),
+        isTrue,
+      );
+    });
+  });
+
+  group('ramRequirementGbFor follows the installed quant', () {
+    test('the recommended quant gets the catalogue figure unchanged', () {
+      for (final model in catalogue.models) {
+        expect(
+          model.ramRequirementGbFor(model.recommendedQuantInfo!),
+          closeTo(model.ramRequirementGb, 1e-9),
+          reason: model.id,
+        );
+      }
+    });
+
+    test('a smaller quant needs less, by exactly the weight difference', () {
+      final model = catalogue.byId('qwen3.5-4b')!;
+      final q4 = model.recommendedQuantInfo!;
+      final q2 = model.quants.firstWhere((q) => q.quant == 'Q3_K_M');
+      final expected =
+          model.ramRequirementGb - (q4.sizeBytes - q2.sizeBytes) / 1e9;
+      expect(model.ramRequirementGbFor(q2), closeTo(expected, 1e-9));
+      expect(model.ramRequirementGbFor(q2), lessThan(model.ramRequirementGb));
+    });
+
+    test('it never claims less than the weights themselves', () {
+      for (final model in catalogue.models) {
+        for (final quant in model.quants) {
+          expect(
+            model.ramRequirementGbFor(quant),
+            greaterThanOrEqualTo(quant.sizeBytes / 1e9),
+            reason: '${model.id} ${quant.quant}',
+          );
+        }
+      }
+    });
   });
 
   test('a malformed entry fails loudly instead of half-loading', () {

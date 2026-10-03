@@ -20,34 +20,6 @@ import os
 RESOLVE = "https://huggingface.co/{repo}/resolve/main/{fname}"
 
 REPOS = {
-    "qwen3.8-27b": dict(
-        repo="unsloth/Qwen3.8-27B-GGUF",
-        sha="4ca720788d1e01f1bff70c033e0d0028fd02e502",
-        last_modified="2026-08-20T12:04:25.000Z",
-        likes=4564,
-        downloads=7134167,
-    ),
-    "mimo-v2.6-9b": dict(
-        repo="bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF",
-        sha="4371da10c84fb26da3592d4cf312d24aa82b7b65",
-        last_modified="2026-09-21T22:44:19.000Z",
-        likes=36,
-        downloads=27091,
-    ),
-    "qwythos-9b-v2": dict(
-        repo="empero-ai/Qwythos-9B-v2-GGUF",
-        sha="97c11b03687f194b300efbdb4760d9bc4021b759",
-        last_modified="2026-07-12T00:58:46.000Z",
-        likes=0,
-        downloads=0,
-    ),
-    "qwythos-9b-mythos-5-1m": dict(
-        repo="empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF",
-        sha="5cebd89dd078b033c26988248740ddadf40f2fbd",
-        last_modified="2026-07-14T13:12:53.000Z",
-        likes=0,
-        downloads=0,
-    ),
     # The user-supplied id `bartowski/Phi-4-mini-instruct-GGUF` does not exist
     # (404). bartowski's convention is to prefix the upstream org with an
     # underscore, so the real repository is the one below - confirmed against
@@ -59,89 +31,62 @@ REPOS = {
         likes=46,
         downloads=48878,
     ),
-    "qwen3.5-9b-opus-4.6-distill": dict(
-        repo="empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF",
-        sha="892a4362ba5896d67d566a316973fefb70f5135f",
-        last_modified="2026-03-15T23:23:35.000Z",
-        likes=0,
-        downloads=0,
+    # Added 2026-10-01 for devices with only 4-5 GB free at load time. All four
+    # are general.architecture=qwen35 (read from each GGUF header), which
+    # llama.rn 0.13.0-rc.6 (llama.cpp b11192) supports.
+    "qwen3.5-4b": dict(
+        repo="unsloth/Qwen3.5-4B-GGUF",
+        sha="e87f176479d0855a907a41277aca2f8ee7a09523",
+        last_modified="2026-03-02T14:08:17.000Z",
+        likes=446,
+        downloads=1013661,
+    ),
+    "qwen3.5-2b": dict(
+        repo="unsloth/Qwen3.5-2B-GGUF",
+        sha="f6d5376be1edb4d416d56da11e5397a961aca8ae",
+        last_modified="2026-03-02T14:07:35.000Z",
+        likes=158,
+        downloads=322275,
+    ),
+    "qwen3.5-4b-opus-4.6-distill": dict(
+        repo="Jackrong/Qwen3.5-4B-Claude-4.6-Opus-Reasoning-Distilled-GGUF",
+        sha="cd70250b528abda79bc0390af5031c40e0a73edc",
+        last_modified="2026-04-06T02:08:54.000Z",
+        likes=169,
+        downloads=179580,
+    ),
+    # bartowski's imatrix conversion of empero's Qwythos-9B-v2. empero's own
+    # repo stops at Q4_K_M (5.74 GB); this one goes down to IQ2_M.
+    "qwythos-9b-v2-compact": dict(
+        repo="bartowski/empero-ai_Qwythos-9B-v2-GGUF",
+        sha="3f233570b07f7a3bc2570b975cbb210fec72efb4",
+        last_modified="2026-07-19T02:38:42.000Z",
+        likes=4,
+        downloads=2755,
+    ),
+    # Gemma 4 E-series, added 2026-10-03. unsloth's QAT builds: Google trained
+    # these checkpoints to be quantised to 4 bits, so the Q4 file keeps close to
+    # bf16 quality and is smaller than a plain Q4_K_M (E4B: 4.22 vs 4.98 GB).
+    # general.architecture=gemma4 and the projector is gemma4v, both supported
+    # by llama.rn 0.13.0-rc.6.
+    "gemma-4-e4b": dict(
+        repo="unsloth/gemma-4-E4B-it-qat-GGUF",
+        sha="8c5a9e4fd5482e2be20fe0bf013b4c262a8f4265",
+        last_modified="2026-07-17T12:37:02.000Z",
+        likes=211,
+        downloads=476353,
+    ),
+    "gemma-4-e2b": dict(
+        repo="unsloth/gemma-4-E2B-it-qat-GGUF",
+        sha="66a399f68ddd113b06dff02fca9523e55465d11d",
+        last_modified="2026-07-17T12:36:37.000Z",
+        likes=86,
+        downloads=414054,
     ),
 }
 
 # (file_name, quant_label, size_bytes, quality_note[, fits_9gb])
 QUANTS = {
-    "qwen3.8-27b": [
-        ("Qwen3.8-27B-UD-IQ1_S.gguf", "UD-IQ1_S", 6192222208, "Emergency quant. Severe quality loss on a 27B, and still over budget once the KV cache is counted.", False),
-        ("Qwen3.8-27B-UD-IQ1_M.gguf", "UD-IQ1_M", 6729166848, "Emergency quant. Severe quality loss on a 27B, and still over budget once the KV cache is counted.", False),
-        ("Qwen3.8-27B-UD-IQ2_XXS.gguf", "UD-IQ2_XXS", 7266070528, "The D1 default quant. Quality is poor but coherent, and over budget once the KV cache and projector are counted.", False),
-        ("Qwen3.8-27B-UD-IQ2_S.gguf", "UD-IQ2_S", 8371970048, "Over budget once KV cache is counted.", False),
-        ("Qwen3.8-27B-UD-Q2_K_XL.gguf", "UD-Q2_K_XL", 9828981664, "Exceeds usable RAM on an 8 GB device.", False),
-        ("Qwen3.8-27B-UD-IQ3_XXS.gguf", "UD-IQ3_XXS", 10934860704, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-IQ3_S.gguf", "UD-IQ3_S", 12040883104, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q3_K_XL.gguf", "UD-Q3_K_XL", 13146393504, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-IQ4_XS.gguf", "UD-IQ4_XS", 14252845984, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q4_K_S.gguf", "UD-Q4_K_S", 15358213024, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-Q4_0.gguf", "Q4_0", 16056478688, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q4_K_M.gguf", "UD-Q4_K_M", 16464440224, "The quant the brief assumed would fit. It does not.", False),
-        ("Qwen3.8-27B-Q4_1.gguf", "Q4_1", 17540705248, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q4_K_XL.gguf", "UD-Q4_K_XL", 17559178144, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q5_K_S.gguf", "UD-Q5_K_S", 18665753504, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q5_K_M.gguf", "UD-Q5_K_M", 19771509664, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q5_K_XL.gguf", "UD-Q5_K_XL", 20876938144, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q6_K.gguf", "UD-Q6_K", 21983677344, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q6_K_M.gguf", "UD-Q6_K_M", 23088409504, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q6_K_L.gguf", "UD-Q6_K_L", 24193919904, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q6_K_XL.gguf", "UD-Q6_K_XL", 25299061664, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q8_K_L.gguf", "UD-Q8_K_L", 28045695904, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-Q8_0.gguf", "Q8_0", 29047086048, "Exceeds usable RAM.", False),
-        ("Qwen3.8-27B-UD-Q8_K_XL.gguf", "UD-Q8_K_XL", 31457991680, "Exceeds usable RAM.", False),
-    ],
-    "mimo-v2.6-9b": [
-        ("MiMo-V2.6-Distill-Qwen-9B-Q2_K.gguf", "Q2_K", 3644380704, "Smallest. Noticeable quality loss.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-IQ3_XXS.gguf", "IQ3_XXS", 4138833440, "Very low bit. Usable for testing only.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q3_K_S.gguf", "Q3_K_S", 4260304416, "Low quality but workable.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-IQ3_XS.gguf", "IQ3_XS", 4268037664, "Low quality but workable.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q3_K_M.gguf", "Q3_K_M", 4479948320, "Reasonable compromise if RAM is tight.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q3_K_L.gguf", "Q3_K_L", 4659156512, "Reasonable compromise if RAM is tight.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-IQ3_M.gguf", "IQ3_M", 4846458400, "Reasonable compromise if RAM is tight.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-IQ4_XS.gguf", "IQ4_XS", 5227304480, "Good quality/size balance.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q4_0.gguf", "Q4_0", 5482829344, "Legacy 4-bit. Prefer Q4_K_M.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q4_K_S.gguf", "Q4_K_S", 5483255328, "Good quality/size balance.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-IQ4_NL.gguf", "IQ4_NL", 5825058336, "Very close to Q4_K_M in quality.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q4_K_M.gguf", "Q4_K_M", 5841049120, "RECOMMENDED. Best balance for this device.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q4_K_L.gguf", "Q4_K_L", 6202021408, "Slightly better than Q4_K_M, slightly larger.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q5_K_S.gguf", "Q5_K_S", 6496015904, "Higher fidelity, more RAM.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q5_K_M.gguf", "Q5_K_M", 6876124704, "Higher fidelity, more RAM.", True),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q6_K_S.gguf", "Q6_K_S", 7509284384, "Getting tight for an 8 GB device.", False),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q6_K.gguf", "Q6_K", 7793710624, "Getting tight for an 8 GB device.", False),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q6_K_L.gguf", "Q6_K_L", 8106579488, "Getting tight for an 8 GB device.", False),
-        ("MiMo-V2.6-Distill-Qwen-9B-Q8_0.gguf", "Q8_0", 9545979424, "Near-lossless. Too large for comfortable load.", False),
-        ("MiMo-V2.6-Distill-Qwen-9B-bf16.gguf", "BF16", 17920693440, "Full precision. Not loadable on this device.", False),
-    ],
-    "qwythos-9b-v2": [
-        ("Qwythos-9B-v2-Q4_K_M.gguf", "Q4_K_M", 5736063744, "RECOMMENDED. Model author's stated default.", True),
-        ("Qwythos-9B-v2-Q5_K_M.gguf", "Q5_K_M", 6523806464, "Balanced quality/size.", True),
-        ("Qwythos-9B-v2-Q6_K.gguf", "Q6_K", 7458300672, "High quality. Tight but feasible.", True),
-        ("Qwythos-9B-v2-Q8_0.gguf", "Q8_0", 9527501568, "Near-lossless. Too large for comfortable load.", False),
-        ("Qwythos-9B-v2-BF16.gguf", "BF16", 17920697088, "Full precision. Not loadable on this device.", False),
-        ("Qwythos-9B-v2-MTP-Q4_K_M.gguf", "Q4_K_M (MTP)", 5903822528, "Multi-token-prediction head. Needs newer llama.cpp.", True),
-        ("Qwythos-9B-v2-MTP-Q5_K_M.gguf", "Q5_K_M (MTP)", 6710963904, "MTP variant.", True),
-        ("Qwythos-9B-v2-MTP-Q6_K.gguf", "Q6_K (MTP)", 7666069184, "MTP variant.", False),
-        ("Qwythos-9B-v2-MTP-Q8_0.gguf", "Q8_0 (MTP)", 9786060480, "MTP variant.", False),
-        ("Qwythos-9B-v2-MTP-BF16.gguf", "BF16 (MTP)", 18407321280, "MTP full precision.", False),
-    ],
-    "qwythos-9b-mythos-5-1m": [
-        ("Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf", "Q4_K_M", 5629108896, "RECOMMENDED. Model author's stated default.", True),
-        ("Qwythos-9B-Claude-Mythos-5-1M-Q5_K_M.gguf", "Q5_K_M", 6467969696, "Balanced quality/size.", True),
-        ("Qwythos-9B-Claude-Mythos-5-1M-Q6_K.gguf", "Q6_K", 7359259296, "High quality. Tight but feasible.", True),
-        ("Qwythos-9B-Claude-Mythos-5-1M-Q8_0.gguf", "Q8_0", 9527501472, "Near-lossless. Too large for comfortable load.", False),
-        ("Qwythos-9B-Claude-Mythos-5-1M-BF16.gguf", "BF16", 17920696992, "Full precision. Not loadable on this device.", False),
-        ("Qwythos-9B-Claude-Mythos-5-1M-MTP-Q4_K_M.gguf", "Q4_K_M (MTP)", 5887667808, "MTP variant.", True),
-        ("Qwythos-9B-Claude-Mythos-5-1M-MTP-Q5_K_M.gguf", "Q5_K_M (MTP)", 6726528608, "MTP variant.", True),
-        ("Qwythos-9B-Claude-Mythos-5-1M-MTP-Q6_K.gguf", "Q6_K (MTP)", 7617818208, "MTP variant.", False),
-        ("Qwythos-9B-Claude-Mythos-5-1M-MTP-Q8_0.gguf", "Q8_0 (MTP)", 9786060384, "MTP variant.", False),
-        ("Qwythos-9B-Claude-Mythos-5-1M-MTP-BF16.gguf", "BF16 (MTP)", 18407321184, "MTP full precision.", False),
-    ],
     "phi-4-mini-3.8b": [
         ("microsoft_Phi-4-mini-instruct-IQ2_M.gguf", "IQ2_M", 1507424640, "Smallest. Relatively low quality, but usable.", True),
         ("microsoft_Phi-4-mini-instruct-IQ3_XXS.gguf", "IQ3_XXS", 1678866816, "Comparable to the Q3 quants.", True),
@@ -167,14 +112,83 @@ QUANTS = {
         ("microsoft_Phi-4-mini-instruct-Q6_K_L.gguf", "Q6_K_L", 3304470912, "Near-perfect quality, Q8_0 embeddings.", True),
         ("microsoft_Phi-4-mini-instruct-Q8_0.gguf", "Q8_0", 4084611456, "Near-lossless. The largest quant here, and it still fits.", True),
     ],
-    "qwen3.5-9b-opus-4.6-distill": [
-        ("Qwen3.5-9B-Claude-Opus-4.6-Distill-Q2_K.gguf", "Q2_K", 3827261760, "Smallest. Noticeable quality loss.", True),
-        ("Qwen3.5-9B-Claude-Opus-4.6-Distill-Q3_K_M.gguf", "Q3_K_M", 4623524160, "Low quality but workable.", True),
-        ("Qwen3.5-9B-Claude-Opus-4.6-Distill-Q4_K_M.gguf", "Q4_K_M", 5629108544, "RECOMMENDED. Best balance for this device.", True),
-        ("Qwen3.5-9B-Claude-Opus-4.6-Distill-Q5_K_M.gguf", "Q5_K_M", 6467969344, "Higher fidelity, more RAM.", True),
-        ("Qwen3.5-9B-Claude-Opus-4.6-Distill-Q6_K.gguf", "Q6_K", 7359258944, "High quality. Tight but feasible.", True),
-        ("Qwen3.5-9B-Claude-Opus-4.6-Distill-Q8_0.gguf", "Q8_0", 9527501120, "Near-lossless. Too large for comfortable load.", False),
-        ("Qwen3.5-9B-Claude-Opus-4.6-Distill-f16.gguf", "F16", 17920696640, "Full precision. Not loadable on this device.", False),
+    "qwen3.5-4b": [
+        ("Qwen3.5-4B-UD-IQ2_XXS.gguf", "UD-IQ2_XXS", 1520217248, "Very low bit. Noticeable quality loss.", True),
+        ("Qwen3.5-4B-UD-IQ2_M.gguf", "UD-IQ2_M", 1759997088, "Very low bit. Noticeable quality loss.", True),
+        ("Qwen3.5-4B-UD-Q2_K_XL.gguf", "UD-Q2_K_XL", 1940825248, "Very low bit. Noticeable quality loss.", True),
+        ("Qwen3.5-4B-UD-IQ3_XXS.gguf", "UD-IQ3_XXS", 1949047968, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-4B-Q3_K_S.gguf", "Q3_K_S", 2105791648, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-4B-Q3_K_M.gguf", "Q3_K_M", 2293388448, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-4B-UD-Q3_K_XL.gguf", "UD-Q3_K_XL", 2436420768, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-4B-IQ4_XS.gguf", "IQ4_XS", 2477053088, "Good quality/size balance.", True),
+        ("Qwen3.5-4B-IQ4_NL.gguf", "IQ4_NL", 2579944608, "Good quality/size balance.", True),
+        ("Qwen3.5-4B-Q4_0.gguf", "Q4_0", 2583221408, "Good quality/size balance.", True),
+        ("Qwen3.5-4B-Q4_K_S.gguf", "Q4_K_S", 2590430368, "Good quality/size balance.", True),
+        ("Qwen3.5-4B-Q4_K_M.gguf", "Q4_K_M", 2740937888, "RECOMMENDED. Best balance for a 4-5 GB free-RAM budget.", True),
+        ("Qwen3.5-4B-Q4_1.gguf", "Q4_1", 2784416928, "Good quality/size balance.", True),
+        ("Qwen3.5-4B-UD-Q4_K_XL.gguf", "UD-Q4_K_XL", 2912109728, "Good quality/size balance.", True),
+        ("Qwen3.5-4B-Q5_K_S.gguf", "Q5_K_S", 3024934048, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-4B-Q5_K_M.gguf", "Q5_K_M", 3143656608, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-4B-UD-Q5_K_XL.gguf", "UD-Q5_K_XL", 3250869408, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-4B-Q6_K.gguf", "Q6_K", 3525956768, "Near-perfect quality.", True),
+        ("Qwen3.5-4B-UD-Q6_K_XL.gguf", "UD-Q6_K_XL", 4145548448, "Near-perfect quality.", True),
+        ("Qwen3.5-4B-Q8_0.gguf", "Q8_0", 4482403488, "Near-lossless. Largest quant listed.", True),
+        ("Qwen3.5-4B-UD-Q8_K_XL.gguf", "UD-Q8_K_XL", 5952048288, "Near-lossless. Largest quant listed.", True),
+    ],
+    "qwen3.5-2b": [
+        ("Qwen3.5-2B-UD-IQ2_XXS.gguf", "UD-IQ2_XXS", 768270592, "Very low bit. Noticeable quality loss.", True),
+        ("Qwen3.5-2B-UD-IQ2_M.gguf", "UD-IQ2_M", 859857152, "Very low bit. Noticeable quality loss.", True),
+        ("Qwen3.5-2B-UD-IQ3_XXS.gguf", "UD-IQ3_XXS", 931823872, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-2B-UD-Q2_K_XL.gguf", "UD-Q2_K_XL", 966533376, "Very low bit. Noticeable quality loss.", True),
+        ("Qwen3.5-2B-Q3_K_S.gguf", "Q3_K_S", 1030947072, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-2B-Q3_K_M.gguf", "Q3_K_M", 1107149056, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-2B-UD-Q3_K_XL.gguf", "UD-Q3_K_XL", 1159274752, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-2B-IQ4_XS.gguf", "IQ4_XS", 1172996352, "Good quality/size balance.", True),
+        ("Qwen3.5-2B-IQ4_NL.gguf", "IQ4_NL", 1213300992, "Good quality/size balance.", True),
+        ("Qwen3.5-2B-Q4_0.gguf", "Q4_0", 1214873856, "Good quality/size balance.", True),
+        ("Qwen3.5-2B-Q4_K_S.gguf", "Q4_K_S", 1217757440, "Good quality/size balance.", True),
+        ("Qwen3.5-2B-Q4_K_M.gguf", "Q4_K_M", 1280835840, "RECOMMENDED. Best balance for a 4-5 GB free-RAM budget.", True),
+        ("Qwen3.5-2B-Q4_1.gguf", "Q4_1", 1293517056, "Good quality/size balance.", True),
+        ("Qwen3.5-2B-UD-Q4_K_XL.gguf", "UD-Q4_K_XL", 1339752704, "Good quality/size balance.", True),
+        ("Qwen3.5-2B-Q5_K_S.gguf", "Q5_K_S", 1384546560, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-2B-Q5_K_M.gguf", "Q5_K_M", 1435238656, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-2B-UD-Q5_K_XL.gguf", "UD-Q5_K_XL", 1466687744, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-2B-Q6_K.gguf", "Q6_K", 1574961408, "Near-perfect quality.", True),
+        ("Qwen3.5-2B-UD-Q6_K_XL.gguf", "UD-Q6_K_XL", 1864483072, "Near-perfect quality.", True),
+        ("Qwen3.5-2B-Q8_0.gguf", "Q8_0", 2012012800, "Near-lossless. Largest quant listed.", True),
+        ("Qwen3.5-2B-UD-Q8_K_XL.gguf", "UD-Q8_K_XL", 2834940160, "Near-lossless. Largest quant listed.", True),
+    ],
+    "qwen3.5-4b-opus-4.6-distill": [
+        ("Qwen3.5-4B.Q2_K.gguf", "Q2_K", 1797501760, "Very low bit. Noticeable quality loss.", True),
+        ("Qwen3.5-4B.Q3_K_S.gguf", "Q3_K_S", 2069875520, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-4B.Q3_K_M.gguf", "Q3_K_M", 2257472320, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-4B.Q3_K_L.gguf", "Q3_K_L", 2358397760, "Low bit. Workable when RAM is tight.", True),
+        ("Qwen3.5-4B.Q4_K_S.gguf", "Q4_K_S", 2557002560, "Good quality/size balance.", True),
+        ("Qwen3.5-4B.Q4_K_M.gguf", "Q4_K_M", 2707510080, "RECOMMENDED. Best balance for a 4-5 GB free-RAM budget.", True),
+        ("Qwen3.5-4B.Q5_K_S.gguf", "Q5_K_S", 2990031680, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-4B.Q5_K_M.gguf", "Q5_K_M", 3108754240, "Higher fidelity, more RAM.", True),
+        ("Qwen3.5-4B.Q6_K.gguf", "Q6_K", 3464051520, "Near-perfect quality.", True),
+        ("Qwen3.5-4B.Q8_0.gguf", "Q8_0", 4482399040, "Near-lossless. Largest quant listed.", True),
+    ],
+    "qwythos-9b-v2-compact": [
+        ("empero-ai_Qwythos-9B-v2-IQ2_M.gguf", "IQ2_M", 3906351648, "Very low bit. Noticeable quality loss.", True),
+        ("empero-ai_Qwythos-9B-v2-Q2_K.gguf", "Q2_K", 4201198112, "Very low bit. Noticeable quality loss.", True),
+        ("empero-ai_Qwythos-9B-v2-IQ3_XXS.gguf", "IQ3_XXS", 4412944928, "RECOMMENDED. Text-only chat fits in about 5 GB free; image input needs about 6 GB.", True),
+        ("empero-ai_Qwythos-9B-v2-IQ3_XS.gguf", "IQ3_XS", 4697453088, "Low bit. Workable when RAM is tight.", True),
+        ("empero-ai_Qwythos-9B-v2-Q3_K_S.gguf", "Q3_K_S", 4806242848, "Low bit. Workable when RAM is tight.", True),
+        ("empero-ai_Qwythos-9B-v2-IQ3_M.gguf", "IQ3_M", 4859458080, "Low bit. Workable when RAM is tight.", True),
+        ("empero-ai_Qwythos-9B-v2-Q3_K_M.gguf", "Q3_K_M", 5057114656, "Low bit. Workable when RAM is tight.", True),
+        ("empero-ai_Qwythos-9B-v2-Q2_K_L.gguf", "Q2_K_L", 5194478112, "Q2_K with Q8_0 embeddings. Larger than Q3_K_M for less quality; listed for completeness.", True),
+        ("empero-ai_Qwythos-9B-v2-Q3_K_L.gguf", "Q3_K_L", 5247955488, "Low bit. Workable when RAM is tight.", True),
+        ("empero-ai_Qwythos-9B-v2-IQ4_XS.gguf", "IQ4_XS", 5379568160, "Good quality/size balance.", True),
+    ],
+    "gemma-4-e4b": [
+        ("gemma-4-E4B-it-qat-UD-Q2_K_XL.gguf", "UD-Q2_K_XL", 3219532192, "Smallest. 2-bit on top of QAT; noticeable quality loss.", True),
+        ("gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf", "UD-Q4_K_XL", 4215695776, "RECOMMENDED. QAT 4-bit, close to full-precision quality.", True),
+    ],
+    "gemma-4-e2b": [
+        ("gemma-4-E2B-it-qat-UD-Q2_K_XL.gguf", "UD-Q2_K_XL", 2186186784, "Smallest. 2-bit on top of QAT; noticeable quality loss.", True),
+        ("gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf", "UD-Q4_K_XL", 2620370976, "RECOMMENDED. QAT 4-bit, close to full-precision quality.", True),
     ],
 }
 
@@ -190,88 +204,8 @@ QUANTS = {
 # These checksums are what the download manager verifies after transfer, and
 # what breaks the tie when deciding whether a remote file has changed.
 SHA256 = {
-    # unsloth/Qwen3.8-27B-GGUF
-    "Qwen3.8-27B-UD-IQ1_S.gguf": "3895b6eaa91e705c06ad1938d16c22e86f073c6a67df86260a1da79be3d1f887",
-    "Qwen3.8-27B-UD-IQ1_M.gguf": "1b5165a7149ea51e683c8eaf23372188ad9fc9d1a795386f7a1b558acf847dc6",
-    "Qwen3.8-27B-UD-IQ2_XXS.gguf": "e792d8fb3142fe6d9171876d6da0f71f05a71028718debc72dbec93ff645e67d",
-    "Qwen3.8-27B-UD-IQ2_S.gguf": "7897d2c5a5cee46aef50895141b2c8a0803c1185f3d03c4fda4cd137a7ad77fe",
-    "Qwen3.8-27B-UD-Q2_K_XL.gguf": "fd4730dd8aad070517978752b63d530aeb1740d2283cab9fa24f1e404032ddb0",
-    "Qwen3.8-27B-UD-IQ3_XXS.gguf": "c0b7c3038681ed2e3040456c1dd45f9858b6c2290bed172c70388a94874f3eee",
-    "Qwen3.8-27B-UD-IQ3_S.gguf": "d847e2c1e4aa276e4b7b8e9ad7628050e61e165d49ab995407bc36677a6f3864",
-    "Qwen3.8-27B-UD-Q3_K_XL.gguf": "8c2a45ff85e7674ca185ec8eb6cdeab0e617ed9d8018caed0b64380eb2a67a5e",
-    "Qwen3.8-27B-UD-IQ4_XS.gguf": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
-    "Qwen3.8-27B-UD-Q4_K_S.gguf": "75bc9c8adba2842e72f0ab5201aaa07133c5010b566305c09187fcbdcd364017",
-    "Qwen3.8-27B-Q4_0.gguf": "ede16c7b36e578ca87a8c70e011e4b4633a32c831c0ce76d0f474582384e671d",
-    "Qwen3.8-27B-UD-Q4_K_M.gguf": "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482",
-    "Qwen3.8-27B-Q4_1.gguf": "3e020514545c310dfc511dc8d3ddc23482b645189cb9287816d84bed6eddd4ac",
-    "Qwen3.8-27B-UD-Q4_K_XL.gguf": "3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e",
-    "Qwen3.8-27B-UD-Q5_K_S.gguf": "d8d62ffcf84d42658dd6ccf9782b4d0404700af78b26d750507510c7597b5bfe",
-    "Qwen3.8-27B-UD-Q5_K_M.gguf": "2de73110cb254cbf09b54b717578dadff12ef1194e7271527e68202f39ba4bfd",
-    "Qwen3.8-27B-UD-Q5_K_XL.gguf": "8601193d3d5760c37fb8ce1b43afebc69df5fb24e1fbc5a547c32e2200305276",
-    "Qwen3.8-27B-UD-Q6_K.gguf": "c9c206812fbe4ac7b76a729e25928b63f2ae89d37f69da7a71c20aec763cd436",
-    "Qwen3.8-27B-UD-Q6_K_M.gguf": "493301830a596b8ad56dc1329f80bbcb578c8e910da395feafdc9cd8263430bb",
-    "Qwen3.8-27B-UD-Q6_K_L.gguf": "121355b4c7422771da25adc74090e3c90138f77ce5c92d348687d47824ec80f4",
-    "Qwen3.8-27B-UD-Q6_K_XL.gguf": "85bec00cbd06ea278cd035eea4f3d62a21a54fa52b3b5cb51a12c1eb00efb19e",
-    "Qwen3.8-27B-UD-Q8_K_L.gguf": "2a13bba36d2efa213f9275abc430c40e4d914b145bfde976f30f1bb5b7e23ac2",
-    "Qwen3.8-27B-Q8_0.gguf": "a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348",
-    "Qwen3.8-27B-UD-Q8_K_XL.gguf": "af36ecb6b5db1407953345b746c14ac93f0657dda413910b4348683a2d990377",
-    "mmproj-BF16.gguf": "83ee4f4f205fa514161778c41df1ea14144faa0f713510893b63c2395f5c2d53",
-    "mmproj-F16.gguf": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
-    # bartowski/MiMo-V2.6-Distill-Qwen-9B-GGUF
-    "MiMo-V2.6-Distill-Qwen-9B-Q2_K.gguf": "1878a8f3eec5accd93ea22c46155d51c461b463ccb816cd44084ed555c81b909",
-    "MiMo-V2.6-Distill-Qwen-9B-IQ3_XXS.gguf": "83d6383197adda49ed71fd6764f5d22c7993b5bc5554b5e8fd5151bc987ff04b",
-    "MiMo-V2.6-Distill-Qwen-9B-Q3_K_S.gguf": "bebb948e54d473ee212eb529b5a4a47ae9645da2ae19a52bcb10ad147d09065f",
-    "MiMo-V2.6-Distill-Qwen-9B-IQ3_XS.gguf": "12e213f5aab8ee66706eebc795d8c9f50acd43318538bca8411b584cad7d8132",
-    "MiMo-V2.6-Distill-Qwen-9B-Q3_K_M.gguf": "d98e54ec9650b6554cfdeea531e2420009207d50471170d0c3640483df8e87eb",
-    "MiMo-V2.6-Distill-Qwen-9B-Q3_K_L.gguf": "b51b85fd3bc9d060017a66ffa2d8b13ab0f743c614c06355a20bd73d03d7f627",
-    "MiMo-V2.6-Distill-Qwen-9B-IQ3_M.gguf": "e2638eb0a3751b530c0b91c70292d961687d5ff993c1125a867461564d341724",
-    "MiMo-V2.6-Distill-Qwen-9B-IQ4_XS.gguf": "eccfbc188e71dec8350fbdd5af898d2a50691ac67e077327c52baa9da1e91d90",
-    "MiMo-V2.6-Distill-Qwen-9B-Q4_0.gguf": "0dadc6593e5fe790a510fcb7fcd1dc6993664db562b2e8ec7b34825e99d52f4f",
-    "MiMo-V2.6-Distill-Qwen-9B-Q4_K_S.gguf": "db48a409bf4c11033ab4bd24ff3b1ee028578a5acc62e0b34887edbed9708253",
-    "MiMo-V2.6-Distill-Qwen-9B-IQ4_NL.gguf": "9b3a443818d653af7c2a0c56aebc51668a7048ef72f8c1d77d669f544c28f6a7",
-    "MiMo-V2.6-Distill-Qwen-9B-Q4_K_M.gguf": "4bca6f18c73f72270c7a20c2ea2bea581de8246e318714277120369d34048c81",
-    "MiMo-V2.6-Distill-Qwen-9B-Q4_K_L.gguf": "db6b5e7b5d25525da87f4a3899555215693e8cf4ab1be9fff90ea5dee4ba957d",
-    "MiMo-V2.6-Distill-Qwen-9B-Q5_K_S.gguf": "f81aa5e3e5dc6f108dd7fd37c0738976994b62929f21e2e3a3bb2ed70fb92355",
-    "MiMo-V2.6-Distill-Qwen-9B-Q5_K_M.gguf": "04cf46f2b5584ef922697d6c063f94879434fb86c467f1a09e52daf0cddaf35f",
-    "MiMo-V2.6-Distill-Qwen-9B-Q6_K_S.gguf": "df3b6b6be2477f280a6fa89ebb5fb455523849c20dd943b416ad43e076206f06",
-    "MiMo-V2.6-Distill-Qwen-9B-Q6_K.gguf": "ef96d05a2ddf2cbb450d1af1ac3860ec769d3575bafa70692ee5609bda3fad7d",
-    "MiMo-V2.6-Distill-Qwen-9B-Q6_K_L.gguf": "556d51c9f191fc06a1fd751fdb4b4082f4add0023d9ac8b7198dcecfb772cd99",
-    "MiMo-V2.6-Distill-Qwen-9B-Q8_0.gguf": "2fad0aa11bb9e7aa491ff12f768954f9dd0a6e7d4ce4a897ca73ec420f3b90ae",
-    "MiMo-V2.6-Distill-Qwen-9B-bf16.gguf": "5e4a50f5e41abb867585bfddd808997bc195bdd8f0df78210cd97ba406dc328e",
-    "mmproj-MiMo-V2.6-Distill-Qwen-9B-bf16.gguf": "197656f5ea308d2e9e008c5c1cb239b0297d7d1c7b4c0769cee3b46c2b891714",
-    "mmproj-MiMo-V2.6-Distill-Qwen-9B-f16.gguf": "ff348f3180a63188aa7285db85f550fe38acb61dd013c599eb8bad08d2cc2576",
-    # empero-ai/Qwythos-9B-v2-GGUF
-    "Qwythos-9B-v2-Q4_K_M.gguf": "c0a588704f422b713eca29b2c1f192ae6f69aea3f9e7cb64f9ecdb76ff7a85f4",
-    "Qwythos-9B-v2-Q5_K_M.gguf": "fc5251e8e3e87d58946522833eb896c84375a715b6f89c54cdd10082ecc6ea8d",
-    "Qwythos-9B-v2-Q6_K.gguf": "dd39e148823f0bab858e946d603e4bf424240aae34435580be820f09c75ca379",
-    "Qwythos-9B-v2-Q8_0.gguf": "3324ac1a7260fbb484d10373df7d54d156ff6c4f5c577d87dbd0218928beab89",
-    "Qwythos-9B-v2-BF16.gguf": "663e4694583caf7b3e5bdeb76c27aebb7ea86bcc2760419fea82e51e2d8087c7",
-    "Qwythos-9B-v2-MTP-Q4_K_M.gguf": "cfdd00ac1c1dc9ced33f23817fb4282f2594067e02e34d82e3e63bc0ea275b05",
-    "Qwythos-9B-v2-MTP-Q5_K_M.gguf": "d8ea0d2289793401a6ec546e713c885fba9e27d14cd70a36c570f975e383e659",
-    "Qwythos-9B-v2-MTP-Q6_K.gguf": "24271fb6e16b2b8f581d192cf77d947453d7852f965ce6801fefa6964bbea060",
-    "Qwythos-9B-v2-MTP-Q8_0.gguf": "6d72e896721f2be249b2584fb06a007a8f8ce506e592ea54c103952303a5f11f",
-    "Qwythos-9B-v2-MTP-BF16.gguf": "2c46b135e2fef3c4d4b2a0e98394ae5ac5cdec54b1a5451c74ea568fbafb6075",
+    # empero-ai/Qwythos-9B-v2-GGUF (projector only; used by qwythos-9b-v2-compact)
     "mmproj-Qwythos-9B-v2-BF16.gguf": "0d1687cb33124c78acab788b342d4a2eaf85b3035e87c3abe4ee9d0b84ddb4f5",
-    # empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF
-    "Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf": "5c09e7f207d2fd9069c802ff77632fa7cdaffe7fb5ba40ff9f060aaeaa09acd5",
-    "Qwythos-9B-Claude-Mythos-5-1M-Q5_K_M.gguf": "20013a03b23d4b5c0608cb57c489778ef7dd5fd80ee750b93c8a08f03293aab7",
-    "Qwythos-9B-Claude-Mythos-5-1M-Q6_K.gguf": "2bef47eee2e83fa5e2ac5619102d8418144147be1270870aba42b22a606831e6",
-    "Qwythos-9B-Claude-Mythos-5-1M-Q8_0.gguf": "e8118b9cde68a1a1dc3299060e9af7d8640c47e670e83ecd4204f15326938b70",
-    "Qwythos-9B-Claude-Mythos-5-1M-BF16.gguf": "8a1d1d5dbc6bf921222d33dee2003fc98e1185f83aba54cce50acb5c278df1cb",
-    "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q4_K_M.gguf": "318caed45110f5e3c60bff1142e0d1e658e046e670830d9be643df33940f4f98",
-    "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q5_K_M.gguf": "a21b7f12f9908dbfbaeb2ad8ddd51c936ecadc780796abd70a8e5b08cdc6cd8e",
-    "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q6_K.gguf": "b6ca7dc848d9857c7759d7da6da502d1cb8941b69471375d74c7a539ddc381e9",
-    "Qwythos-9B-Claude-Mythos-5-1M-MTP-Q8_0.gguf": "9a8f04df5b8b8af60a16ade370c9bd1a14d82e980e6d45946a0eb9282c019513",
-    "Qwythos-9B-Claude-Mythos-5-1M-MTP-BF16.gguf": "f188232e7e19f38f32c0fc2dfd57c801bd0ff1e32e7a30402885ae83741aeeb3",
-    "mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf": "f977efc337a2ac2ba183eea0c73e25b75fc240d56c05ed4d9b56ab451f64c82c",
-    # empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF
-    "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q2_K.gguf": "02e0ebbd94ef6e286695ac7f0c16358810f08b677576d0b25fddf177ae78ab01",
-    "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q3_K_M.gguf": "c42e7c5ca93a34c8a95f5fd784a93b48f922e633f0de78f06966b0b3bb3ac63e",
-    "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q4_K_M.gguf": "db8793fad2be4a47521ab93030bc7846262fb7e38dd84b386c61f772d8299493",
-    "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q5_K_M.gguf": "93b3b3608e672aa6d03d09e6075ff5826d18fa188f99eb6de2869bb4193fd2d2",
-    "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q6_K.gguf": "bb44c32d77a3f7846afa523a20306efc5d7cb68781e187f87cf93a3e5994cbc9",
-    "Qwen3.5-9B-Claude-Opus-4.6-Distill-Q8_0.gguf": "9ff5de17a0c98581c828c259e0beea9c9dca881b0371f61c974f59c125b08b27",
-    "Qwen3.5-9B-Claude-Opus-4.6-Distill-f16.gguf": "37a8dc8761689e17ab46787274a3b5827c1e63e9767d494c015c954dbedab66b",
     # bartowski/microsoft_Phi-4-mini-instruct-GGUF
     "microsoft_Phi-4-mini-instruct-IQ2_M.gguf": "33c12b44229a85d88a3bedfe849e138643bbde5478925d191faeb409bc2ea3ec",
     "microsoft_Phi-4-mini-instruct-IQ3_M.gguf": "0d6a07d53a3ebd474a8ca9abc9415af39e88f041cfbfe388e3bf632b84e7b232",
@@ -298,161 +232,125 @@ SHA256 = {
     "microsoft_Phi-4-mini-instruct-Q8_0.gguf": "a12f242c4ee379b9da91673e5d78b30bfacfe4fd86a0b2259d2ecad5d93cb6c7",
 }
 
-MMPROJ = {
-    "qwen3.8-27b": ("mmproj-BF16.gguf", 931146432),
-    "mimo-v2.6-9b": ("mmproj-MiMo-V2.6-Distill-Qwen-9B-bf16.gguf", 921704992),
-    "qwythos-9b-v2": ("mmproj-Qwythos-9B-v2-BF16.gguf", 921704512),
-    "qwythos-9b-mythos-5-1m": ("mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf", 918165472),
-    # qwen3.5-9b-opus-4.6-distill deliberately absent: no mmproj exists in that repo.
-    # phi-4-mini-3.8b likewise absent: Phi-4-mini-instruct is text-only.
+# Checksums for repositories added later, keyed by model id first.
+#
+# The flat SHA256 table above is keyed by file name alone, which only works
+# while names are unique across repos. They are not: unsloth names every
+# projector `mmproj-BF16.gguf`, and each one has different contents. A lookup
+# here wins over the flat table. Same source: the tree API's `lfs.oid`, read
+# 2026-10-01.
+SHA256_BY_MODEL = {
+    "gemma-4-e4b": {
+        "gemma-4-E4B-it-qat-UD-Q2_K_XL.gguf": "79dde517866cfbb5c00230b530de17910fc7fc78f8827554d0e14281ce5faf03",
+        "gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf": "df0fd4ee07072c607c29a0a1cb4f98918426cca12f45a2776bdd6ee6d09a4de3",
+        "mmproj-BF16.gguf": "7c9bafa27f82d658eda805c1d82ef62bb0368e1ff75f64f77de58ad318beaaf9",
+    },
+    "gemma-4-e2b": {
+        "gemma-4-E2B-it-qat-UD-Q2_K_XL.gguf": "0a5bbc20f91f92da96ab4870fa71b356c45b8500a7b8b9c3e0eb48359b72da28",
+        "gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf": "e531007218dfab990486a5de7676a6932d6ea8dea233d1f698d7c21cf8a16889",
+        "mmproj-BF16.gguf": "38b33846f56426cd650e0e574d78de125abdfcedf35c0d7f6929f6ffe26efe02",
+    },
+    "qwen3.5-4b": {
+        "Qwen3.5-4B-IQ4_NL.gguf": "ff5c3e9740a5aa53f04fdf3b0b8cc75da556bf8948cdb19d61c512d3a43465d9",
+        "Qwen3.5-4B-IQ4_XS.gguf": "658a9e7e406deb06d0179755e3c14f6a82915a4be4962a2f92a64d948d2e572f",
+        "Qwen3.5-4B-Q3_K_M.gguf": "d6981ab4d77ba712b48ef69d69042d75b5e39b9dce5fb5a5b054fd08e06afb95",
+        "Qwen3.5-4B-Q3_K_S.gguf": "7e2dd96b6141226b62fa88c775db06e0e9ff0aa84130805d7091a768868a3353",
+        "Qwen3.5-4B-Q4_0.gguf": "298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb",
+        "Qwen3.5-4B-Q4_1.gguf": "af1fa652b5c78980b105a2ffef954bfa724bc4d69d2d44463e27c4f3c2953bbd",
+        "Qwen3.5-4B-Q4_K_M.gguf": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+        "Qwen3.5-4B-Q4_K_S.gguf": "27caeb0e4b999d92ce0a9fdbdd1a7ba5112908d9de125645883732274be2ea77",
+        "Qwen3.5-4B-Q5_K_M.gguf": "8814232b85594dcd46c50e5b8b29324a7efe9e746edbe8a3d1df3d3fce7aad39",
+        "Qwen3.5-4B-Q5_K_S.gguf": "161be121617c45ea247eae0fd4477d26f287a368b52702e3fc99c9bc52f23061",
+        "Qwen3.5-4B-Q6_K.gguf": "fdedd781c9ce676ab66b018ca247ff78e8a33c98098a822c1e2d5075e7718f66",
+        "Qwen3.5-4B-Q8_0.gguf": "10cc391b403021dd11c614679d2fd92f611c3681d29e29651b717316965d61e1",
+        "Qwen3.5-4B-UD-IQ2_M.gguf": "cb4c45ca42c0d7777667e94e3963f8e59e939b3665098328ce601feb5be129c1",
+        "Qwen3.5-4B-UD-IQ2_XXS.gguf": "4c1ba794e8d6098f4fb6482b4db6e880c80b5ee0b4c64d8668afaf9541163677",
+        "Qwen3.5-4B-UD-IQ3_XXS.gguf": "00aab66a2359a9afc52f0ab757e61f9be1656e6fcaba8468bd95579a8b2cbc40",
+        "Qwen3.5-4B-UD-Q2_K_XL.gguf": "79aa0b583c888976013002f66b9f617070d91cf8de6a09dc775983640ac59463",
+        "Qwen3.5-4B-UD-Q3_K_XL.gguf": "1874727e4bb6ac23fd0cd134ac6562d2759fe44f37fa68c55197b36526da4e37",
+        "Qwen3.5-4B-UD-Q4_K_XL.gguf": "b252c5610a42ca82d20fe2a12813e9d069eed89292907e26c783eeb0bc961bc7",
+        "Qwen3.5-4B-UD-Q5_K_XL.gguf": "b4c36a8e14a80c21bcab5a067ce342b2e70e28f60b4aa95ad12203fa17b87426",
+        "Qwen3.5-4B-UD-Q6_K_XL.gguf": "87f58d94410b81429268d8389a3d686e6c6bffecf7852772720fbea059cbbb9d",
+        "Qwen3.5-4B-UD-Q8_K_XL.gguf": "e786a3c6570474c3885199bfb5adc54325aa7521a314e10b0aaefe16a54ba42f",
+        "mmproj-BF16.gguf": "302b92d565080b9cc0281186979ae75a7429ec23d14f6f7607a035539b21f3a6",
+    },
+    "qwen3.5-2b": {
+        "Qwen3.5-2B-IQ4_NL.gguf": "e430d87ebc5abbb269c2e2461f1a49b9c5dc79847c13c786dc3615d0b116c4ba",
+        "Qwen3.5-2B-IQ4_XS.gguf": "3639f34b5ca22aa1c51f3616566eae8c355111554f6924ad97ee2652ed11c1cd",
+        "Qwen3.5-2B-Q3_K_M.gguf": "8b049f98461020b7e15797e13413fc63b9b500ffa883c74618b618ecbc2bfccf",
+        "Qwen3.5-2B-Q3_K_S.gguf": "21026bce70a757887bce861047c26966109206ebe2adeb7b662de9a179952d28",
+        "Qwen3.5-2B-Q4_0.gguf": "cd70221bebaee0503e0f6717e174250cd7825aa88438b3aabec9ad55731d9bb1",
+        "Qwen3.5-2B-Q4_1.gguf": "93a49bfdb0619305584b81608a2d8c931fdcfc0bd4b0d75f25ac2d8988199278",
+        "Qwen3.5-2B-Q4_K_M.gguf": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+        "Qwen3.5-2B-Q4_K_S.gguf": "56eee7b85a2023ba393c5f9a5a5e372e3645e7925a13adb4d13723fc5bc14124",
+        "Qwen3.5-2B-Q5_K_M.gguf": "1885b3a9195f8cc09da9a7a7a75afdc1e8d5cbf9fc4a499c3961dddea37098ac",
+        "Qwen3.5-2B-Q5_K_S.gguf": "5503c57f038bd201e0583d64d50d4aebba2f628004834cb4d32abb141eb1bfda",
+        "Qwen3.5-2B-Q6_K.gguf": "fc90339420b4298887aafb307a4291c55440b730133bbffe6ba9630503dcb548",
+        "Qwen3.5-2B-Q8_0.gguf": "1b04acba824817554f4ce23639bc8495ff70453b8fcb047900c731521021f2c1",
+        "Qwen3.5-2B-UD-IQ2_M.gguf": "7df5673b6c1a8efb3b5f5988a506d991ab936b3e00ad29f94e0f75cfbf8599da",
+        "Qwen3.5-2B-UD-IQ2_XXS.gguf": "43aedbd2b03a3c2cc39f49ccf74fcd3c394ed0b2a1ede8a30ee652ee9cfc27ef",
+        "Qwen3.5-2B-UD-IQ3_XXS.gguf": "36347f47f9eab7d433c7c37be1f87ac2253378c3d530da3cb25fb5f71f8f1a58",
+        "Qwen3.5-2B-UD-Q2_K_XL.gguf": "dbcf28421dece9c86884f9da5a2291c8214be7920623f1fcb663ed8f58b38ccb",
+        "Qwen3.5-2B-UD-Q3_K_XL.gguf": "d34e1271b7ca784d739b2b7e804bac391d7b6471e695d88e8c79eae0df032263",
+        "Qwen3.5-2B-UD-Q4_K_XL.gguf": "0af96165ea615bea39a04118d63f0b6d35908aea850ee4a51aa6151d851b8b35",
+        "Qwen3.5-2B-UD-Q5_K_XL.gguf": "67bff9774bc55e44af2eee3c448dc054478b45c0607858fc6df5b336b55f36f4",
+        "Qwen3.5-2B-UD-Q6_K_XL.gguf": "2f956e57c27b3f257916825d9d3bc174269f3df9c6fcf87a64da666c0e7a518a",
+        "Qwen3.5-2B-UD-Q8_K_XL.gguf": "a53988df91157d78acaf3c95e22db179d13f6236061bdb86576494dc99b1bc3b",
+        "mmproj-BF16.gguf": "f17196c0d8fc756bc65be60075bd4a359917eee8a438505639511727c585d3c2",
+    },
+    "qwen3.5-4b-opus-4.6-distill": {
+        "Qwen3.5-4B.Q2_K.gguf": "7ee61cf5d8688ab6b7589bdee3e6ae6f7030a7b724357920eecc4e13b37435c6",
+        "Qwen3.5-4B.Q3_K_L.gguf": "8287b2a5796caaf3ea6446abe82f8aff09068bf325c354f9d68c0f6a5c00c471",
+        "Qwen3.5-4B.Q3_K_M.gguf": "c14a60110056fe5c44f079159b5df435fe3e7f0c0d9938e62af1a9c5ab7881cf",
+        "Qwen3.5-4B.Q3_K_S.gguf": "daa6ac0be3b36d877fcbfd13db8fa0726da6e5edc75b100ec99a3db39efb4574",
+        "Qwen3.5-4B.Q4_K_M.gguf": "e1a4a9886699fecb153747ae97aeb413a7e6bd69da80037aa66cef9a3c656d85",
+        "Qwen3.5-4B.Q4_K_S.gguf": "64a4ae38d777e3b9c55c31ad8009b598c7fbfd0cc94c863f0be0f4aca2b91e80",
+        "Qwen3.5-4B.Q5_K_M.gguf": "55863d344ed1e03e6d78f6782340a9de9d6a3c23af5ea0b881743776acc35a68",
+        "Qwen3.5-4B.Q5_K_S.gguf": "ac56a742891701b0b6489d17e9b1105ab96ef80999c426a9747ae1c2c1c12774",
+        "Qwen3.5-4B.Q6_K.gguf": "298cae8e619fcc323e63084a27bd1bc6d82e106e32d530e0dafaea5e12420604",
+        "Qwen3.5-4B.Q8_0.gguf": "a5442a83decb48747835cf0cb7c219432ac655f6dc1a805fb0301d029d91fbd5",
+        "mmproj-BF16.gguf": "5ce63ce0113f4bb7b87dc19d076fe0f951c94d4e593154c7a84f605b2f57d423",
+    },
+    "qwythos-9b-v2-compact": {
+        "empero-ai_Qwythos-9B-v2-IQ2_M.gguf": "b68e5df7b7f623dce05ed4ddf67786e2a89f4843fa711f350119dffb8ea18076",
+        "empero-ai_Qwythos-9B-v2-IQ3_M.gguf": "89bfcd852a63d46aa5f7ca5d4b9fe49489762a77addfb15b8f951ce0ebaa2848",
+        "empero-ai_Qwythos-9B-v2-IQ3_XS.gguf": "83bcd7b528747cbda08f4b9da66634ebb438adc3a87d61a9021243bb9ed06225",
+        "empero-ai_Qwythos-9B-v2-IQ3_XXS.gguf": "c1234dbfe66756ebee3952dfb47e070c324adb4f3e180324d9b18aad225536cc",
+        "empero-ai_Qwythos-9B-v2-IQ4_XS.gguf": "f1663b67277149898804732265b443becaa3b8519df513e4391474724ca7b45e",
+        "empero-ai_Qwythos-9B-v2-Q2_K.gguf": "059cf006853e145e2386c626afc11023cae16344d6d1d243268ae0d6de768f91",
+        "empero-ai_Qwythos-9B-v2-Q2_K_L.gguf": "193209b07ae057bdb635f2b93495cae0cb173d0b66fc04412c138e3d6dee0acf",
+        "empero-ai_Qwythos-9B-v2-Q3_K_L.gguf": "2de340253070c18db6e778a3ee3adaea4e17660719d4f73b188712199b408406",
+        "empero-ai_Qwythos-9B-v2-Q3_K_M.gguf": "5ce4b1e97d868de896e7c2331d4fa645bcfb782fce4ecf0b75c6f52df27a1c70",
+        "empero-ai_Qwythos-9B-v2-Q3_K_S.gguf": "6c4d21b8424b63ccc3da1c7bd6de92794e21f99de1d545693b84608cc3bf8db8",
+    },
 }
 
-EXTRA_FILES = {
-    "qwythos-9b-v2": [("SHA256SUMS", 1025)],
-    "qwythos-9b-mythos-5-1m": [("SHA256SUMS", 1312), ("TEST_REPORT.md", 3721)],
+MMPROJ = {
+    # phi-4-mini-3.8b deliberately absent: Phi-4-mini-instruct is text-only.
+    "qwen3.5-4b": ("mmproj-BF16.gguf", 675569344),
+    "qwen3.5-2b": ("mmproj-BF16.gguf", 671372992),
+    # qwen3.5-4b-opus-4.6-distill: the repo ships mmproj-BF16.gguf, but the card
+    # makes no vision claim, so it is not listed and not downloaded.
+    # bartowski ships no projector. The vision tower is untouched by the
+    # Qwythos fine-tune, so empero's projector for the same weights is used,
+    # served from empero's repo (the optional third field).
+    "qwythos-9b-v2-compact": ("mmproj-Qwythos-9B-v2-BF16.gguf", 921704512, "empero-ai/Qwythos-9B-v2-GGUF"),
+    # The Gemma 4 projectors also carry an audio encoder (clip.has_audio_encoder);
+    # the app only feeds them images.
+    "gemma-4-e4b": ("mmproj-BF16.gguf", 991552320),
+    "gemma-4-e2b": ("mmproj-BF16.gguf", 986833728),
 }
+
+EXTRA_FILES = {}
+
+
+def sha_for(mid, fname):
+    """Per-model checksum first, then the flat table; None when neither has it."""
+    return SHA256_BY_MODEL.get(mid, {}).get(fname) or SHA256.get(fname)
 
 
 def build():
     models = []
-
-    models.append({
-        "id": "qwen3.8-27b",
-        "displayName": "Qwen3.8-27B",
-        "family": "Qwen",
-        "parameterCount": "27B",
-        "sizeClass": "27B",
-        "blurb": "Flagship 27B hybrid-attention multimodal model. Listed for completeness only.",
-        "hfModelId": "Qwen/Qwen3.8-27B",
-        "hfModelSha": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
-        "hfModelLastModified": "2026-08-14T15:00:01.000Z",
-        "hfModelHasGguf": False,
-        "hfModelFileNote": "Official repo ships safetensors only (18 shards, ~55 GB). No GGUF is published upstream; the quantisations below come from the third-party GGUF repo recorded in ggufRepoId.",
-        "visionSupported": True,
-        "visionEvidence": "pipeline_tag=image-text-to-text; architecture Qwen3_5ForConditionalGeneration; model card documents image and video input; preprocessor_config.json and video_preprocessor_config.json present; GGUF repo ships mmproj-BF16.gguf.",
-        "recommendedContextLength": 8192,
-        "maxContextLength": 262144,
-        "contextNote": "262,144 natively. Keep the in-app value at 8192 - KV cache at 27B is expensive.",
-        "wifiOnly": True,
-        "highRam": True,
-        "fitsTargetDevice": False,
-        "ramRequirementGb": 9.2,
-        "warning": "WILL NOT LOAD on a Samsung Galaxy S25. Even the smallest available quant (UD-IQ1_S, 6.19 GB) exceeds usable RAM once the KV cache and the 0.93 GB vision projector are counted. The default quant is UD-IQ2_XXS (7.27 GB), and every quant above it is at least 8.37 GB. Downloading this model will consume storage and is expected to fail at load time.",
-        "recommendedQuant": "UD-IQ2_XXS",
-        "samplingDefaults": {"temperature": 0.7, "topP": 0.95, "topK": 20},
-        "notes": "No Q3_K_S and no plain Q2_K exist in this repository. The nearest larger quants are UD-Q2_K_XL (9.83 GB) and UD-Q3_K_XL (13.15 GB).",
-    })
-
-    models.append({
-        "id": "mimo-v2.6-9b",
-        "displayName": "MiMo-V2.6-Distill-Qwen-9B",
-        "family": "Xiaomi MiMo",
-        "parameterCount": "9B",
-        "sizeClass": "9B",
-        "blurb": "Agentic and coding distil of Qwen3.5-9B, SFT'd by Xiaomi on MiMo-generated data.",
-        "hfModelId": "XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B",
-        "hfModelSha": None,
-        "hfModelLastModified": None,
-        "hfModelHasGguf": False,
-        "hfModelFileNote": "Official repo ships safetensors only (4 shards, ~18.8 GB). The GGUF listed here is bartowski's conversion; ggml-org publishes an authoritative conversion but only at Q8_0 (9.55 GB), which is too large for this device.",
-        "visionSupported": True,
-        "visionEvidence": "pipeline_tag=image-text-to-text; model card benchmarks a Visual coding domain; preprocessor_config.json and video_preprocessor_config.json present; GGUF repo ships mmproj-MiMo-V2.6-Distill-Qwen-9B-bf16.gguf.",
-        "recommendedContextLength": 8192,
-        "maxContextLength": 262144,
-        "contextNote": "262,144 native. 8192 recommended on-device.",
-        "wifiOnly": False,
-        "highRam": False,
-        "fitsTargetDevice": True,
-        "ramRequirementGb": 7.2,
-        "warning": None,
-        "recommendedQuant": "Q4_K_M",
-        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20},
-        "notes": "Distilled for agentic tool use and code. Chat template is MiMo v2.6's own.",
-    })
-
-    models.append({
-        "id": "qwythos-9b-v2",
-        "displayName": "Qwythos-9B-v2",
-        "family": "Empero AI",
-        "parameterCount": "9B",
-        "sizeClass": "9B",
-        "blurb": "Reasoning model post-trained on Claude Mythos/Fable traces, with repetition looping trained out.",
-        "hfModelId": "empero-ai/Qwythos-9B-v2-GGUF",
-        "hfModelSha": None,
-        "hfModelLastModified": None,
-        "hfModelHasGguf": True,
-        "hfModelFileNote": None,
-        "visionSupported": True,
-        "visionEvidence": "Model card has a dedicated 'Vision (image input)' section with a worked llama-mtmd-cli example; tags include multimodal and vision; repo ships mmproj-Qwythos-9B-v2-BF16.gguf.",
-        "visionCaveat": "The model card states verbatim that training was text-only and the vision tower was never fine-tuned, so image-grounded reasoning inherits base Qwen3.5-9B behaviour and has not been independently evaluated.",
-        "recommendedContextLength": 8192,
-        "maxContextLength": 1048576,
-        "contextNote": "Ships YaRN rope-scaling for a 1,048,576-token window. 8192 recommended on-device; lower it to cut KV-cache memory.",
-        "wifiOnly": False,
-        "highRam": False,
-        "fitsTargetDevice": True,
-        "ramRequirementGb": 7.1,
-        "warning": None,
-        "recommendedQuant": "Q4_K_M",
-        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20, "repeatPenalty": 1.05},
-        "notes": "Hybrid Gated-DeltaNet architecture (3:1 SSM:attention). K-quants keep SSM state tensors at higher precision, so files run ~2-4% larger than a flat K-quant. Repo ships SHA256SUMS.",
-    })
-
-    models.append({
-        "id": "qwythos-9b-mythos-5-1m",
-        "displayName": "Qwythos-9B-Claude-Mythos-5.1M",
-        "family": "Empero AI",
-        "parameterCount": "9B",
-        "sizeClass": "9B",
-        "blurb": "Full-parameter reasoning model post-trained on 500M+ tokens of Claude Mythos/Fable traces.",
-        "hfModelId": "empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF",
-        "hfModelSha": None,
-        "hfModelLastModified": None,
-        "hfModelHasGguf": True,
-        "hfModelFileNote": None,
-        "visionSupported": True,
-        "visionEvidence": "Model card has a full 'Vision (image input)' section including an OpenAI-compatible server example; tags include multimodal and vision; repo ships mmproj-Qwythos-9B-Claude-Mythos-5-1M-F16.gguf.",
-        "visionCaveat": "Vision tower frozen from the Qwen3.5-9B base; the SFT was text-only and image reasoning has not been independently evaluated.",
-        "recommendedContextLength": 8192,
-        "maxContextLength": 1048576,
-        "contextNote": "YaRN rope-scaling baked in for a 1,048,576-token window. 8192 recommended on-device.",
-        "wifiOnly": False,
-        "highRam": False,
-        "fitsTargetDevice": True,
-        "ramRequirementGb": 7.0,
-        "warning": "Avoid greedy decoding and temperatures at or below 0.3 with this model - the model card documents repetition loops under low-temperature sampling.",
-        "recommendedQuant": "Q4_K_M",
-        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20, "repeatPenalty": 1.05},
-        "notes": "Reported +34 pts MMLU / +30 pts gsm8k-strict over base Qwen3.5-9B. Native function calling. Repo ships SHA256SUMS and TEST_REPORT.md.",
-    })
-
-    models.append({
-        "id": "qwen3.5-9b-opus-4.6-distill",
-        "displayName": "Qwen3.5-9B-Claude-Opus-4.6-Distill",
-        "family": "Empero AI",
-        "parameterCount": "9B",
-        "sizeClass": "9B",
-        "blurb": "Text-only reasoning distil of Qwen3.5-9B trained on Claude Opus 4.6 reasoning traces.",
-        "hfModelId": "empero-ai/Qwen3.5-9B-Claude-Opus-4.6-Distill-GGUF",
-        "hfModelSha": None,
-        "hfModelLastModified": None,
-        "hfModelHasGguf": True,
-        "hfModelFileNote": None,
-        "visionSupported": False,
-        "visionEvidence": None,
-        "visionAbsenceNote": "Confirmed text-only. No mmproj-*.gguf exists in the repository, the card carries no vision or multimodal tag, and it makes no vision claim. OCR mode must refuse this model.",
-        "recommendedContextLength": 4096,
-        "maxContextLength": 4096,
-        "contextNote": "SFT max sequence length was 4096. Do not raise this expecting better results.",
-        "wifiOnly": False,
-        "highRam": False,
-        "fitsTargetDevice": True,
-        "ramRequirementGb": 5.8,
-        "warning": None,
-        "recommendedQuant": "Q4_K_M",
-        "samplingDefaults": {"temperature": 0.7, "topP": 0.95, "topK": 20},
-        "notes": "Emits reasoning inside <think>...</think> tags. The repo README documents lowercase filenames that do not match the real files; the filenames here are the actual repository paths.",
-    })
 
     models.append({
         "id": "phi-4-mini-3.8b",
@@ -460,7 +358,7 @@ def build():
         "family": "Microsoft Phi",
         "parameterCount": "3.8B",
         "sizeClass": "3.8B",
-        "blurb": "Compact 3.8B instruction model with a 128K window. The lightest entry in the catalogue - even its largest quant loads comfortably on an 8 GB device.",
+        "blurb": "Compact 3.8B instruction model with a 128K window. The lightest text-only entry in the catalogue - even its largest quant loads comfortably on an 8 GB device.",
         "hfModelId": "microsoft/Phi-4-mini-instruct",
         "hfModelSha": "cfbefacb99257ffa30c83adab238a50856ac3083",
         "hfModelLastModified": "2025-12-10T20:24:40.000Z",
@@ -482,6 +380,186 @@ def build():
         "notes": "The upstream card samples greedily in its own examples (do_sample=False, temperature 0.0) and neither it nor generation_config.json documents a sampler, so the values here are this app's house defaults - chosen so answers do not degenerate into repetition, and adjustable in Settings. Every one of the 23 published quants fits this device. The card cautions that a 3.8B model cannot hold much factual knowledge and suggests retrieval augmentation for fact-heavy questions.",
     })
 
+    # The four entries below were added for a device with 4-5 GB free at load
+    # time rather than the 9 GB the targetDevice block assumes. Their
+    # ramRequirementGb is the recommended quant's weights plus KV cache and
+    # compute buffers at 8192 context, and EXCLUDES the projector: the load
+    # preflight adds mmproj.sizeBytes itself when vision is in use. Qwen3.5 is a
+    # hybrid model with attention on one layer in four, so its KV cache is a
+    # fraction of a dense model's; 0.5-0.6 GB is a deliberately rounded-up figure.
+
+    models.append({
+        "id": "qwythos-9b-v2-compact",
+        "displayName": "Qwythos-9B-v2 (compact quants)",
+        "family": "Empero AI",
+        "parameterCount": "9B",
+        "sizeClass": "9B",
+        "blurb": "The same Qwythos-9B-v2 weights in 2-4 bit quants that empero does not publish, for phones with less free RAM.",
+        "hfModelId": "empero-ai/Qwythos-9B-v2",
+        "hfModelSha": None,
+        "hfModelLastModified": None,
+        "hfModelHasGguf": True,
+        "hfModelFileNote": "empero's own GGUF repo stops at Q4_K_M (5.74 GB). These quants are bartowski's imatrix conversion of the same model. bartowski's files run larger than empero's at the same label (Q4_K_M is 6.05 GB here), so only the quants smaller than empero's smallest are listed.",
+        "visionSupported": True,
+        "visionEvidence": "Same weights as qwythos-9b-v2, whose card has a dedicated 'Vision (image input)' section. bartowski's repo ships no projector, so empero's mmproj-Qwythos-9B-v2-BF16.gguf is used, downloaded from empero's repo.",
+        "visionCaveat": "The projector comes from a different repository than the weights. It matches the same model, but this pairing has not been tested on-device, and very low-bit quants degrade image reasoning further. Training was text-only; the vision tower was never fine-tuned.",
+        "recommendedContextLength": 8192,
+        "maxContextLength": 1048576,
+        "contextNote": "Same YaRN 1M window as qwythos-9b-v2. Lower the in-app value to save KV-cache memory.",
+        "wifiOnly": False,
+        "highRam": False,
+        "fitsTargetDevice": True,
+        "ramRequirementGb": 5.0,
+        "warning": None,
+        "recommendedQuant": "IQ3_XXS",
+        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20, "repeatPenalty": 1.05},
+        "notes": "At 2-3 bits a 9B model loses noticeable quality; the 4B entries are often the better trade on a tight budget. The update checker polls bartowski's repo only, so a change to empero's projector is not detected.",
+    })
+
+    models.append({
+        "id": "qwen3.5-4b",
+        "displayName": "Qwen3.5-4B",
+        "family": "Qwen",
+        "parameterCount": "4B",
+        "sizeClass": "4B",
+        "blurb": "Official 4B Qwen3.5 with image input. The same architecture as Qwythos at under half the RAM.",
+        "hfModelId": "Qwen/Qwen3.5-4B",
+        "hfModelSha": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+        "hfModelLastModified": "2026-03-02T00:52:52.000Z",
+        "hfModelHasGguf": False,
+        "hfModelFileNote": "The official repo ships safetensors only. The GGUF listed here is unsloth's conversion, which includes Unsloth Dynamic (UD-) quants and the vision projector.",
+        "visionSupported": True,
+        "visionEvidence": "pipeline_tag=image-text-to-text on both Qwen/Qwen3.5-4B and the GGUF repo; GGUF repo ships mmproj-BF16.gguf.",
+        "recommendedContextLength": 8192,
+        "maxContextLength": 262144,
+        "contextNote": "262,144 natively. 8192 recommended on-device.",
+        "wifiOnly": False,
+        "highRam": False,
+        "fitsTargetDevice": True,
+        "ramRequirementGb": 3.3,
+        "warning": None,
+        "recommendedQuant": "Q4_K_M",
+        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20},
+        "notes": "Thinks inside <think>...</think> by default. Sampling is the card's 'precise' thinking preset; the card's general preset (temperature 1.0, presence_penalty 1.5) needs a presence penalty this engine does not expose.",
+    })
+
+    models.append({
+        "id": "qwen3.5-4b-opus-4.6-distill",
+        "displayName": "Qwen3.5-4B-Claude-Opus-4.6-Distill",
+        "family": "Jackrong",
+        "parameterCount": "4B",
+        "sizeClass": "4B",
+        "blurb": "Text-only reasoning distil of Qwen3.5-4B on Claude Opus 4.6 traces. The closest small sibling to Qwythos.",
+        "hfModelId": "Jackrong/Qwen3.5-4B-Claude-4.6-Opus-Reasoning-Distilled-GGUF",
+        "hfModelSha": None,
+        "hfModelLastModified": None,
+        "hfModelHasGguf": True,
+        "hfModelFileNote": "File names start with plain 'Qwen3.5-4B.' rather than the distil's name; they are the real repository paths.",
+        "visionSupported": False,
+        "visionEvidence": None,
+        "visionAbsenceNote": "Treated as text-only. The repo does ship mmproj-BF16.gguf, but pipeline_tag is text-generation, there is no vision tag, and the card makes no vision claim, so the projector is neither listed nor downloaded. OCR mode must refuse this model.",
+        "recommendedContextLength": 8192,
+        "maxContextLength": 16384,
+        "contextNote": "The card states fine-tuning used a 16,384-token window.",
+        "wifiOnly": False,
+        "highRam": False,
+        "fitsTargetDevice": True,
+        "ramRequirementGb": 3.3,
+        "warning": None,
+        "recommendedQuant": "Q4_K_M",
+        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20},
+        "notes": "Emits reasoning inside <think>...</think> tags. The card reports evaluation at temperature 0 and documents no sampler, so these are the app's Qwen3.5 defaults.",
+    })
+
+    models.append({
+        "id": "qwen3.5-2b",
+        "displayName": "Qwen3.5-2B",
+        "family": "Qwen",
+        "parameterCount": "2B",
+        "sizeClass": "2B",
+        "blurb": "Official 2B Qwen3.5 with image input. The lightest vision model here; loads with room to spare.",
+        "hfModelId": "Qwen/Qwen3.5-2B",
+        "hfModelSha": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+        "hfModelLastModified": "2026-03-02T11:26:29.000Z",
+        "hfModelHasGguf": False,
+        "hfModelFileNote": "The official repo ships safetensors only. The GGUF listed here is unsloth's conversion, which includes the vision projector.",
+        "visionSupported": True,
+        "visionEvidence": "pipeline_tag=image-text-to-text on both Qwen/Qwen3.5-2B and the GGUF repo; GGUF repo ships mmproj-BF16.gguf.",
+        "recommendedContextLength": 8192,
+        "maxContextLength": 262144,
+        "contextNote": "262,144 natively. 8192 recommended on-device.",
+        "wifiOnly": False,
+        "highRam": False,
+        "fitsTargetDevice": True,
+        "ramRequirementGb": 1.8,
+        "warning": None,
+        "recommendedQuant": "Q4_K_M",
+        "samplingDefaults": {"temperature": 0.6, "topP": 0.95, "topK": 20},
+        "notes": "A 2B model holds little factual knowledge; best for OCR, short explanations and quick questions. The projector (0.67 GB) is about half the size of the recommended weights.",
+    })
+
+    # Gemma 4 E-models keep a per-layer embedding (PLE) table in the file: 1.60 GB
+    # of E4B's 4.22 GB and 1.33 GB of E2B's 2.62 GB, summed from the GGUF tensor
+    # table. llama.cpp memory-maps it and reads one row per token, so most of it
+    # never becomes resident. ramRequirementGb still counts the whole file: the
+    # preflight compares against MemAvailable, and over-asking is recoverable
+    # where a native OOM is not. Gemma 4's sliding-window layers keep the KV cache
+    # small; 0.5-0.6 GB covers it plus compute buffers at 8192 context.
+
+    models.append({
+        "id": "gemma-4-e4b",
+        "displayName": "Gemma 4 E4B",
+        "family": "Google Gemma",
+        "parameterCount": "E4B",
+        "sizeClass": "4B",
+        "blurb": "Google's on-device Gemma 4 with image input. Quantisation-aware trained, so the 4-bit file stays close to full quality.",
+        "hfModelId": "google/gemma-4-E4B-it",
+        "hfModelSha": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+        "hfModelLastModified": "2026-07-20T16:42:03.000Z",
+        "hfModelHasGguf": False,
+        "hfModelFileNote": "The instruction-tuned repo ships safetensors. Google also publishes a single-file QAT Q4_0 GGUF (5.15 GB); unsloth's QAT build listed here is smaller (UD-Q4_K_XL, 4.22 GB) from the same QAT checkpoint.",
+        "visionSupported": True,
+        "visionEvidence": "Google's card lists Text, Image and Audio input for E4B; the GGUF repo ships mmproj-BF16.gguf whose header declares clip.projector_type=gemma4v with a vision encoder.",
+        "recommendedContextLength": 8192,
+        "maxContextLength": 131072,
+        "contextNote": "128K natively (gemma4.context_length=131072 in the GGUF). 8192 recommended on-device.",
+        "wifiOnly": False,
+        "highRam": False,
+        "fitsTargetDevice": True,
+        "ramRequirementGb": 4.8,
+        "warning": None,
+        "recommendedQuant": "UD-Q4_K_XL",
+        "samplingDefaults": {"temperature": 1.0, "topP": 0.95, "topK": 64},
+        "notes": "Sampling is the card's standard configuration for all use cases. 'E4B' means about 4B effective parameters; the file is larger because of the per-layer embedding table, most of which stays on storage. The projector also includes an audio encoder the app does not use.",
+    })
+
+    models.append({
+        "id": "gemma-4-e2b",
+        "displayName": "Gemma 4 E2B",
+        "family": "Google Gemma",
+        "parameterCount": "E2B",
+        "sizeClass": "2B",
+        "blurb": "The smallest Gemma 4, with image input. Quantisation-aware trained; fits comfortably with room to spare.",
+        "hfModelId": "google/gemma-4-E2B-it",
+        "hfModelSha": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+        "hfModelLastModified": "2026-07-20T16:41:56.000Z",
+        "hfModelHasGguf": False,
+        "hfModelFileNote": "The instruction-tuned repo ships safetensors. Google also publishes a single-file QAT Q4_0 GGUF (3.35 GB); unsloth's QAT build listed here is smaller (UD-Q4_K_XL, 2.62 GB) from the same QAT checkpoint.",
+        "visionSupported": True,
+        "visionEvidence": "Google's card lists Text, Image and Audio input for E2B; the GGUF repo ships mmproj-BF16.gguf whose header declares clip.projector_type=gemma4v with a vision encoder.",
+        "recommendedContextLength": 8192,
+        "maxContextLength": 131072,
+        "contextNote": "128K natively (gemma4.context_length=131072 in the GGUF). 8192 recommended on-device.",
+        "wifiOnly": False,
+        "highRam": False,
+        "fitsTargetDevice": True,
+        "ramRequirementGb": 3.1,
+        "warning": None,
+        "recommendedQuant": "UD-Q4_K_XL",
+        "samplingDefaults": {"temperature": 1.0, "topP": 0.95, "topK": 64},
+        "notes": "Sampling is the card's standard configuration for all use cases. The projector (0.99 GB) is large next to the weights; text-only chats do not load it.",
+    })
+
     for m in models:
         mid = m["id"]
         meta = REPOS[mid]
@@ -494,7 +572,7 @@ def build():
 
         quants = []
         for fname, label, size, note, fits in QUANTS[mid]:
-            sha = SHA256.get(fname)
+            sha = sha_for(mid, fname)
             if sha is None:
                 raise SystemExit(f"no SHA-256 recorded for {fname}")
             quants.append({
@@ -510,13 +588,17 @@ def build():
         m["quants"] = quants
 
         if mid in MMPROJ:
-            fname, size = MMPROJ[mid]
+            fname, size, *source = MMPROJ[mid]
+            mmproj_repo = source[0] if source else repo
+            sha = sha_for(mid, fname)
+            if sha is None:
+                raise SystemExit(f"no SHA-256 recorded for {fname}")
             m["mmproj"] = {
                 "fileName": fname,
                 "sizeBytes": size,
                 "sizeGb": round(size / 1e9, 2),
-                "sha256": SHA256[fname],
-                "downloadUrl": RESOLVE.format(repo=repo, fname=fname),
+                "sha256": sha,
+                "downloadUrl": RESOLVE.format(repo=mmproj_repo, fname=fname),
             }
         else:
             m["mmproj"] = None
@@ -546,7 +628,8 @@ def build():
             "Every sizeBytes value is an exact byte count from the HuggingFace file tree API, not an estimate.",
             "Version baselines (ggufRepoSha / ggufRepoLastModified) drive the auto-update checker.",
             "visionSupported is true only where the model card confirms it. Nothing here is assumed.",
-            "The Qwen3.8-27B entry is intentionally marked fitsTargetDevice=false; see its warning field.",
+            "Every model targets a phone with 4-5 GB free at load time. ramRequirementGb excludes the projector; the load preflight adds it when vision is used.",
+            "2026-10-03: the 27B, MiMo 9B and the three empero 9B Q4+ entries were removed as too large for that budget; Gemma 4 E4B/E2B were added.",
         ],
         "targetDevice": {
             "name": "Samsung Galaxy S25",

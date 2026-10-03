@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { modelById, recommendedQuantOf } from '@/core/catalogue';
+import { modelById, ramRequirementGbFor, recommendedQuantOf } from '@/core/catalogue';
 import { AppConstants } from '@/core/constants';
 import * as db from '@/core/db/database';
 import { onChange } from '@/core/db/events';
@@ -325,7 +325,7 @@ export async function ensureModelLoaded(conversationId: number | null): Promise<
     const resident = modelById(engine.getStatus().modelId);
     const releasing = resident ? Math.round(resident.ramRequirementGb * 1e9) : 0;
     const required = peakRequirementBytes({
-      requirementGb: model.ramRequirementGb,
+      requirementGb: ramRequirementGbFor(model, quant),
       contextLength,
       recommendedContextLength: model.recommendedContextLength,
       extraBytes: includeVision ? model.mmproj?.sizeBytes ?? 0 : 0,
